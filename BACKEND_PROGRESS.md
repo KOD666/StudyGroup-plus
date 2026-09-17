@@ -5,7 +5,7 @@
 - [x] 0. Gate 0 decisions (ask me — see Question Gates)
 - [x] 1. Target folder structure (`app/`, `lib/`, `models/`, `agent/`, `infra/`), `.env.example`, TypeScript strict, ESLint/Prettier, Vitest
 - [x] 2. Database connection & models: User, Group, Membership, Asset (+ indexes)
-- [ ] 3. `lib/permissions.ts` — `canAccessAsset(userId, assetId)` and group-role checks, server-side only
+- [x] 3. `lib/permissions.ts` — `canAccessAsset(userId, assetId)` and group-role checks, server-side only
 - [ ] 4. Clerk wired into Next.js middleware + server-side session reads; remove v1 bcrypt/localStorage auth path
 - [ ] 5. `app/api/groups/` — create/list/get group, add/remove member
 - [ ] 6. `app/api/groups/[groupId]/access` — creator-only PATCH toggling a member's `assetAccess` for a given asset
@@ -53,3 +53,4 @@ _(New questions discovered during implementation will be recorded here.)_
   - Retention/TTL: Keep forever (no TTL).
   - Deletes: Soft delete (`deleted_at`) for groups and assets; hard delete for membership leave/removal.
   - Unique constraints: `(user_id, group_id)` on memberships, `clerk_id` on users, `code` on groups.
+- **2026-09-17 (Item 2 & 3)**: Implemented Drizzle models (`users`, `groups`, `memberships`, `assets`), lazy DB connection in `lib/db.ts`, and server-side permission checks in `lib/permissions.ts` (`canAccessAsset`, `canManageAssetAccess`, `isGroupCreator`, `isGroupMember`). Comprehensive unit tests passing.
