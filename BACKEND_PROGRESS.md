@@ -4,7 +4,7 @@
 
 - [x] 0. Gate 0 decisions (ask me — see Question Gates)
 - [x] 1. Target folder structure (`app/`, `lib/`, `models/`, `agent/`, `infra/`), `.env.example`, TypeScript strict, ESLint/Prettier, Vitest
-- [ ] 2. Database connection & models: User, Group, Membership, Asset (+ indexes)
+- [x] 2. Database connection & models: User, Group, Membership, Asset (+ indexes)
 - [ ] 3. `lib/permissions.ts` — `canAccessAsset(userId, assetId)` and group-role checks, server-side only
 - [ ] 4. Clerk wired into Next.js middleware + server-side session reads; remove v1 bcrypt/localStorage auth path
 - [ ] 5. `app/api/groups/` — create/list/get group, add/remove member
@@ -46,3 +46,10 @@ _(New questions discovered during implementation will be recorded here.)_
 - **2026-09-17 (Gate 0.4)**: Discard v1 bcrypt credentials; start clean with Clerk auth.
 - **2026-09-17 (Gate 0.5)**: Drop v1 group/notes/messages data; start fresh with normalized relational schemas.
 - **2026-09-17 (Item 1)**: Stack setup complete with Next.js 15.3.4, React 19, TypeScript strict mode, Tailwind CSS v4, Prettier, ESLint 9, and Vitest 3. Dependencies added: `drizzle-orm`, `@neondatabase/serverless`, `drizzle-kit` (per Neon Postgres decision).
+- **2026-09-17 (Gate DB)**:
+  - Chat messages: Buffered in-call, saved to Cloudflare R2 as a single text/json blob on session end; DB stores session metadata & transcript pointer.
+  - Membership: Dedicated `memberships` table with FKs to `users` and `groups`.
+  - Default `assetAccess`: Creator-only (or creator + uploader) until explicitly delegated to members.
+  - Retention/TTL: Keep forever (no TTL).
+  - Deletes: Soft delete (`deleted_at`) for groups and assets; hard delete for membership leave/removal.
+  - Unique constraints: `(user_id, group_id)` on memberships, `clerk_id` on users, `code` on groups.
