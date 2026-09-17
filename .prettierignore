@@ -1,0 +1,7 @@
+node_modules
+.next
+study-group-plus
+build
+dist
+coverage
+Idea.md
