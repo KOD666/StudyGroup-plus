@@ -7,7 +7,7 @@
 - [x] 2. Database connection & models: User, Group, Membership, Asset (+ indexes)
 - [x] 3. `lib/permissions.ts` — `canAccessAsset(userId, assetId)` and group-role checks, server-side only
 - [x] 4. Clerk wired into Next.js middleware + server-side session reads; remove v1 bcrypt/localStorage auth path
-- [ ] 5. `app/api/groups/` — create/list/get group, add/remove member
+- [x] 5. `app/api/groups/` — create/list/get group, add/remove member
 - [ ] 6. `app/api/groups/[groupId]/access` — creator-only PATCH toggling a member's `assetAccess` for a given asset
 - [ ] 7. `lib/r2.ts` + `app/api/assets/upload-url` — server-side file-type and size validation before issuing a presigned R2 upload URL
 - [ ] 8. `app/api/assets/` — asset metadata CRUD + permission-gated fetch/download; unguessable object keys
@@ -55,3 +55,4 @@ _(New questions discovered during implementation will be recorded here.)_
   - Unique constraints: `(user_id, group_id)` on memberships, `clerk_id` on users, `code` on groups.
 - **2026-09-17 (Item 2 & 3)**: Implemented Drizzle models (`users`, `groups`, `memberships`, `assets`), lazy DB connection in `lib/db.ts`, and server-side permission checks in `lib/permissions.ts`. Comprehensive unit tests passing.
 - **2026-09-17 (Item 4)**: Integrated Clerk auth via `@clerk/nextjs` middleware, `lib/auth.ts` server-side `requireAuth` helper with auto user sync, and sign-in/sign-up route stubs. V1 bcrypt auth path removed.
+- **2026-09-17 (Item 5)**: Implemented `/api/groups` (create, list), `/api/groups/join` (join with 6-char code), `/api/groups/[groupId]` (details, soft delete), and `/api/groups/[groupId]/members/[memberUserId]` (remove member/leave). Integration tests passing.
