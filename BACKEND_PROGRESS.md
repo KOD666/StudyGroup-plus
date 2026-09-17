@@ -34,7 +34,7 @@
 
 ## Open questions
 
-*(New questions discovered during implementation will be recorded here.)*
+_(New questions discovered during implementation will be recorded here.)_
 
 ---
 
