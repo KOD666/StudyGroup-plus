@@ -9,7 +9,7 @@
 - [x] 4. Clerk wired into Next.js middleware + server-side session reads; remove v1 bcrypt/localStorage auth path
 - [x] 5. `app/api/groups/` — create/list/get group, add/remove member
 - [x] 6. `app/api/groups/[groupId]/access` — creator-only PATCH toggling a member's `assetAccess` for a given asset
-- [ ] 7. `lib/r2.ts` + `app/api/assets/upload-url` — server-side file-type and size validation before issuing a presigned R2 upload URL
+- [x] 7. `lib/r2.ts` + `app/api/assets/upload-url` — server-side file-type and size validation before issuing a presigned R2 upload URL
 - [ ] 8. `app/api/assets/` — asset metadata CRUD + permission-gated fetch/download; unguessable object keys
 - [ ] 9. `app/api/livekit/token` — join-token issuance scoped to the caller's group membership
 - [ ] 10. Session records: model + endpoints for a meeting session, its saved chat log, and its transcript pointer
@@ -53,7 +53,8 @@ _(New questions discovered during implementation will be recorded here.)_
   - Retention/TTL: Keep forever (no TTL).
   - Deletes: Soft delete (`deleted_at`) for groups and assets; hard delete for membership leave/removal.
   - Unique constraints: `(user_id, group_id)` on memberships, `clerk_id` on users, `code` on groups.
-- **2026-09-17 (Item 2 & 3)**: Implemented Drizzle models (`users`, `groups`, `memberships`, `assets`), lazy DB connection in `lib/db.ts`, and server-side permission checks in `lib/permissions.ts`. Comprehensive unit tests passing.
+- **2026-09-17 (Item 2 & 3)**: Implemented Drizzle models (`users`, `groups`, `memberships`, `assets`), lazy DB connection in `lib/db.ts`, and server-side permission checks in `lib/permissions.ts` (`canAccessAsset`, `canManageAssetAccess`, `isGroupCreator`, `isGroupMember`). Comprehensive unit tests passing.
 - **2026-09-17 (Item 4)**: Integrated Clerk auth via `@clerk/nextjs` middleware, `lib/auth.ts` server-side `requireAuth` helper with auto user sync, and sign-in/sign-up route stubs. V1 bcrypt auth path removed.
 - **2026-09-17 (Item 5)**: Implemented `/api/groups` (create, list), `/api/groups/join` (join with 6-char code), `/api/groups/[groupId]` (details, soft delete), and `/api/groups/[groupId]/members/[memberUserId]` (remove member/leave). Integration tests passing.
 - **2026-09-17 (Item 6)**: Implemented `/api/groups/[groupId]/access` for creator-only granular `assetAccess` delegation (grant, revoke, toggle). Integration tests passing.
+- **2026-09-17 (Item 7)**: Implemented `lib/r2.ts` (S3 client, presigned URL generators, unguessable random keys) and `/api/assets/upload-url` (strict server-side validation: <= 5MB, `.pdf`/`.md`/`.pptx` only, group membership required). Integration tests passing.
