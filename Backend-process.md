@@ -14,7 +14,7 @@ This document captures the design rationale, architecture decisions (ADRs), modu
 | **Access Control**      | Binary: all group members see all uploaded notes                   | Fine-grained, creator-delegated `assetAccess: text[]` on memberships          | **Implemented** (Items 3 & 6) |
 | **Storage Engine**      | Embedded text / arbitrary links in MongoDB                         | Cloudflare R2 presigned PUT/GET URLs, server-side validated (≤ 5MB)           | **Implemented** (Item 7)      |
 | **Group Operations**    | Basic create/join with simple queries                              | RESTful `/api/groups`, `/join` with collision-safe codes, member leave/remove | **Implemented** (Item 5)      |
-| **Asset Management**    | Basic file link in Mongo                                           | Unguessable UUID keys, permission-gated fetch/download                        | _In Progress_ (Item 8)        |
+| **Asset Management**    | Basic file link in Mongo                                           | Unguessable UUID keys, permission-gated fetch/download                        | **Implemented** (Item 8)      |
 | **Meetings & Realtime** | Inactive `socket.io-client` with no socket server                  | Self-hosted LiveKit SFU + coturn; in-call chat via LiveKit data channels      | _Pending_ (Item 9)            |
 | **Transcription & AI**  | None                                                               | LiveKit Agents bot worker + WhisperLiveKit + LLM session summary              | _Pending_ (Items 10 & 11)     |
 
@@ -138,7 +138,7 @@ This document captures the design rationale, architecture decisions (ADRs), modu
 
 All verification gates are consistently verified across iterations:
 
-- **Test Suites**: 6 test files, **35 unit & integration tests passing** (`npm run test`).
+- **Test Suites**: 7 test files, **49 unit & integration tests passing** (`npm run test`).
 - **Type Checking**: Strict mode passing with zero errors (`npm run typecheck`).
 - **Linter**: Zero warnings, zero errors (`npm run lint`).
 - **Formatter**: Code style strictly formatted (`npx prettier --check .`).
@@ -148,18 +148,14 @@ All verification gates are consistently verified across iterations:
 
 ## 5. Next Planned Backlog Increments
 
-1. **Item 8 (`app/api/assets/`)**:
-   - `POST /api/assets`: Register newly uploaded asset metadata (title, r2Key, fileType, sizeBytes, mimeType).
-   - `GET /api/assets/[assetId]`: Fetch asset metadata, strictly gated by `canAccessAsset(userId, assetId)` (returns 403 on failure).
-   - `GET /api/assets/[assetId]/download`: Generate presigned R2 GET download URL, strictly gated by `canAccessAsset(userId, assetId)` (returns 403 on failure).
-   - `DELETE /api/assets/[assetId]`: Soft-delete asset (creator or uploader only).
-2. **Gate Infra & Item 9 (`app/api/livekit/token`)**:
+1. **Gate Infra & Item 9 (`app/api/livekit/token`)**:
    - Issue LiveKit room join tokens scoped to group membership and caller identity.
-3. **Item 10 (Session records)**:
+   - Verify infra setup (`infra/docker-compose.yml`) for local LiveKit server and coturn.
+2. **Item 10 (Session records)**:
    - Save meeting sessions, chat logs, and transcript references to R2 and PostgreSQL.
-4. **Item 11 (`agent/`)**:
+3. **Item 11 (`agent/`)**:
    - Standalone LiveKit worker subscribed to room audio with WhisperLiveKit and LLM summary generation.
-5. **Item 12 (Hardening pass)**:
+4. **Item 12 (Hardening pass)**:
    - Rate limiting, uniform error responses, integration tests for all routes, and GitHub Actions CI workflow.
 
 ---
@@ -170,23 +166,20 @@ All verification gates are consistently verified across iterations:
 Continue implementing the StudyGroup+ v2 backend according to the backlog and loop protocol in BACKEND_PROGRESS.md and Backend-process.md.
 
 Current progress:
-- Items 0 through 7 are complete, verified, and committed.
-- All 35 Vitest tests, typecheck, lint, and next build are passing.
+- Items 0 through 8 are complete, verified, and committed.
+- All 49 Vitest tests, typecheck, lint, and next build are passing.
 - Database: Neon PostgreSQL with Drizzle ORM (lib/db.ts, models/).
 - Auth: Clerk middleware & server-side requireAuth (lib/auth.ts).
 - Permissions: lib/permissions.ts (canAccessAsset, isGroupCreator, isGroupMember).
-- R2 Storage: lib/r2.ts and POST /api/assets/upload-url.
+- R2 Storage & Assets CRUD: lib/r2.ts, POST /api/assets/upload-url, /api/assets (CRUD, download URL).
 
 Next task to implement:
-Item 8: app/api/assets/ — asset metadata CRUD + permission-gated fetch/download; unguessable object keys.
+Gate Infra & Item 9: app/api/livekit/token — join-token issuance scoped to the caller's group membership.
 
 Follow the loop protocol:
-1. Implement Item 8 only:
-   - POST /api/assets: Create asset metadata record in assets table.
-   - GET /api/assets/[assetId]: Fetch asset details, guarded by canAccessAsset(userId, assetId) (return 403 if unauthorized).
-   - GET /api/assets/[assetId]/download: Return presigned R2 download URL, guarded by canAccessAsset(userId, assetId) (return 403 if unauthorized).
-   - DELETE /api/assets/[assetId]: Soft delete asset (uploader or group creator only).
-2. Write integration tests in tests/assets-api.test.ts covering success and permission-failure (401, 403, 404) paths.
+1. Verify Gate Infra requirements and implement Item 9 only:
+   - POST /api/livekit/token: Validate caller's group membership, issue LiveKit AccessToken with room grants (room: groupId, identity: userId, name: userName).
+2. Write integration tests in tests/livekit-api.test.ts covering success and permission-failure (401, 403, 404) paths.
 3. Verify: npm run test, npm run typecheck, npm run lint, npm run format, and npm run build.
-4. Update BACKEND_PROGRESS.md and report progress in <= 5 lines before continuing to Item 9 (noting Gate Infra before Item 9).
+4. Update BACKEND_PROGRESS.md and report progress in <= 5 lines before continuing to Item 10.
 ```

@@ -10,7 +10,7 @@
 - [x] 5. `app/api/groups/` — create/list/get group, add/remove member
 - [x] 6. `app/api/groups/[groupId]/access` — creator-only PATCH toggling a member's `assetAccess` for a given asset
 - [x] 7. `lib/r2.ts` + `app/api/assets/upload-url` — server-side file-type and size validation before issuing a presigned R2 upload URL
-- [ ] 8. `app/api/assets/` — asset metadata CRUD + permission-gated fetch/download; unguessable object keys
+- [x] 8. `app/api/assets/` — asset metadata CRUD + permission-gated fetch/download; unguessable object keys
 - [ ] 9. `app/api/livekit/token` — join-token issuance scoped to the caller's group membership
 - [ ] 10. Session records: model + endpoints for a meeting session, its saved chat log, and its transcript pointer
 - [ ] 11. `agent/` — LiveKit Agents worker skeleton: joins room as bot, subscribes to audio, chat-idle trigger, WhisperLiveKit streaming, end-of-session save + LLM summary, exactly-once on last participant leaving
@@ -58,3 +58,4 @@ _(New questions discovered during implementation will be recorded here.)_
 - **2026-09-17 (Item 5)**: Implemented `/api/groups` (create, list), `/api/groups/join` (join with 6-char code), `/api/groups/[groupId]` (details, soft delete), and `/api/groups/[groupId]/members/[memberUserId]` (remove member/leave). Integration tests passing.
 - **2026-09-17 (Item 6)**: Implemented `/api/groups/[groupId]/access` for creator-only granular `assetAccess` delegation (grant, revoke, toggle). Integration tests passing.
 - **2026-09-17 (Item 7)**: Implemented `lib/r2.ts` (S3 client, presigned URL generators, unguessable random keys) and `/api/assets/upload-url` (strict server-side validation: <= 5MB, `.pdf`/`.md`/`.pptx` only, group membership required). Integration tests passing.
+- **2026-09-18 (Item 8)**: Implemented `/api/assets` (create, list with access flags), `/api/assets/[assetId]` (permission-gated details, uploader/creator soft-delete), and `/api/assets/[assetId]/download` (presigned R2 download URL strictly gated by `canAccessAsset`). Integration tests passing (49 total tests).
