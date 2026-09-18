@@ -12,19 +12,28 @@ let _r2Client: S3Client | null = null;
 export function getR2Client(): S3Client {
   if (_r2Client) return _r2Client;
 
-  const accountId = process.env.R2_ACCOUNT_ID;
-  const accessKeyId = process.env.R2_ACCESS_KEY_ID;
-  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+  const endpoint =
+    process.env.STORAGE_ENDPOINT ||
+    process.env.R2_ENDPOINT ||
+    (process.env.R2_ACCOUNT_ID
+      ? `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`
+      : undefined);
 
-  if (!accountId || !accessKeyId || !secretAccessKey) {
+  const accessKeyId =
+    process.env.R2_ACCESS_KEY_ID || process.env.STORAGE_ACCESS_KEY_ID;
+  const secretAccessKey =
+    process.env.R2_SECRET_ACCESS_KEY || process.env.STORAGE_SECRET_ACCESS_KEY;
+  const region = process.env.STORAGE_REGION || process.env.R2_REGION || "auto";
+
+  if (!endpoint || !accessKeyId || !secretAccessKey) {
     throw new Error(
-      "Cloudflare R2 environment variables (R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY) are not set"
+      "Object storage credentials (R2_ENDPOINT/STORAGE_ENDPOINT or R2_ACCOUNT_ID, plus access key and secret) are not set"
     );
   }
 
   _r2Client = new S3Client({
-    region: "auto",
-    endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+    region,
+    endpoint,
     credentials: {
       accessKeyId,
       secretAccessKey,
@@ -35,9 +44,11 @@ export function getR2Client(): S3Client {
 }
 
 export function getR2BucketName(): string {
-  const bucket = process.env.R2_BUCKET;
+  const bucket = process.env.R2_BUCKET || process.env.STORAGE_BUCKET;
   if (!bucket) {
-    throw new Error("R2_BUCKET environment variable is not set");
+    throw new Error(
+      "Storage bucket name (R2_BUCKET or STORAGE_BUCKET) is not set"
+    );
   }
   return bucket;
 }
