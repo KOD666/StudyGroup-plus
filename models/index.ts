@@ -3,11 +3,13 @@ import { users } from "./User";
 import { groups } from "./Group";
 import { memberships } from "./Membership";
 import { assets } from "./Asset";
+import { sessions } from "./Session";
 
 export * from "./User";
 export * from "./Group";
 export * from "./Membership";
 export * from "./Asset";
+export * from "./Session";
 
 export const usersRelations = relations(users, ({ many }) => ({
   memberships: many(memberships),
@@ -22,6 +24,7 @@ export const groupsRelations = relations(groups, ({ one, many }) => ({
   }),
   memberships: many(memberships),
   assets: many(assets),
+  sessions: many(sessions),
 }));
 
 export const membershipsRelations = relations(memberships, ({ one }) => ({
@@ -35,7 +38,7 @@ export const membershipsRelations = relations(memberships, ({ one }) => ({
   }),
 }));
 
-export const assetsRelations = relations(assets, ({ one }) => ({
+export const assetsRelations = relations(assets, ({ one, many }) => ({
   group: one(groups, {
     fields: [assets.groupId],
     references: [groups.id],
@@ -43,5 +46,17 @@ export const assetsRelations = relations(assets, ({ one }) => ({
   uploader: one(users, {
     fields: [assets.uploaderId],
     references: [users.id],
+  }),
+  sessions: many(sessions),
+}));
+
+export const sessionsRelations = relations(sessions, ({ one }) => ({
+  group: one(groups, {
+    fields: [sessions.groupId],
+    references: [groups.id],
+  }),
+  asset: one(assets, {
+    fields: [sessions.assetId],
+    references: [assets.id],
   }),
 }));
