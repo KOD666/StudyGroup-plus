@@ -152,6 +152,7 @@ All verification gates are consistently verified across iterations:
 ## 5. Backend Backlog Status: Complete (100%)
 
 All 12 items on the StudyGroup+ v2 backend backlog are fully implemented, verified, and committed:
+
 - **Item 0**: Gate 0 decisions (Neon Postgres, Clerk auth, fresh relational build).
 - **Item 1**: Project structure, configs, TypeScript strict, tooling setup.
 - **Item 2**: Database connection & models (`users`, `groups`, `memberships`, `assets`).
