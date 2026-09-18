@@ -13,7 +13,7 @@
 - [x] 8. `app/api/assets/` — asset metadata CRUD + permission-gated fetch/download; unguessable object keys
 - [x] 9. `app/api/livekit/token` — join-token issuance scoped to the caller's group membership
 - [x] 10. Session records: model + endpoints for a meeting session, its saved chat log, and its transcript pointer
-- [ ] 11. `agent/` — LiveKit Agents worker skeleton: joins room as bot, subscribes to audio, chat-idle trigger, WhisperLiveKit streaming, end-of-session save + LLM summary, exactly-once on last participant leaving
+- [x] 11. `agent/` — LiveKit Agents worker skeleton: joins room as bot, subscribes to audio, chat-idle trigger, WhisperLiveKit streaming, end-of-session save + LLM summary, exactly-once on last participant leaving
 - [ ] 12. Hardening pass: rate limiting on token + upload-url routes, consistent error responses, integration test per route, one CI workflow (lint + typecheck + test)
 
 ---
@@ -65,3 +65,4 @@ _(New questions discovered during implementation will be recorded here.)_
   - Chat-idle threshold: 60s.
 - **2026-09-18 (Item 9)**: Added `livekit-server-sdk`, implemented `lib/livekit.ts` (AccessToken generation with roomJoin, publisher, subscriber, and data channel permissions) and `/api/livekit/token` route guarded by `isGroupMember`. Integration tests passing (54 total tests).
 - **2026-09-18 (Item 10)**: Implemented `models/Session.ts` (`sessions` table with R2 pointers, summary, linked asset, and `idempotencyKey`), `/api/groups/[groupId]/sessions` (list, save session with R2 blob buffering for chat/transcripts and asset linking), and `/api/groups/[groupId]/sessions/[sessionId]` (details + presigned download URLs). Integration tests passing (64 total tests).
+- **2026-09-18 (Item 11)**: Implemented `agent/transcribe-worker.ts` (room session state, 60s chat-idle trigger, audio stream handling, exactly-once session finalization) and `agent/summarize.ts` (LLM session summarizer with graceful fallback). Unit & integration tests passing (73 total tests).

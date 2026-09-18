@@ -17,7 +17,7 @@ This document captures the design rationale, architecture decisions (ADRs), modu
 | **Asset Management**    | Basic file link in Mongo                                           | Unguessable UUID keys, permission-gated fetch/download                        | **Implemented** (Item 8)      |
 | **Meetings & Realtime** | Inactive `socket.io-client` with no socket server                  | Self-hosted LiveKit SFU + coturn; in-call chat via LiveKit data channels      | **Implemented** (Item 9)      |
 | **Session Records**     | Embedded chat array in Mongo                                       | PostgreSQL session metadata + R2 chat/transcript pointers + linked asset      | **Implemented** (Item 10)     |
-| **Transcription & AI**  | None                                                               | LiveKit Agents bot worker + WhisperLiveKit + LLM session summary              | _Pending_ (Item 11)           |
+| **Transcription & AI**  | None                                                               | LiveKit Agents bot worker + WhisperLiveKit + LLM session summary              | **Implemented** (Item 11)     |
 
 ---
 
@@ -139,7 +139,7 @@ This document captures the design rationale, architecture decisions (ADRs), modu
 
 All verification gates are consistently verified across iterations:
 
-- **Test Suites**: 9 test files, **64 unit & integration tests passing** (`npm run test`).
+- **Test Suites**: 10 test files, **73 unit & integration tests passing** (`npm run test`).
 - **Type Checking**: Strict mode passing with zero errors (`npm run typecheck`).
 - **Linter**: Zero warnings, zero errors (`npm run lint`).
 - **Formatter**: Code style strictly formatted (`npx prettier --check .`).
@@ -149,11 +149,10 @@ All verification gates are consistently verified across iterations:
 
 ## 5. Next Planned Backlog Increments
 
-1. **Item 11 (`agent/`)**:
-   - Standalone LiveKit worker subscribed to room audio with WhisperLiveKit and LLM summary generation.
-   - Idempotent on-leave session finalization with LLM summary call.
-2. **Item 12 (Hardening pass)**:
-   - Rate limiting, uniform error responses, integration tests for all routes, and GitHub Actions CI workflow.
+1. **Item 12 (Hardening pass)**:
+   - In-memory rate limiting helper for `/api/livekit/token` and `/api/assets/upload-url`.
+   - Uniform error response helpers.
+   - GitHub Actions CI workflow (`.github/workflows/ci.yml` running lint + typecheck + test).
 
 ---
 
@@ -163,23 +162,25 @@ All verification gates are consistently verified across iterations:
 Continue implementing the StudyGroup+ v2 backend according to the backlog and loop protocol in BACKEND_PROGRESS.md and Backend-process.md.
 
 Current progress:
-- Items 0 through 10 are complete, verified, and committed.
-- All 64 Vitest tests, typecheck, lint, and next build are passing.
+- Items 0 through 11 are complete, verified, and committed.
+- All 73 Vitest tests, typecheck, lint, and next build are passing.
 - Database: Neon PostgreSQL with Drizzle ORM (lib/db.ts, models/).
 - Auth: Clerk middleware & server-side requireAuth (lib/auth.ts).
 - Permissions: lib/permissions.ts (canAccessAsset, isGroupCreator, isGroupMember).
 - R2 Storage & Assets CRUD: lib/r2.ts, POST /api/assets/upload-url, /api/assets.
 - LiveKit & Infra: infra/docker-compose.yml, infra/livekit.yaml, infra/coturn.conf, lib/livekit.ts, POST /api/livekit/token.
-- Sessions: models/Session.ts, /api/groups/[groupId]/sessions (list, create, buffer R2, asset link), /api/groups/[groupId]/sessions/[sessionId].
+- Sessions: models/Session.ts, /api/groups/[groupId]/sessions, /api/groups/[groupId]/sessions/[sessionId].
+- Agent: agent/transcribe-worker.ts (chat idle trigger, audio stream handling, exactly-once finalization), agent/summarize.ts (LLM summary).
 
 Next task to implement:
-Item 11: agent/ — LiveKit Agents worker skeleton: joins room as bot, subscribes to audio, chat-idle trigger, WhisperLiveKit streaming, end-of-session save + LLM summary, exactly-once on last participant leaving.
+Item 12: Hardening pass: rate limiting on token + upload-url routes, consistent error responses, integration test per route, one CI workflow (lint + typecheck + test).
 
 Follow the loop protocol:
-1. Implement Item 11 only:
-   - Create agent/transcribe-worker.ts and agent/summarize.ts.
-   - Implement chat-idle detection logic, transcription pipeline interface, and idempotent session saving.
-2. Write unit/integration tests in tests/agent.test.ts covering chat idle trigger and summarize logic.
+1. Implement Item 12 only:
+   - Create lib/ratelimit.ts (in-memory rate limiter with window + max requests).
+   - Wire rate limiter into app/api/livekit/token/route.ts and app/api/assets/upload-url/route.ts.
+   - Create .github/workflows/ci.yml running lint, typecheck, and test.
+2. Write integration tests in tests/ratelimit.test.ts.
 3. Verify: npm run test, npm run typecheck, npm run lint, npm run format, and npm run build.
-4. Update BACKEND_PROGRESS.md and report progress in <= 5 lines before continuing to Item 12.
+4. Update BACKEND_PROGRESS.md and report completion of the entire backend backlog!
 ```
