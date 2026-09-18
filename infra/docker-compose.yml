@@ -1,0 +1,19 @@
+services:
+  livekit:
+    image: livekit/livekit-server:v1.8
+    container_name: studygroup-livekit
+    restart: unless-stopped
+    command: --config /etc/livekit.yaml
+    network_mode: "host"
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml:ro
+    environment:
+      - LIVEKIT_KEYS=devkey: secret
+
+  coturn:
+    image: coturn/coturn:4.6.2
+    container_name: studygroup-coturn
+    restart: unless-stopped
+    network_mode: "host"
+    volumes:
+      - ./coturn.conf:/etc/coturn/turnserver.conf:ro

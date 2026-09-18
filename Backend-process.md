@@ -15,7 +15,7 @@ This document captures the design rationale, architecture decisions (ADRs), modu
 | **Storage Engine**      | Embedded text / arbitrary links in MongoDB                         | Cloudflare R2 presigned PUT/GET URLs, server-side validated (≤ 5MB)           | **Implemented** (Item 7)      |
 | **Group Operations**    | Basic create/join with simple queries                              | RESTful `/api/groups`, `/join` with collision-safe codes, member leave/remove | **Implemented** (Item 5)      |
 | **Asset Management**    | Basic file link in Mongo                                           | Unguessable UUID keys, permission-gated fetch/download                        | **Implemented** (Item 8)      |
-| **Meetings & Realtime** | Inactive `socket.io-client` with no socket server                  | Self-hosted LiveKit SFU + coturn; in-call chat via LiveKit data channels      | _Pending_ (Item 9)            |
+| **Meetings & Realtime** | Inactive `socket.io-client` with no socket server                  | Self-hosted LiveKit SFU + coturn; in-call chat via LiveKit data channels      | **Implemented** (Item 9)      |
 | **Transcription & AI**  | None                                                               | LiveKit Agents bot worker + WhisperLiveKit + LLM session summary              | _Pending_ (Items 10 & 11)     |
 
 ---
@@ -138,7 +138,7 @@ This document captures the design rationale, architecture decisions (ADRs), modu
 
 All verification gates are consistently verified across iterations:
 
-- **Test Suites**: 7 test files, **49 unit & integration tests passing** (`npm run test`).
+- **Test Suites**: 8 test files, **54 unit & integration tests passing** (`npm run test`).
 - **Type Checking**: Strict mode passing with zero errors (`npm run typecheck`).
 - **Linter**: Zero warnings, zero errors (`npm run lint`).
 - **Formatter**: Code style strictly formatted (`npx prettier --check .`).
@@ -148,14 +148,12 @@ All verification gates are consistently verified across iterations:
 
 ## 5. Next Planned Backlog Increments
 
-1. **Gate Infra & Item 9 (`app/api/livekit/token`)**:
-   - Issue LiveKit room join tokens scoped to group membership and caller identity.
-   - Verify infra setup (`infra/docker-compose.yml`) for local LiveKit server and coturn.
-2. **Item 10 (Session records)**:
+1. **Item 10 (Session records)**:
    - Save meeting sessions, chat logs, and transcript references to R2 and PostgreSQL.
-3. **Item 11 (`agent/`)**:
+   - Schemas and endpoints for sessions: `/api/groups/[groupId]/sessions`.
+2. **Item 11 (`agent/`)**:
    - Standalone LiveKit worker subscribed to room audio with WhisperLiveKit and LLM summary generation.
-4. **Item 12 (Hardening pass)**:
+3. **Item 12 (Hardening pass)**:
    - Rate limiting, uniform error responses, integration tests for all routes, and GitHub Actions CI workflow.
 
 ---
@@ -166,20 +164,22 @@ All verification gates are consistently verified across iterations:
 Continue implementing the StudyGroup+ v2 backend according to the backlog and loop protocol in BACKEND_PROGRESS.md and Backend-process.md.
 
 Current progress:
-- Items 0 through 8 are complete, verified, and committed.
-- All 49 Vitest tests, typecheck, lint, and next build are passing.
+- Items 0 through 9 are complete, verified, and committed.
+- All 54 Vitest tests, typecheck, lint, and next build are passing.
 - Database: Neon PostgreSQL with Drizzle ORM (lib/db.ts, models/).
 - Auth: Clerk middleware & server-side requireAuth (lib/auth.ts).
 - Permissions: lib/permissions.ts (canAccessAsset, isGroupCreator, isGroupMember).
-- R2 Storage & Assets CRUD: lib/r2.ts, POST /api/assets/upload-url, /api/assets (CRUD, download URL).
+- R2 Storage & Assets CRUD: lib/r2.ts, POST /api/assets/upload-url, /api/assets.
+- LiveKit & Infra: infra/docker-compose.yml, infra/livekit.yaml, infra/coturn.conf, lib/livekit.ts, POST /api/livekit/token.
 
 Next task to implement:
-Gate Infra & Item 9: app/api/livekit/token — join-token issuance scoped to the caller's group membership.
+Item 10: Session records: model + endpoints for a meeting session, its saved chat log, and its transcript pointer.
 
 Follow the loop protocol:
-1. Verify Gate Infra requirements and implement Item 9 only:
-   - POST /api/livekit/token: Validate caller's group membership, issue LiveKit AccessToken with room grants (room: groupId, identity: userId, name: userName).
-2. Write integration tests in tests/livekit-api.test.ts covering success and permission-failure (401, 403, 404) paths.
+1. Implement Item 10 only:
+   - Create session schema in models/Session.ts and export in models/index.ts.
+   - Endpoints for creating/listing meeting sessions, storing chat log blobs and transcript pointers.
+2. Write integration tests in tests/sessions-api.test.ts covering success and permission-failure paths.
 3. Verify: npm run test, npm run typecheck, npm run lint, npm run format, and npm run build.
-4. Update BACKEND_PROGRESS.md and report progress in <= 5 lines before continuing to Item 10.
+4. Update BACKEND_PROGRESS.md and report progress in <= 5 lines before continuing to Item 11.
 ```
