@@ -18,6 +18,7 @@ This document captures the design rationale, architecture decisions (ADRs), modu
 | **Meetings & Realtime** | Inactive `socket.io-client` with no socket server                  | Self-hosted LiveKit SFU + coturn; in-call chat via LiveKit data channels      | **Implemented** (Item 9)      |
 | **Session Records**     | Embedded chat array in Mongo                                       | PostgreSQL session metadata + R2 chat/transcript pointers + linked asset      | **Implemented** (Item 10)     |
 | **Transcription & AI**  | None                                                               | LiveKit Agents bot worker + WhisperLiveKit + LLM session summary              | **Implemented** (Item 11)     |
+| **Hardening & CI**      | None                                                               | Rate limiting on public APIs, uniform error responses, GitHub Actions CI      | **Implemented** (Item 12)     |
 
 ---
 
@@ -139,48 +140,42 @@ This document captures the design rationale, architecture decisions (ADRs), modu
 
 All verification gates are consistently verified across iterations:
 
-- **Test Suites**: 10 test files, **73 unit & integration tests passing** (`npm run test`).
+- **Test Suites**: 11 test files, **76 unit & integration tests passing** (`npm run test`).
 - **Type Checking**: Strict mode passing with zero errors (`npm run typecheck`).
 - **Linter**: Zero warnings, zero errors (`npm run lint`).
 - **Formatter**: Code style strictly formatted (`npx prettier --check .`).
 - **Next.js Production Build**: Succeeded (`npm run build`), generating static pages and dynamic serverless endpoints.
+- **Continuous Integration**: Configured in `.github/workflows/ci.yml` (checks format, lint, typecheck, and tests on PR & main).
 
 ---
 
-## 5. Next Planned Backlog Increments
+## 5. Backend Backlog Status: Complete (100%)
 
-1. **Item 12 (Hardening pass)**:
-   - In-memory rate limiting helper for `/api/livekit/token` and `/api/assets/upload-url`.
-   - Uniform error response helpers.
-   - GitHub Actions CI workflow (`.github/workflows/ci.yml` running lint + typecheck + test).
+All 12 items on the StudyGroup+ v2 backend backlog are fully implemented, verified, and committed:
+- **Item 0**: Gate 0 decisions (Neon Postgres, Clerk auth, fresh relational build).
+- **Item 1**: Project structure, configs, TypeScript strict, tooling setup.
+- **Item 2**: Database connection & models (`users`, `groups`, `memberships`, `assets`).
+- **Item 3**: Permission model in `lib/permissions.ts` (`canAccessAsset`, `isGroupCreator`, `isGroupMember`).
+- **Item 4**: Clerk Edge middleware & `requireAuth()` server-side session validator with user sync.
+- **Item 5**: Group operations `/api/groups` (create, list), `/api/groups/join`, `/api/groups/[groupId]`.
+- **Item 6**: Creator-delegated permissions PATCH `/api/groups/[groupId]/access` (`assetAccess: text[]`).
+- **Item 7**: Cloudflare R2 client in `lib/r2.ts` + `/api/assets/upload-url` with size (≤5MB) and type (.pdf/.md/.pptx) validation.
+- **Item 8**: Asset CRUD `/api/assets`, `/api/assets/[assetId]`, and `/api/assets/[assetId]/download`.
+- **Item 9**: LiveKit infrastructure (`infra/docker-compose.yml`, `infra/livekit.yaml`, `infra/coturn.conf`) & `/api/livekit/token`.
+- **Item 10**: Session models (`models/Session.ts`), R2 chat/transcript blob persistence, and `/api/groups/[groupId]/sessions`.
+- **Item 11**: LiveKit Agents worker skeleton (`agent/transcribe-worker.ts`, `agent/summarize.ts`) with chat-idle trigger and exactly-once finalization.
+- **Item 12**: Hardening pass (`lib/ratelimit.ts`, rate-limited endpoints, GitHub Actions CI workflow).
 
 ---
 
-## Continuation Prompt (Run This in the Next Session)
+## 6. Next Steps for Frontend & Deployment
 
-```text
-Continue implementing the StudyGroup+ v2 backend according to the backlog and loop protocol in BACKEND_PROGRESS.md and Backend-process.md.
-
-Current progress:
-- Items 0 through 11 are complete, verified, and committed.
-- All 73 Vitest tests, typecheck, lint, and next build are passing.
-- Database: Neon PostgreSQL with Drizzle ORM (lib/db.ts, models/).
-- Auth: Clerk middleware & server-side requireAuth (lib/auth.ts).
-- Permissions: lib/permissions.ts (canAccessAsset, isGroupCreator, isGroupMember).
-- R2 Storage & Assets CRUD: lib/r2.ts, POST /api/assets/upload-url, /api/assets.
-- LiveKit & Infra: infra/docker-compose.yml, infra/livekit.yaml, infra/coturn.conf, lib/livekit.ts, POST /api/livekit/token.
-- Sessions: models/Session.ts, /api/groups/[groupId]/sessions, /api/groups/[groupId]/sessions/[sessionId].
-- Agent: agent/transcribe-worker.ts (chat idle trigger, audio stream handling, exactly-once finalization), agent/summarize.ts (LLM summary).
-
-Next task to implement:
-Item 12: Hardening pass: rate limiting on token + upload-url routes, consistent error responses, integration test per route, one CI workflow (lint + typecheck + test).
-
-Follow the loop protocol:
-1. Implement Item 12 only:
-   - Create lib/ratelimit.ts (in-memory rate limiter with window + max requests).
-   - Wire rate limiter into app/api/livekit/token/route.ts and app/api/assets/upload-url/route.ts.
-   - Create .github/workflows/ci.yml running lint, typecheck, and test.
-2. Write integration tests in tests/ratelimit.test.ts.
-3. Verify: npm run test, npm run typecheck, npm run lint, npm run format, and npm run build.
-4. Update BACKEND_PROGRESS.md and report completion of the entire backend backlog!
-```
+1. **Frontend Integration**:
+   - Connect dashboard meeting room UI in `app/(dashboard)/groups/[groupId]/meet/page.tsx` using `@livekit/components-react`.
+   - EmbedPDF viewer for PDF assets in `components/assets/`.
+   - Markdown viewer with `react-markdown` and `remark-gfm` for notes and checkbox tasks.
+2. **VPS Deployment**:
+   - Deploy `infra/docker-compose.yml` to VPS for LiveKit SFU + coturn.
+   - Run `agent/transcribe-worker.ts` as a long-running background worker on the VPS or container.
+3. **Vercel Cutover**:
+   - Set production environment variables (`DATABASE_URL`, `CLERK_*`, `R2_*`, `LIVEKIT_*`, `LLM_API_KEY`) on Vercel.

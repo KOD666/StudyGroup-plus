@@ -3,6 +3,7 @@ import { requireAuth } from "@/lib/auth";
 import { isGroupMember } from "@/lib/permissions";
 import { generateRandomR2Key, getPresignedUploadUrl } from "@/lib/r2";
 import { SupportedFileType } from "@/models";
+import { checkRateLimit, rateLimitExceededResponse } from "@/lib/ratelimit";
 
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
 
@@ -28,6 +29,17 @@ export async function POST(req: NextRequest) {
   const authResult = await requireAuth();
   if (!authResult.success) {
     return authResult.response;
+  }
+
+  const currentUserId = authResult.context.userId;
+
+  // Rate limiting check: max 15 upload-url requests per minute per user
+  const rateLimitResult = checkRateLimit(`upload_url:${currentUserId}`, {
+    windowMs: 60 * 1000,
+    maxRequests: 15,
+  });
+  if (!rateLimitResult.success) {
+    return rateLimitExceededResponse(rateLimitResult);
   }
 
   let body: UploadUrlRequest;
@@ -91,7 +103,6 @@ export async function POST(req: NextRequest) {
   }
 
   const fileConfig = EXTENSION_MAP[matchedExt]!;
-  const currentUserId = authResult.context.userId;
 
   try {
     // 4. Permission check: Caller must be a member of the group

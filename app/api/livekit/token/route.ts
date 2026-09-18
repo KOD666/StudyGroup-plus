@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { groups } from "@/models";
 import { isGroupMember } from "@/lib/permissions";
 import { createLiveKitToken, getLiveKitConfig } from "@/lib/livekit";
+import { checkRateLimit, rateLimitExceededResponse } from "@/lib/ratelimit";
 
 interface TokenRequestBody {
   groupId?: string;
@@ -15,6 +16,18 @@ export async function POST(req: NextRequest) {
   const authResult = await requireAuth();
   if (!authResult.success) {
     return authResult.response;
+  }
+
+  const currentUserId = authResult.context.userId;
+  const currentUser = authResult.context.user;
+
+  // Rate limiting check: max 20 requests per minute per user
+  const rateLimitResult = checkRateLimit(`livekit_token:${currentUserId}`, {
+    windowMs: 60 * 1000,
+    maxRequests: 20,
+  });
+  if (!rateLimitResult.success) {
+    return rateLimitExceededResponse(rateLimitResult);
   }
 
   let body: TokenRequestBody;
@@ -36,9 +49,6 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
-
-  const currentUserId = authResult.context.userId;
-  const currentUser = authResult.context.user;
 
   try {
     // 2. Permission check: Caller must be an active member of this group
