@@ -88,6 +88,7 @@ export async function POST(req: NextRequest) {
       {
         token,
         roomName: groupId,
+        url,
         livekitUrl: url,
         identity: currentUserId,
         name: currentUser.name || "Member",

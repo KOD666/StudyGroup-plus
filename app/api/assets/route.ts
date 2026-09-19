@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq, and, isNull, desc } from "drizzle-orm";
+import { eq, and, isNull, desc, inArray } from "drizzle-orm";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { assets, groups, SupportedFileType } from "@/models";
+import { assets, groups, memberships, SupportedFileType } from "@/models";
 import { getGroupMembership, isGroupMember } from "@/lib/permissions";
 
 const VALID_FILE_TYPES: readonly SupportedFileType[] = [
@@ -22,7 +22,7 @@ interface CreateAssetRequest {
   mimeType?: string;
 }
 
-// GET /api/assets?groupId=[groupId] - List assets in a group with access flags
+// GET /api/assets?groupId=[groupId] or GET /api/assets?recent=true
 export async function GET(req: NextRequest) {
   const authResult = await requireAuth();
   if (!authResult.success) {
@@ -31,8 +31,9 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const groupId = searchParams.get("groupId");
+  const isRecent = searchParams.get("recent") === "true";
 
-  if (!groupId) {
+  if (!groupId && !isRecent) {
     return NextResponse.json(
       { error: "Bad Request: groupId query parameter is required" },
       { status: 400 }
@@ -42,6 +43,54 @@ export async function GET(req: NextRequest) {
   const currentUserId = authResult.context.userId;
 
   try {
+    if (isRecent) {
+      // Fetch recent assets across all groups the user is an active member of
+      const userMemberships = await db
+        .select({ groupId: memberships.groupId })
+        .from(memberships)
+        .where(eq(memberships.userId, currentUserId));
+
+      if (userMemberships.length === 0) {
+        return NextResponse.json({ assets: [] }, { status: 200 });
+      }
+
+      const memberGroupIds = userMemberships.map((m) => m.groupId);
+
+      const recentAssets = await db
+        .select({
+          id: assets.id,
+          groupId: assets.groupId,
+          groupName: groups.name,
+          uploaderId: assets.uploaderId,
+          title: assets.title,
+          fileType: assets.fileType,
+          sizeBytes: assets.sizeBytes,
+          r2Key: assets.r2Key,
+          mimeType: assets.mimeType,
+          createdAt: assets.createdAt,
+        })
+        .from(assets)
+        .innerJoin(groups, eq(assets.groupId, groups.id))
+        .where(
+          and(
+            inArray(assets.groupId, memberGroupIds),
+            isNull(assets.deletedAt),
+            isNull(groups.deletedAt)
+          )
+        )
+        .orderBy(desc(assets.createdAt))
+        .limit(8);
+
+      return NextResponse.json({ assets: recentAssets }, { status: 200 });
+    }
+
+    if (!groupId) {
+      return NextResponse.json(
+        { error: "Bad Request: groupId query parameter is required" },
+        { status: 400 }
+      );
+    }
+
     // 1. Verify membership
     const membership = await getGroupMembership(currentUserId, groupId);
     if (!membership) {

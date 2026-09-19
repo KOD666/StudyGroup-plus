@@ -1,1 +1,113 @@
 @import "tailwindcss";
+
+@theme {
+  /* ==========================================================================
+     DESIGN.md — Editorial Academic Workspace Theme Tokens
+     ========================================================================== */
+
+  /* Palette */
+  --color-surface: #fdf8f6;
+  --color-surface-dim: #ddd9d7;
+  --color-surface-bright: #fdf8f6;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f7f3f0;
+  --color-surface-container: #f2edeb;
+  --color-surface-container-high: #ece7e5;
+  --color-surface-container-highest: #e6e2df;
+  --color-on-surface: #1c1b1a;
+  --color-on-surface-variant: #554339;
+  --color-inverse-surface: #32302f;
+  --color-inverse-on-surface: #f5f0ed;
+  --color-outline: #897367;
+  --color-outline-variant: #dcc1b4;
+  --color-surface-tint: #9a4600;
+
+  --color-primary: #9a4600;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #ba5d1a;
+  --color-on-primary-container: #0d0300;
+  --color-inverse-primary: #ffb68c;
+
+  --color-secondary: #446559;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #c4e8d8;
+  --color-on-secondary-container: #49695d;
+
+  --color-tertiary: #625e57;
+  --color-on-tertiary: #ffffff;
+  --color-tertiary-container: #7b7670;
+  --color-on-tertiary-container: #060502;
+
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #93000a;
+
+  --color-primary-fixed: #ffdbc9;
+  --color-primary-fixed-dim: #ffb68c;
+  --color-on-primary-fixed: #321200;
+  --color-on-primary-fixed-variant: #753400;
+
+  --color-secondary-fixed: #c6eadb;
+  --color-secondary-fixed-dim: #abcebf;
+  --color-on-secondary-fixed: #002117;
+  --color-on-secondary-fixed-variant: #2d4d42;
+
+  --color-tertiary-fixed: #e8e1da;
+  --color-tertiary-fixed-dim: #ccc6be;
+  --color-on-tertiary-fixed: #1e1b17;
+  --color-on-tertiary-fixed-variant: #4a4641;
+
+  --color-background: #fdf8f6;
+  --color-on-background: #1c1b1a;
+  --color-surface-variant: #e6e2df;
+
+  /* Tactical Print & Material Aliases */
+  --color-parchment: #f4f2eb;
+  --color-parchment-light: #faf9f6;
+  --color-ivory: #ffffff;
+  --color-ivory-warm: #f6f4ed;
+  --color-ink: #171615;
+  --color-ink-light: #5e5a54;
+  --color-ink-muted: #78746d;
+  --color-ochre: #ba5d1a;
+  --color-ochre-hover: #a24e14;
+  --color-ochre-light: #ffdbc9;
+  --color-forest: #234338;
+  --color-forest-hover: #193129;
+  --color-forest-light: #c4e8d8;
+  --color-hairline: #e5e2d9;
+  --color-hairline-dark: #ddd8cc;
+
+  /* Typography */
+  --font-serif: var(--font-playfair), Georgia, serif;
+  --font-sans: var(--font-dm-sans), -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-editorial: var(--font-newsreader), Garamond, Georgia, serif;
+
+  /* Radii */
+  --radius-xs: 0.125rem;
+  --radius-sm: 0.125rem;
+  --radius-DEFAULT: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --radius-full: 9999px;
+}
+
+/* Print Elevation Shadows */
+.shadow-paper-contact {
+  box-shadow: 0 4px 20px -2px rgba(23, 22, 21, 0.04), 0 1px 3px 0 rgba(23, 22, 21, 0.02);
+}
+
+.shadow-paper-floating {
+  box-shadow: 0 12px 32px -4px rgba(23, 22, 21, 0.08), 0 2px 6px 0 rgba(23, 22, 21, 0.04);
+}
+
+/* Hairline rule borders */
+.border-hairline {
+  border-color: #e5e2d9;
+}
+
+.border-hairline-dark {
+  border-color: #ddd8cc;
+}

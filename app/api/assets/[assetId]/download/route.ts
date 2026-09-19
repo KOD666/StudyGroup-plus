@@ -51,7 +51,11 @@ export async function GET(
     }
 
     // 3. Generate presigned download URL (valid for 1 hour / 3600 seconds)
-    const downloadUrl = await getPresignedDownloadUrl(asset.r2Key, 3600);
+    const downloadUrl = await getPresignedDownloadUrl(
+      asset.r2Key,
+      3600,
+      asset.title
+    );
 
     return NextResponse.json(
       {

@@ -55,7 +55,11 @@ export async function POST(req: NextRequest) {
     );
     if (existingMembership) {
       return NextResponse.json(
-        { error: "Conflict: You are already a member of this study group" },
+        {
+          error: "Conflict: You are already a member of this study group",
+          groupId: group.id,
+          groupName: group.name,
+        },
         { status: 409 }
       );
     }

@@ -4,28 +4,31 @@
 .pnp.js
 .yarn/install-state.gz
 
-# Testing
+# Testing & Local Fallback
 /coverage
+/.storage/
 
-# Next.js
+# Next.js Build Output
 /.next/
 /out/
-
-# Production
 /build
 
-# Misc
+# OS & Editor Cruft
 .DS_Store
+Thumbs.db
 *.pem
+.vscode/
+.idea/
 
-# Debug
+# Debug Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Local env files
-.env*.local
+# Local Environment & Secrets (Exclude all variants, allow example)
 .env
+.env.*
+.env*.local
 !.env.example
 
 # Vercel
@@ -34,4 +37,19 @@ yarn-error.log*
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
+
+# Legacy & Scratch Folders
 study-group-plus/
+
+# AI Coding Agent Tooling & Working Dirs
+.claude/
+.cursor/
+.gemini/
+
+# Internal Planning, Progress Logs & Scratch Space
+BACKEND_PROGRESS.md
+Backend-process.md
+FRONTEND_PROGRESS.md
+Idea.md
+work.md
+GUIDE.md

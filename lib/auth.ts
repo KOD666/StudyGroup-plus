@@ -41,12 +41,38 @@ export async function requireAuth(
 
   const d = database ?? db;
 
-  // 1. Check if user exists in database
-  let [user] = await d
-    .select()
-    .from(users)
-    .where(eq(users.clerkId, clerkId))
-    .limit(1);
+  let user: User | undefined;
+  try {
+    const rows = await d
+      .select()
+      .from(users)
+      .where(eq(users.clerkId, clerkId))
+      .limit(1);
+    user = rows[0];
+  } catch (dbErr: unknown) {
+    if (
+      dbErr &&
+      typeof dbErr === "object" &&
+      "code" in dbErr &&
+      dbErr.code === "42P01"
+    ) {
+      console.error(
+        "\n❌ FATAL DATABASE ERROR: relation 'users' does not exist in the connected database!\n" +
+          "   Please run `npm run db:migrate` to apply pending Drizzle schema migrations.\n"
+      );
+      return {
+        success: false,
+        response: NextResponse.json(
+          {
+            error:
+              "Database Configuration Error: Database tables have not been created. Run `npm run db:migrate` to apply migrations.",
+          },
+          { status: 500 }
+        ),
+      };
+    }
+    throw dbErr;
+  }
 
   // 2. If not found, sync user details from Clerk
   if (!user) {
