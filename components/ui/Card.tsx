@@ -3,30 +3,33 @@ import React from "react";
 export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: "ivory" | "parchment" | "elevated";
   hasHairlineRule?: boolean;
+  interactive?: boolean;
 }
 
 export const Card = React.forwardRef<HTMLDivElement, CardProps>(
   (
     {
       children,
-      variant = "ivory",
+      variant = "elevated",
       hasHairlineRule = false,
+      interactive = true,
       className = "",
       ...props
     },
     ref
   ) => {
-    const bgClasses = {
-      ivory: "bg-[#ffffff]",
-      parchment: "bg-[#f4f2eb]",
-      elevated: "bg-[#ffffff] shadow-paper-contact",
-    }[variant];
+    const bgClass =
+      variant === "parchment" ? "bg-[var(--bg-inset)]" : "bg-[var(--bg-elevated)]";
 
     return (
       <div
         ref={ref}
-        className={`rounded-[0.25rem] border border-[#e5e2d9] transition-all duration-200 ${bgClasses} ${
-          hasHairlineRule ? "divide-y divide-[#e5e2d9]" : ""
+        className={`rounded-[var(--radius-card)] border border-[var(--border-hairline)] ${bgClass} text-[var(--text-primary)] transition-all duration-[var(--dur-fast)] ease-[var(--ease-out-quart)] shadow-none ${
+          interactive
+            ? "hover:-translate-y-1 hover:border-[var(--border-hover)]"
+            : ""
+        } ${
+          hasHairlineRule ? "divide-y divide-[var(--border-hairline)]" : ""
         } ${className}`}
         {...props}
       >
@@ -45,7 +48,7 @@ export function CardHeader({
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={`px-5 py-4 border-b border-[#e5e2d9] ${className}`}
+      className={`px-5 py-4 border-b border-[var(--border-hairline)] ${className}`}
       {...props}
     >
       {children}
@@ -72,7 +75,7 @@ export function CardFooter({
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={`px-5 py-3 border-t border-[#e5e2d9] bg-[#faf9f6]/60 rounded-b-[0.25rem] ${className}`}
+      className={`px-5 py-3.5 border-t border-[var(--border-hairline)] bg-[var(--bg-inset)]/60 rounded-b-[var(--radius-card)] ${className}`}
       {...props}
     >
       {children}

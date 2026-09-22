@@ -1,10 +1,14 @@
 import React from "react";
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
-  variant?: "forest" | "ochre" | "neutral" | "parchment";
+  variant?: "live" | "neutral" | "subtle" | "outline" | "forest" | "ochre" | "parchment";
   dot?: boolean;
 }
 
+/**
+ * Badge component conforming to DESIGN.md monochrome spec.
+ * --accent-live is reserved strictly for live/active states (variant="live").
+ */
 export function Badge({
   children,
   variant = "neutral",
@@ -12,26 +16,33 @@ export function Badge({
   className = "",
   ...props
 }: BadgeProps) {
-  const variantStyles = {
-    forest: "bg-[#c4e8d8]/60 text-[#234338] border-[#234338]/25",
-    ochre: "bg-[#ffdbc9]/60 text-[#ba5d1a] border-[#ba5d1a]/25",
-    neutral: "bg-[#f2edeb] text-[#5e5a54] border-[#e5e2d9]",
-    parchment: "bg-[#f4f2eb] text-[#171615] border-[#ddd8cc]",
-  }[variant];
+  const isLive = variant === "live";
 
-  const dotStyles = {
-    forest: "bg-[#234338]",
-    ochre: "bg-[#ba5d1a]",
-    neutral: "bg-[#78746d]",
-    parchment: "bg-[#5e5a54]",
+  const variantStyles = {
+    live: "bg-[var(--accent-live-wash)] text-[var(--text-primary)] border-[rgba(229,72,77,0.3)]",
+    neutral: "bg-[var(--bg-elevated)] text-[var(--text-primary)] border-[var(--border-hairline)]",
+    subtle: "bg-[var(--bg-inset)] text-[var(--text-secondary)] border-[var(--border-hairline)]",
+    outline: "bg-transparent text-[var(--text-secondary)] border-[var(--border-hairline)]",
+    // Legacy compatibility aliases mapped strictly to monochrome tokens:
+    forest: "bg-[var(--bg-elevated)] text-[var(--text-primary)] border-[var(--border-hairline)]",
+    ochre: "bg-[var(--bg-inset)] text-[var(--text-primary)] border-[var(--border-hover)]",
+    parchment: "bg-[var(--bg-inset)] text-[var(--text-secondary)] border-[var(--border-hairline)]",
   }[variant];
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-[0.125rem] border font-sans text-[0.6875rem] font-semibold uppercase tracking-[0.08em] select-none ${variantStyles} ${className}`}
+      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-[var(--radius-button)] border font-mono text-[0.6875rem] uppercase tracking-[0.02em] select-none ${variantStyles} ${className}`}
       {...props}
     >
-      {dot && <span className={`w-1.5 h-1.5 rounded-full ${dotStyles}`} />}
+      {(dot || isLive) && (
+        <span
+          className={`w-1.5 h-1.5 rounded-full ${
+            isLive
+              ? "bg-[var(--accent-live)] animate-live-breathe"
+              : "bg-[var(--text-secondary)]"
+          }`}
+        />
+      )}
       {children}
     </span>
   );

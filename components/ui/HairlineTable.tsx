@@ -8,7 +8,7 @@ export function HairlineTable({
   return (
     <div className="w-full overflow-x-auto">
       <table
-        className={`w-full text-left border-y border-[#e5e2d9] font-sans text-sm ${className}`}
+        className={`w-full text-left border-y border-[var(--border-hairline)] font-sans text-sm ${className}`}
         {...props}
       >
         {children}
@@ -24,7 +24,7 @@ export function HairlineTableHead({
 }: React.HTMLAttributes<HTMLTableSectionElement>) {
   return (
     <thead
-      className={`border-b border-[#e5e2d9] font-sans text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[#78746d] ${className}`}
+      className={`border-b border-[var(--border-hairline)] font-mono text-xs uppercase tracking-[0.02em] text-[var(--text-secondary)] ${className}`}
       {...props}
     >
       {children}
@@ -38,7 +38,7 @@ export function HairlineTableBody({
   ...props
 }: React.HTMLAttributes<HTMLTableSectionElement>) {
   return (
-    <tbody className={`divide-y divide-[#e5e2d9]/60 ${className}`} {...props}>
+    <tbody className={`divide-y divide-[var(--border-hairline)] ${className}`} {...props}>
       {children}
     </tbody>
   );
@@ -51,7 +51,7 @@ export function HairlineTableRow({
 }: React.HTMLAttributes<HTMLTableRowElement>) {
   return (
     <tr
-      className={`transition-colors duration-150 hover:bg-[#faf9f6] group ${className}`}
+      className={`transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out-quart)] hover:bg-[var(--bg-elevated)] group ${className}`}
       {...props}
     >
       {children}
@@ -65,7 +65,7 @@ export function HairlineTableCell({
   ...props
 }: React.TdHTMLAttributes<HTMLTableCellElement>) {
   return (
-    <td className={`py-3 px-4 text-[#171615] align-middle ${className}`} {...props}>
+    <td className={`py-3 px-4 text-[var(--text-primary)] align-middle ${className}`} {...props}>
       {children}
     </td>
   );
@@ -77,7 +77,7 @@ export function HairlineTableHeadCell({
   ...props
 }: React.ThHTMLAttributes<HTMLTableCellElement>) {
   return (
-    <th className={`py-3 px-4 font-semibold tracking-[0.08em] ${className}`} {...props}>
+    <th className={`py-3 px-4 font-normal align-middle ${className}`} {...props}>
       {children}
     </th>
   );

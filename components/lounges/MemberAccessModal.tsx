@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import { X, ShieldCheck, ShieldAlert, Check } from "lucide-react";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
+import { X, FileText } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 
@@ -43,6 +44,7 @@ export function MemberAccessModal({
 }: MemberAccessModalProps) {
   const [updatingKey, setUpdatingKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const shouldReduceMotion = useReducedMotion();
 
   if (!isOpen) return null;
 
@@ -77,106 +79,152 @@ export function MemberAccessModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#171615]/50 backdrop-blur-xs transition-opacity duration-200">
-      <div className="bg-[#ffffff] w-full max-w-2xl rounded-[0.25rem] border border-[#ddd8cc] shadow-paper-floating overflow-hidden font-sans transition-all duration-200">
-        <div className="px-6 py-4 bg-[#faf9f6] border-b border-[#e5e2d9] flex items-center justify-between">
-          <div>
-            <h3 className="font-serif text-xl font-normal text-[#171615]">
-              Member Roster &amp; File Access
-            </h3>
-            <p className="text-xs text-[#78746d] font-sans mt-0.5">
-              {isCreator
-                ? "Manage file access and permissions for study group members."
-                : "Active members in this study group."}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1 text-[#78746d] hover:text-[#171615] rounded-[0.25rem] transition-colors duration-150"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+    <AnimatePresence>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        {/* Backdrop: fades to --bg-primary at 60% opacity per DESIGN.md §5 */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: shouldReduceMotion ? 0.1 : 0.2 }}
+          onClick={onClose}
+          className="absolute inset-0 bg-[rgba(10,10,10,0.6)] backdrop-blur-xs"
+        />
 
-        <div className="p-6 max-h-[70vh] overflow-y-auto space-y-6">
-          {error && (
-            <div className="p-3 bg-[#ffdad6]/40 border border-[#ba1a1a]/30 rounded-[0.25rem] text-xs text-[#93000a]">
-              {error}
+        {/* Modal: scale 0.96 -> 1 + fade, --dur-slow (450ms), --ease-out-expo per DESIGN.md §5 */}
+        <motion.div
+          initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
+          transition={{
+            duration: shouldReduceMotion ? 0.15 : 0.45,
+            ease: [0.16, 1, 0.3, 1],
+          }}
+          className="relative bg-[var(--bg-elevated)] w-full max-w-2xl rounded-[var(--radius-modal)] border border-[var(--border-hairline)] overflow-hidden font-sans text-[var(--text-primary)] shadow-none z-10"
+        >
+          {/* Header */}
+          <div className="px-6 py-4 border-b border-[var(--border-hairline)] flex items-center justify-between">
+            <div>
+              <h3 className="font-serif text-xl font-normal text-[var(--text-primary)]">
+                Member Roster &amp; File Access
+              </h3>
+              <p className="text-xs text-[var(--text-secondary)] font-sans mt-0.5">
+                {isCreator
+                  ? "Manage file access and permissions for study group members."
+                  : "Active members in this study group."}
+              </p>
             </div>
-          )}
-
-          {/* Members Table */}
-          <div className="space-y-4">
-            {members.map((member) => (
-              <div
-                key={member.userId}
-                className="p-4 bg-[#fdf8f6] border border-[#e5e2d9] rounded-[0.25rem] space-y-3 transition-colors hover:border-[#ddd8cc]"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-[#234338] text-[#faf9f6] flex items-center justify-center font-bold text-xs">
-                      {member.name.substring(0, 2).toUpperCase()}
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-sm text-[#171615]">{member.name}</h4>
-                      <p className="text-xs text-[#78746d]">{member.email}</p>
-                    </div>
-                  </div>
-                  <Badge variant={member.role === "creator" ? "ochre" : "parchment"}>
-                    {member.role === "creator" ? "Owner" : "Member"}
-                  </Badge>
-                </div>
-
-                {/* Per-asset Access Matrix */}
-                {assets.length > 0 && (
-                  <div className="pt-2 border-t border-[#e5e2d9]/60">
-                    <span className="font-sans text-[0.625rem] font-semibold uppercase tracking-[0.08em] text-[#78746d] block mb-2">
-                      Document Access Permissions:
-                    </span>
-                    <div className="flex flex-wrap gap-2">
-                      {assets.map((asset) => {
-                        const hasAccess =
-                          member.role === "creator" ||
-                          (member.assetAccess && member.assetAccess.includes(asset.id));
-                        const isUpdating = updatingKey === `${member.userId}-${asset.id}`;
-
-                        return (
-                          <button
-                            key={asset.id}
-                            type="button"
-                            disabled={!isCreator || member.role === "creator" || isUpdating}
-                            onClick={() => handleToggleAccess(member.userId, asset.id)}
-                            className={`px-2.5 py-1 rounded-[0.125rem] border text-xs font-sans flex items-center gap-1.5 transition-all duration-150 ${
-                              hasAccess
-                                ? "bg-[#c4e8d8]/40 border-[#234338]/30 text-[#234338]"
-                                : "bg-[#ffffff] border-[#ddd8cc] text-[#78746d] hover:border-[#ba5d1a]"
-                            } ${!isCreator || member.role === "creator" ? "cursor-default" : "cursor-pointer"}`}
-                          >
-                            {hasAccess ? (
-                              <ShieldCheck className="w-3 h-3 text-[#234338]" />
-                            ) : (
-                              <ShieldAlert className="w-3 h-3 text-[#78746d]" />
-                            )}
-                            <span className="truncate max-w-[12rem]">{asset.title}</span>
-                            {hasAccess && <Check className="w-2.5 h-2.5" />}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded-[var(--radius-button)] hover:bg-[var(--bg-overlay)] transition-colors cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
-        </div>
 
-        <div className="px-6 py-3 bg-[#faf9f6] border-t border-[#e5e2d9] flex justify-end">
-          <Button variant="secondary" size="sm" onClick={onClose}>
-            Close
-          </Button>
-        </div>
+          {/* Modal Content */}
+          <div className="p-6 max-h-[70vh] overflow-y-auto space-y-5">
+            {error && (
+              <div className="p-3 bg-[var(--bg-inset)] border border-[var(--border-focus)] rounded-[var(--radius-card)] text-xs text-[var(--text-primary)]">
+                {error}
+              </div>
+            )}
+
+            {/* Members Table */}
+            <div className="space-y-3">
+              {members.map((member) => (
+                <div
+                  key={member.userId}
+                  className="p-4 bg-[var(--bg-inset)] border border-[var(--border-hairline)] rounded-[var(--radius-card)] space-y-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-[var(--bg-elevated)] border border-[var(--border-hairline)] text-[var(--text-primary)] flex items-center justify-center font-mono text-xs font-semibold">
+                        {member.name.substring(0, 2).toUpperCase()}
+                      </div>
+                      <div>
+                        <h4 className="font-sans text-sm font-medium text-[var(--text-primary)]">
+                          {member.name}
+                        </h4>
+                        <p className="font-mono text-xs text-[var(--text-secondary)]">{member.email}</p>
+                      </div>
+                    </div>
+                    <Badge variant={member.role === "creator" ? "outline" : "neutral"}>
+                      {member.role === "creator" ? "Owner" : "Member"}
+                    </Badge>
+                  </div>
+
+                  {/* Per-asset Access Matrix with Standard Toggle Switches (§5, §6.2) */}
+                  {assets.length > 0 && (
+                    <div className="pt-3 border-t border-[var(--border-hairline)]">
+                      <span className="font-mono text-[0.6875rem] uppercase tracking-[0.06em] text-[var(--text-secondary)] block mb-2.5">
+                        Document Access Permissions:
+                      </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {assets.map((asset) => {
+                          const hasAccess =
+                            member.role === "creator" ||
+                            (member.assetAccess && member.assetAccess.includes(asset.id));
+                          const isUpdating = updatingKey === `${member.userId}-${asset.id}`;
+                          const isToggleDisabled = !isCreator || member.role === "creator" || isUpdating;
+
+                          return (
+                            <button
+                              key={asset.id}
+                              type="button"
+                              role="switch"
+                              aria-checked={hasAccess}
+                              disabled={isToggleDisabled}
+                              onClick={() => handleToggleAccess(member.userId, asset.id)}
+                              className={`flex items-center justify-between p-2.5 rounded-[var(--radius-button)] bg-[var(--bg-elevated)] border border-[var(--border-hairline)] transition-colors gap-2 text-left ${
+                                isToggleDisabled ? "cursor-default opacity-80" : "hover:border-[var(--border-hover)] cursor-pointer"
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 min-w-0 flex-1">
+                                <FileText className="w-3.5 h-3.5 text-[var(--text-secondary)] shrink-0" />
+                                <span className="font-sans text-xs text-[var(--text-primary)] truncate">
+                                  {asset.title}
+                                </span>
+                              </div>
+
+                              {/* Monochromatic Switch per DESIGN.md §5:
+                                  Thumb slides on --ease-spring, 250ms.
+                                  Track: --bg-elevated (off) -> rgba(237,237,237,0.2) (on).
+                                  No color change — state communicated by position and track brightness only.
+                              */}
+                              <div
+                                className={`w-8 h-4.5 rounded-full p-0.5 transition-colors duration-[var(--dur-fast)] relative shrink-0 ${
+                                  hasAccess
+                                    ? "bg-[rgba(237,237,237,0.25)]"
+                                    : "bg-[var(--bg-inset)] border border-[var(--border-hairline)]"
+                                }`}
+                              >
+                                <motion.div
+                                  className="w-3.5 h-3.5 rounded-full bg-[var(--text-primary)]"
+                                  animate={{ x: hasAccess ? 14 : 0 }}
+                                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                                />
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="px-6 py-3 border-t border-[var(--border-hairline)] flex justify-end">
+            <Button variant="secondary" size="sm" onClick={onClose}>
+              Done
+            </Button>
+          </div>
+        </motion.div>
       </div>
-    </div>
+    </AnimatePresence>
   );
 }

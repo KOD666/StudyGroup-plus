@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import {
   Mic,
   MicOff,
@@ -22,7 +23,6 @@ import {
   Users,
   Copy,
   Check,
-  Radio,
 } from "lucide-react";
 import {
   Room,
@@ -32,7 +32,6 @@ import {
   RemoteTrackPublication,
   ParticipantEvent,
 } from "livekit-client";
-import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 
 interface Asset {
@@ -44,22 +43,58 @@ interface Asset {
 }
 
 /**
- * Remote Participant Video Tile
- * Automatically attaches remote camera or screen share video tracks to the DOM
+ * Word-by-word reveal for live captioning simulation (§6.3)
+ */
+function WordByWordTranscript({
+  text,
+  shouldReduceMotion,
+}: {
+  text: string;
+  shouldReduceMotion: boolean | null;
+}) {
+  const words = text.split(" ");
+  if (shouldReduceMotion) {
+    return <span>&ldquo;{text}&rdquo;</span>;
+  }
+  return (
+    <span>
+      &ldquo;
+      {words.map((word, i) => (
+        <motion.span
+          key={i}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.15, delay: i * 0.04 }}
+          className="inline-block mr-1"
+        >
+          {word}
+        </motion.span>
+      ))}
+      &rdquo;
+    </span>
+  );
+}
+
+/**
+ * Remote Participant Video Tile (§6.3)
+ * FLIP-style layout animation, active speaker brightness + 1.02 scale
  */
 function RemoteParticipantTile({
   participant,
   isMainSpeaker = false,
+  shouldReduceMotion = false,
 }: {
   participant: RemoteParticipant;
   isMainSpeaker?: boolean;
+  shouldReduceMotion?: boolean | null;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [hasVideo, setHasVideo] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
 
-  const participantName = participant.name || participant.identity || "Study Member";
+  const participantName =
+    participant.name || participant.identity || "Study Member";
   const initials = participantName.substring(0, 2).toUpperCase();
 
   useEffect(() => {
@@ -106,67 +141,91 @@ function RemoteParticipantTile({
   }, [participant]);
 
   return (
-    <div
-      className={`relative overflow-hidden rounded-[0.25rem] border transition-all duration-200 bg-[#211f1e] flex flex-col justify-end ${
-        isSpeaking ? "border-[#ba5d1a] ring-1 ring-[#ba5d1a]" : "border-[#32302f]"
-      } ${isMainSpeaker ? "w-full h-full" : "min-h-[9rem] flex-1 p-3"}`}
+    <motion.div
+      layout={!shouldReduceMotion}
+      layoutId={`tile-${participant.identity}`}
+      animate={{
+        scale: isSpeaking && !shouldReduceMotion ? 1.02 : 1,
+        borderColor: isSpeaking
+          ? "var(--text-primary)"
+          : "var(--border-hairline)",
+      }}
+      transition={{
+        layout: { duration: 0.45, ease: [0.65, 0, 0.35, 1] },
+        duration: 0.2,
+        ease: [0.25, 1, 0.5, 1],
+      }}
+      className={`relative overflow-hidden rounded-[var(--radius-card)] border bg-[var(--bg-elevated)] flex flex-col justify-end ${
+        isMainSpeaker ? "w-full h-full" : "min-h-[9.5rem] flex-1 p-3"
+      }`}
     >
       {/* Video Element */}
       <video
         ref={videoRef}
         autoPlay
         playsInline
-        className={`absolute inset-0 w-full h-full object-cover ${hasVideo ? "block" : "hidden"}`}
+        className={`absolute inset-0 w-full h-full object-cover ${
+          hasVideo ? "block" : "hidden"
+        }`}
       />
 
       {/* Fallback Avatar when Video Off */}
       {!hasVideo && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#242220] p-4 text-center">
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-[var(--bg-inset)] p-4 text-center">
           <div
-            className={`rounded-full bg-[#2d2a28] border border-[#554339] flex items-center justify-center font-serif font-bold text-[#faf9f6] ${
-              isMainSpeaker ? "w-24 h-24 text-3xl mb-3" : "w-12 h-12 text-base mb-1.5"
+            className={`rounded-full bg-[var(--bg-elevated)] border border-[var(--border-hairline)] flex items-center justify-center font-mono font-bold text-[var(--text-primary)] ${
+              isMainSpeaker
+                ? "w-24 h-24 text-3xl mb-3"
+                : "w-12 h-12 text-sm mb-1.5"
             }`}
           >
             {initials}
           </div>
-          <span className="font-sans font-medium text-xs text-[#faf9f6] truncate max-w-xs">
+          <span className="font-sans font-medium text-xs text-[var(--text-primary)] truncate max-w-xs">
             {participantName}
           </span>
-          <span className="font-sans text-[0.625rem] text-[#78746d]">
+          <span className="font-mono text-[0.6875rem] text-[var(--text-secondary)]">
             {isSpeaking ? "Speaking" : "Camera off"}
           </span>
         </div>
       )}
 
       {/* Gradient Overlay for Text Readability */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg-primary)]/80 via-transparent to-transparent pointer-events-none" />
 
       {/* Tag Overlay */}
       <div className="relative z-10 flex items-center justify-between p-3 text-xs">
         <div className="flex items-center gap-2">
-          <span className="font-sans font-medium text-[#faf9f6] truncate max-w-[10rem]">
+          <span className="font-sans font-medium text-[var(--text-primary)] truncate max-w-[10rem]">
             {participantName}
           </span>
           {isSpeaking && (
-            <span className="flex items-center gap-1 text-[0.625rem] text-[#ba5d1a] font-semibold uppercase">
-              <Radio className="w-2.5 h-2.5 animate-pulse" /> Speaking
+            <span className="flex items-center gap-1 font-mono text-[0.625rem] text-[var(--text-primary)] uppercase tracking-wider">
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-primary)] animate-pulse" />
+              Speaking
             </span>
           )}
         </div>
 
         <div className="flex items-center gap-1.5">
           {isMuted ? (
-            <div className="p-1 rounded bg-black/60 text-[#ba1a1a]" title="Muted">
+            <div
+              className="p-1 rounded-[var(--radius-button)] bg-[var(--bg-inset)]/80 text-[var(--text-secondary)] border border-[var(--border-hairline)]"
+              title="Muted"
+            >
               <MicOff className="w-3.5 h-3.5" />
             </div>
           ) : (
-            <div className="p-1 rounded bg-black/60 text-[#c4e8d8]" title="Audio Active">
+            <div
+              className="p-1 rounded-[var(--radius-button)] bg-[var(--bg-inset)]/80 text-[var(--text-primary)] border border-[var(--border-hairline)]"
+              title="Audio Active"
+            >
               <Volume2 className="w-3.5 h-3.5" />
             </div>
           )}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -175,29 +234,37 @@ export default function MeetingRoomPage() {
   const router = useRouter();
   const { user } = useUser();
   const groupId = params.groupId as string;
+  const shouldReduceMotion = useReducedMotion();
 
   // Media & Room state
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
-  const [roomMode, setRoomMode] = useState<"discussion" | "quiet">("discussion");
+  const [roomMode, setRoomMode] = useState<"discussion" | "quiet">(
+    "discussion"
+  );
   const [isReferenceDeskOpen, setIsReferenceDeskOpen] = useState(false);
   const [callDuration, setCallDuration] = useState("00:00:00");
   const [groupName, setGroupName] = useState<string>("Study Group");
   const [groupCode, setGroupCode] = useState<string>("");
+  const [isLeaving, setIsLeaving] = useState(false);
 
   // Real data state
   const [assets, setAssets] = useState<Asset[]>([]);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [pinnedNotes, setPinnedNotes] = useState<string[]>([]);
   const [newNoteInput, setNewNoteInput] = useState("");
-  const [activeTab, setActiveTab] = useState<"manuscript" | "notes" | "citations">("manuscript");
+  const [activeTab, setActiveTab] = useState<
+    "manuscript" | "notes" | "citations"
+  >("manuscript");
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedCitations, setCopiedCitations] = useState(false);
 
-  // Live transcript state
+  // Live transcript & Pin Animation state (§6.3)
   const [transcript, setTranscript] = useState<string | null>(null);
   const [transcriptTime, setTranscriptTime] = useState<string>("");
+  const [isPinFlashing, setIsPinFlashing] = useState(false);
+  const [showTravelingPin, setShowTravelingPin] = useState(false);
 
   // LiveKit Room reference & Participants
   const roomRef = useRef<Room | null>(null);
@@ -205,9 +272,10 @@ export default function MeetingRoomPage() {
   const stageVideoRef = useRef<HTMLVideoElement | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const audioContainerRef = useRef<HTMLDivElement>(null);
-  const [remoteParticipants, setRemoteParticipants] = useState<RemoteParticipant[]>([]);
+  const [remoteParticipants, setRemoteParticipants] = useState<
+    RemoteParticipant[]
+  >([]);
   const [isConnected, setIsConnected] = useState(false);
-  const [connectionMessage, setConnectionMessage] = useState("Connecting to live room...");
 
   // Load group details & assets
   useEffect(() => {
@@ -240,9 +308,11 @@ export default function MeetingRoomPage() {
 
   // Connect to LiveKit Room and initialize local media
   const connectLiveKit = useCallback(async () => {
-    // 1. Acquire local user media (camera & mic) so user can see themselves immediately and controls work reliably
     try {
-      if (typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia) {
+      if (
+        typeof navigator !== "undefined" &&
+        navigator.mediaDevices?.getUserMedia
+      ) {
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: true,
           video: { width: { ideal: 1280 }, height: { ideal: 720 } },
@@ -260,7 +330,6 @@ export default function MeetingRoomPage() {
     }
 
     try {
-      setConnectionMessage("Joining live meeting room...");
       const tokenRes = await fetch("/api/livekit/token", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -274,7 +343,6 @@ export default function MeetingRoomPage() {
       const tokenData = await tokenRes.json();
       const token = tokenData.token;
       const wsUrl = tokenData.url || tokenData.livekitUrl;
-      setConnectionMessage("Connecting to audio and video...");
 
       const room = new Room({
         adaptiveStream: true,
@@ -282,14 +350,12 @@ export default function MeetingRoomPage() {
       });
       roomRef.current = room;
 
-      // Update participant lists on connection events
       const updateParticipants = () => {
         setRemoteParticipants(Array.from(room.remoteParticipants.values()));
       };
 
       room.on(RoomEvent.ParticipantConnected, updateParticipants);
       room.on(RoomEvent.ParticipantDisconnected, (participant) => {
-        // Clean up audio elements attached for this participant
         const audios = audioContainerRef.current?.querySelectorAll(
           `[id^="audio-${participant.identity}"]`
         );
@@ -297,10 +363,13 @@ export default function MeetingRoomPage() {
         updateParticipants();
       });
 
-      // Handle Tracks Subscribed (Audio transport & video state)
       room.on(
         RoomEvent.TrackSubscribed,
-        (track: Track, _pub: RemoteTrackPublication, participant: RemoteParticipant) => {
+        (
+          track: Track,
+          _pub: RemoteTrackPublication,
+          participant: RemoteParticipant
+        ) => {
           if (track.kind === Track.Kind.Audio) {
             const el = track.attach();
             el.id = `audio-${participant.identity}-${track.sid}`;
@@ -310,7 +379,6 @@ export default function MeetingRoomPage() {
         }
       );
 
-      // Handle Tracks Unsubscribed
       room.on(RoomEvent.TrackUnsubscribed, (track: Track) => {
         if (track.kind === Track.Kind.Audio) {
           track.detach().forEach((el) => el.remove());
@@ -321,7 +389,6 @@ export default function MeetingRoomPage() {
       room.on(RoomEvent.TrackMuted, updateParticipants);
       room.on(RoomEvent.TrackUnmuted, updateParticipants);
 
-      // Handle Data Received (Chat & Transcripts)
       room.on(RoomEvent.DataReceived, (payload: Uint8Array) => {
         try {
           const text = new TextDecoder().decode(payload);
@@ -342,17 +409,16 @@ export default function MeetingRoomPage() {
         }
       });
 
-      // Attempt room connection
       if (wsUrl && token) {
         await room.connect(wsUrl, token);
         setIsConnected(true);
-        setConnectionMessage("Connected to meeting");
         updateParticipants();
 
-        // Enable local microphone and camera in LiveKit
         try {
           await room.localParticipant.enableCameraAndMicrophone();
-          const camTrack = room.localParticipant.getTrackPublication(Track.Source.Camera);
+          const camTrack = room.localParticipant.getTrackPublication(
+            Track.Source.Camera
+          );
           if (camTrack?.track) {
             if (localVideoRef.current) {
               camTrack.track.attach(localVideoRef.current);
@@ -367,7 +433,6 @@ export default function MeetingRoomPage() {
       }
     } catch (err: unknown) {
       console.warn("LiveKit connection notice:", err);
-      setConnectionMessage("Meeting active (Local media enabled)");
       setIsConnected(true);
     }
   }, [groupId]);
@@ -390,7 +455,10 @@ export default function MeetingRoomPage() {
     const interval = setInterval(() => {
       const elapsedSec = Math.floor((Date.now() - startTime) / 1000);
       const hrs = String(Math.floor(elapsedSec / 3600)).padStart(2, "0");
-      const mins = String(Math.floor((elapsedSec % 3600) / 60)).padStart(2, "0");
+      const mins = String(Math.floor((elapsedSec % 3600) / 60)).padStart(
+        2,
+        "0"
+      );
       const secs = String(elapsedSec % 60).padStart(2, "0");
       setCallDuration(`${hrs}:${mins}:${secs}`);
     }, 1000);
@@ -401,14 +469,12 @@ export default function MeetingRoomPage() {
     const nextMuted = !isMuted;
     setIsMuted(nextMuted);
 
-    // 1. Toggle hardware audio tracks directly
     if (localStreamRef.current) {
       localStreamRef.current.getAudioTracks().forEach((track) => {
         track.enabled = !nextMuted;
       });
     }
 
-    // 2. Toggle LiveKit microphone if connected
     if (roomRef.current?.localParticipant) {
       try {
         await roomRef.current.localParticipant.setMicrophoneEnabled(!nextMuted);
@@ -422,16 +488,19 @@ export default function MeetingRoomPage() {
     const nextVideoOff = !isVideoOff;
     setIsVideoOff(nextVideoOff);
 
-    // 1. Toggle hardware video tracks directly
     if (localStreamRef.current) {
       localStreamRef.current.getVideoTracks().forEach((track) => {
         track.enabled = !nextVideoOff;
       });
 
-      // If turning video back on and video track was absent or stopped, reacquire
-      if (!nextVideoOff && localStreamRef.current.getVideoTracks().length === 0) {
+      if (
+        !nextVideoOff &&
+        localStreamRef.current.getVideoTracks().length === 0
+      ) {
         try {
-          const vStream = await navigator.mediaDevices.getUserMedia({ video: true });
+          const vStream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+          });
           const newTrack = vStream.getVideoTracks()[0];
           if (newTrack) {
             localStreamRef.current.addTrack(newTrack);
@@ -448,7 +517,10 @@ export default function MeetingRoomPage() {
       }
     } else if (!nextVideoOff) {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: !isMuted });
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: !isMuted,
+        });
         localStreamRef.current = stream;
         if (localVideoRef.current) {
           localVideoRef.current.srcObject = stream;
@@ -461,7 +533,6 @@ export default function MeetingRoomPage() {
       }
     }
 
-    // 2. Toggle LiveKit camera track if connected
     if (roomRef.current?.localParticipant) {
       try {
         await roomRef.current.localParticipant.setCameraEnabled(!nextVideoOff);
@@ -488,7 +559,9 @@ export default function MeetingRoomPage() {
     if (!roomRef.current?.localParticipant) return;
     const nextScreenSharing = !isScreenSharing;
     try {
-      await roomRef.current.localParticipant.setScreenShareEnabled(nextScreenSharing);
+      await roomRef.current.localParticipant.setScreenShareEnabled(
+        nextScreenSharing
+      );
       setIsScreenSharing(nextScreenSharing);
     } catch (err) {
       console.warn("Failed to toggle screen share:", err);
@@ -496,11 +569,15 @@ export default function MeetingRoomPage() {
     }
   }
 
+  // Leave Call (§6.3 - deliberate 250ms closing fade to --bg-primary before route transition)
   function handleLeave() {
-    if (roomRef.current) {
-      roomRef.current.disconnect();
-    }
-    router.push(`/lounges/${groupId}`);
+    setIsLeaving(true);
+    setTimeout(() => {
+      if (roomRef.current) {
+        roomRef.current.disconnect();
+      }
+      router.push(`/lounges/${groupId}`);
+    }, 250);
   }
 
   function handleCopyInviteLink() {
@@ -515,6 +592,25 @@ export default function MeetingRoomPage() {
     if (!newNoteInput.trim()) return;
     setPinnedNotes((prev) => [newNoteInput.trim(), ...prev]);
     setNewNoteInput("");
+  }
+
+  // Pin to Notes (§6.3 - transcript line flashes background, travel icon translates toward Notes tab)
+  function handlePinTranscript() {
+    if (!transcript) return;
+    setIsPinFlashing(true);
+    setShowTravelingPin(true);
+
+    if (!pinnedNotes.includes(transcript)) {
+      setPinnedNotes((prev) => [transcript, ...prev]);
+    }
+
+    setTimeout(() => {
+      setIsPinFlashing(false);
+    }, 450);
+
+    setTimeout(() => {
+      setShowTravelingPin(false);
+    }, 650);
   }
 
   function handleCopyCitations() {
@@ -532,70 +628,96 @@ export default function MeetingRoomPage() {
     : "ME";
 
   return (
-    <div className="h-screen w-screen bg-[#171615] text-[#fdf8f6] flex flex-col font-sans overflow-hidden select-none">
+    <div className="h-screen w-screen bg-[var(--bg-primary)] text-[var(--text-primary)] flex flex-col font-sans overflow-hidden select-none relative selection:bg-[var(--invert-bg)] selection:text-[var(--invert-text)]">
       {/* Hidden Audio Container for LiveKit remote tracks */}
       <div ref={audioContainerRef} className="hidden" aria-hidden="true" />
 
+      {/* Leave Call 250ms Closing Beat Overlay (§6.3) */}
+      <motion.div
+        initial={false}
+        animate={{ opacity: isLeaving ? 1 : 0 }}
+        transition={{ duration: 0.25, ease: "easeInOut" }}
+        className="fixed inset-0 bg-[var(--bg-primary)] pointer-events-none z-50"
+      />
+
       {/* Top Header Bar */}
-      <header className="h-14 border-b border-[#32302f] bg-[#1c1b1a] px-4 sm:px-6 flex items-center justify-between gap-4 shrink-0 z-20">
-        {/* Brand & Room Breadcrumb */}
+      <header className="h-14 border-b border-[var(--border-hairline)] bg-[var(--bg-elevated)] px-4 sm:px-6 flex items-center justify-between gap-4 shrink-0 z-20">
+        {/* Brand & Room Breadcrumb + Sanctioned Live Badge (§6.3 #2) */}
         <div className="flex items-center gap-3">
           <Link
             href="/lounges"
-            className="font-serif text-lg font-bold text-[#faf9f6] flex items-baseline hover:opacity-90 transition-opacity duration-150"
+            className="font-serif text-lg font-normal text-[var(--text-primary)] flex items-baseline hover:opacity-80 transition-opacity"
           >
-            StudyGroup<span className="text-[#ba5d1a] font-normal">+</span>
+            StudyGroup<span className="italic font-normal">+</span>
           </Link>
-          <span className="text-[#554339]">/</span>
+          <span className="text-[var(--text-disabled)]">/</span>
           <Link
             href={`/lounges/${groupId}`}
-            className="font-sans text-xs uppercase tracking-[0.08em] text-[#78746d] hover:text-[#faf9f6] transition-colors hidden sm:inline"
+            className="font-mono text-xs uppercase tracking-[0.06em] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors hidden sm:inline"
           >
             {groupName}
           </Link>
-          <span className="text-[#554339] hidden sm:inline">/</span>
-          <span className="font-sans text-xs text-[#e6e2df] font-medium truncate max-w-xs">
-            Live Room
-          </span>
-          <Badge
-            variant="forest"
-            dot
-            className="bg-[#234338]/60 text-[#c4e8d8] border-[#234338]"
-            title={connectionMessage}
+          <span className="text-[var(--text-disabled)] hidden sm:inline">/</span>
+
+          {/* Second Sanctioned Accent-Live Indicator (§6.3 REC • LIVE matching Reference Photo) */}
+          <div
+            className="flex items-center gap-2 px-2.5 py-1 rounded-[var(--radius-button)] border border-[#e5484d] bg-[rgba(229,72,77,0.15)] text-[#e5484d] font-mono text-xs uppercase tracking-wider font-semibold"
+            title={isConnected ? "Room connected" : "Connecting..."}
           >
-            {isConnected ? "Live" : "Connecting..."}
-          </Badge>
+            <span className="w-2 h-2 rounded-full bg-[#e5484d] animate-live-breathe" />
+            <span>{isConnected ? "REC • LIVE" : "CONNECTING..."}</span>
+          </div>
         </div>
 
-        {/* Center: Mode Switcher & Timer */}
+        {/* Center: Mode Switcher (§6.3 Segmented Control) & Duration */}
         <div className="hidden md:flex items-center gap-4">
-          <div className="p-1 bg-[#242220] border border-[#3e3b38] rounded-[0.25rem] flex items-center gap-1 text-xs">
+          <div className="p-1 bg-[var(--bg-inset)] border border-[var(--border-hairline)] rounded-[var(--radius-button)] flex items-center gap-1 text-xs font-mono">
             <button
               type="button"
               onClick={() => setRoomMode("quiet")}
-              className={`px-3 py-1 rounded-[0.125rem] transition-colors duration-150 ${
+              className={`relative px-3 py-1 rounded-[calc(var(--radius-button)-2px)] transition-colors duration-[var(--dur-fast)] cursor-pointer ${
                 roomMode === "quiet"
-                  ? "bg-[#234338] text-[#ffffff] font-medium"
-                  : "text-[#78746d] hover:text-[#faf9f6]"
+                  ? "text-[var(--text-primary)]"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               }`}
             >
-              Silent Study
+              {roomMode === "quiet" && (
+                <motion.div
+                  layoutId="activeRoomMode"
+                  transition={{
+                    duration: shouldReduceMotion ? 0.1 : 0.3,
+                    ease: [0.25, 1, 0.5, 1],
+                  }}
+                  className="absolute inset-0 rounded-[calc(var(--radius-button)-2px)] bg-[var(--bg-elevated)] border border-[var(--border-hairline)]"
+                />
+              )}
+              <span className="relative z-10">Silent Study</span>
             </button>
             <button
               type="button"
               onClick={() => setRoomMode("discussion")}
-              className={`px-3 py-1 rounded-[0.125rem] transition-colors duration-150 ${
+              className={`relative px-3 py-1 rounded-[calc(var(--radius-button)-2px)] transition-colors duration-[var(--dur-fast)] cursor-pointer ${
                 roomMode === "discussion"
-                  ? "bg-[#ba5d1a] text-[#ffffff] font-medium"
-                  : "text-[#78746d] hover:text-[#faf9f6]"
+                  ? "text-[var(--text-primary)]"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               }`}
             >
-              Discussion
+              {roomMode === "discussion" && (
+                <motion.div
+                  layoutId="activeRoomMode"
+                  transition={{
+                    duration: shouldReduceMotion ? 0.1 : 0.3,
+                    ease: [0.25, 1, 0.5, 1],
+                  }}
+                  className="absolute inset-0 rounded-[calc(var(--radius-button)-2px)] bg-[var(--bg-elevated)] border border-[var(--border-hairline)]"
+                />
+              )}
+              <span className="relative z-10">Discussion</span>
             </button>
           </div>
 
-          <div className="flex items-center gap-1.5 text-xs font-mono text-[#e6e2df] bg-[#242220] px-2.5 py-1 rounded-[0.125rem] border border-[#3e3b38]">
-            <Clock className="w-3.5 h-3.5 text-[#ba5d1a]" />
+          <div className="flex items-center gap-2 text-xs font-mono text-[var(--text-secondary)] bg-[var(--bg-inset)] px-3 py-1 rounded-[var(--radius-button)] border border-[var(--border-hairline)]">
+            <Clock className="w-3.5 h-3.5 text-[var(--text-primary)]" />
             <span>{callDuration}</span>
           </div>
         </div>
@@ -609,10 +731,13 @@ export default function MeetingRoomPage() {
             onClick={() => setIsReferenceDeskOpen(!isReferenceDeskOpen)}
             className="text-xs"
           >
-            Study Notes <span className="ml-1 px-1.5 py-0.2 rounded bg-black/20 text-[0.625rem]">{assets.length}</span>
+            Study Notes{" "}
+            <span className="ml-1 px-1.5 py-0.5 rounded-[calc(var(--radius-button)-2px)] bg-[var(--bg-inset)] font-mono text-[0.625rem]">
+              {assets.length}
+            </span>
           </Button>
 
-          <div className="w-8 h-8 rounded-[0.25rem] bg-[#2d2a28] border border-[#3e3b38] flex items-center justify-center font-serif text-xs font-bold text-[#faf9f6]">
+          <div className="w-8 h-8 rounded-full bg-[var(--bg-inset)] border border-[var(--border-hairline)] flex items-center justify-center font-mono text-xs font-semibold text-[var(--text-primary)]">
             {scholarInitials}
           </div>
         </div>
@@ -620,51 +745,67 @@ export default function MeetingRoomPage() {
 
       {/* Main Content Area: Stage + Side Panel */}
       <div className="flex-1 flex overflow-hidden relative">
-        {/* Stage Grid */}
+        {/* Stage Grid with FLIP layout transitions (§6.3) */}
         <main className="flex-1 p-4 lg:p-6 flex flex-col justify-between overflow-hidden relative">
           <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch overflow-hidden">
             {/* Left Large Speaker / Stage Tile */}
-            <div className="lg:col-span-8 bg-[#211f1e] rounded-[0.25rem] border border-[#32302f] relative overflow-hidden flex flex-col justify-between">
+            <motion.div
+              layout={!shouldReduceMotion}
+              className="lg:col-span-8 bg-[var(--bg-elevated)] rounded-[var(--radius-card)] border border-[var(--border-hairline)] relative overflow-hidden flex flex-col justify-between"
+            >
               {remoteParticipants.length > 0 && remoteParticipants[0] ? (
                 /* Primary Remote Participant on Stage */
-                <RemoteParticipantTile participant={remoteParticipants[0]} isMainSpeaker={true} />
+                <RemoteParticipantTile
+                  participant={remoteParticipants[0]}
+                  isMainSpeaker={true}
+                  shouldReduceMotion={shouldReduceMotion}
+                />
               ) : (
                 /* Single User / Stage View */
-                <div className="absolute inset-0 bg-[#1e1c1b] flex flex-col items-center justify-center overflow-hidden">
-                  {/* Stage Video element when local video is active */}
+                <div className="absolute inset-0 bg-[var(--bg-inset)] flex flex-col items-center justify-center overflow-hidden">
                   <video
                     ref={stageVideoRef}
                     autoPlay
                     playsInline
                     muted
-                    className={`absolute inset-0 w-full h-full object-cover ${isVideoOff ? "hidden" : "block"}`}
+                    className={`absolute inset-0 w-full h-full object-cover ${
+                      isVideoOff ? "hidden" : "block"
+                    }`}
                   />
 
                   {/* Fallback Display when Camera Off */}
                   {isVideoOff && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-[#282523]">
-                      <div className="relative w-28 h-28 rounded-full bg-[#3a3532] border-2 border-[#554339] flex items-center justify-center font-serif text-3xl text-[#dcc1b4] mb-4 shadow-paper-floating">
+                    <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-[var(--bg-elevated)]">
+                      <div className="relative w-28 h-28 rounded-full bg-[var(--bg-inset)] border border-[var(--border-hairline)] flex items-center justify-center font-mono text-3xl text-[var(--text-primary)] mb-4">
                         {scholarInitials}
-                        <span className="absolute bottom-1 right-1 w-4 h-4 rounded-full bg-[#ba1a1a] ring-2 ring-[#282523]" title="Camera Off" />
+                        <span
+                          className="absolute bottom-1 right-1 w-4 h-4 rounded-full bg-[var(--bg-overlay)] border border-[var(--border-hairline)] ring-2 ring-[var(--bg-elevated)]"
+                          title="Camera Off"
+                        />
                       </div>
 
-                      <h3 className="font-serif text-2xl text-[#faf9f6] mb-1">
+                      <h3 className="font-serif text-2xl font-normal text-[var(--text-primary)] mb-1">
                         {user?.fullName || "You"}
                       </h3>
-                      <p className="font-sans text-xs text-[#78746d] max-w-sm mb-6 leading-relaxed">
-                        Your camera is currently muted. Turn it on with the tray button below, or invite study peers to this lounge.
+                      <p className="font-sans text-xs text-[var(--text-secondary)] max-w-sm mb-6 leading-relaxed">
+                        Your camera is currently muted. Turn it on with the tray
+                        button below, or invite study peers to this lounge.
                       </p>
                     </div>
                   )}
 
                   {/* Top Stage Badges */}
                   <div className="absolute top-4 left-4 z-20 flex items-center gap-2">
-                    <span className="px-2.5 py-1 rounded-[0.25rem] bg-black/60 backdrop-blur-sm border border-white/10 text-xs font-sans text-[#faf9f6] flex items-center gap-1.5">
-                      <span className={`w-2 h-2 rounded-full ${isVideoOff ? "bg-[#78746d]" : "bg-[#234338]"}`} />
+                    <span className="px-2.5 py-1 rounded-[var(--radius-button)] bg-[var(--bg-inset)]/90 backdrop-blur-sm border border-[var(--border-hairline)] text-xs font-mono text-[var(--text-primary)] flex items-center gap-2">
+                      <span
+                        className={`w-2 h-2 rounded-full ${
+                          isVideoOff ? "bg-[var(--text-disabled)]" : "bg-[var(--text-primary)]"
+                        }`}
+                      />
                       {user?.fullName || "You"} (Stage)
                     </span>
                     {isMuted && (
-                      <span className="px-2.5 py-1 rounded-[0.25rem] bg-[#ba1a1a]/80 text-white text-xs font-sans flex items-center gap-1">
+                      <span className="px-2.5 py-1 rounded-[var(--radius-button)] bg-[var(--bg-inset)]/90 border border-[var(--border-hairline)] text-[var(--text-secondary)] text-xs font-mono flex items-center gap-1.5">
                         <MicOff className="w-3 h-3" /> Muted
                       </span>
                     )}
@@ -672,27 +813,27 @@ export default function MeetingRoomPage() {
 
                   {/* Bottom Invite Floating Bar */}
                   <div className="absolute bottom-4 left-4 right-4 z-20 flex items-center justify-between pointer-events-none">
-                    <div className="pointer-events-auto bg-[#171615]/85 backdrop-blur-md px-4 py-2 rounded-[0.25rem] border border-white/10 flex items-center gap-3">
-                      <span className="font-sans text-xs text-[#ddd8cc] hidden sm:inline">
+                    <div className="pointer-events-auto bg-[var(--bg-elevated)]/90 backdrop-blur-md px-4 py-2 rounded-[var(--radius-card)] border border-[var(--border-hairline)] flex items-center gap-3">
+                      <span className="font-sans text-xs text-[var(--text-secondary)] hidden sm:inline">
                         Waiting for members to join
                       </span>
                       <button
                         type="button"
                         onClick={handleCopyInviteLink}
-                        className="px-3 py-1 bg-[#ba5d1a] hover:bg-[#a24e14] text-white text-xs font-medium rounded-[0.25rem] flex items-center gap-1.5 transition-colors"
+                        className="px-3 py-1.5 bg-[var(--invert-bg)] hover:bg-white text-[var(--invert-text)] text-xs font-semibold rounded-[var(--radius-button)] flex items-center gap-1.5 transition-colors cursor-pointer"
                       >
                         {copiedLink ? (
                           <>
-                            <Check className="w-3 h-3 text-[#234338]" /> Link Copied!
+                            <Check className="w-3.5 h-3.5" /> Link Copied!
                           </>
                         ) : (
                           <>
-                            <Copy className="w-3 h-3" /> Copy Invite Link
+                            <Copy className="w-3.5 h-3.5" /> Copy Invite Link
                           </>
                         )}
                       </button>
                       {groupCode && (
-                        <span className="font-mono text-xs text-[#ffb68c] hidden md:inline">
+                        <span className="font-mono text-xs text-[var(--text-secondary)] hidden md:inline">
                           #{groupCode}
                         </span>
                       )}
@@ -701,93 +842,133 @@ export default function MeetingRoomPage() {
                 </div>
               )}
 
-              {/* Live Transcript Panel if Available */}
+              {/* Live Transcript Panel (§6.3 word-by-word reveal, 4px rise, Pin-to-notes travel animation) */}
               {transcript && (
-                <div className="relative z-20 m-4 p-4 rounded-[0.25rem] bg-[#171615]/90 backdrop-blur-md border border-[#3e3b38] max-w-2xl shadow-paper-floating">
+                <motion.div
+                  initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 4 }}
+                  animate={{
+                    opacity: 1,
+                    y: 0,
+                    backgroundColor: isPinFlashing ? "var(--bg-overlay)" : "rgba(10, 10, 10, 0.92)",
+                  }}
+                  transition={{ duration: shouldReduceMotion ? 0.1 : 0.2 }}
+                  className="relative z-20 m-4 p-4 rounded-[var(--radius-card)] backdrop-blur-md border border-[var(--border-hairline)] max-w-2xl"
+                >
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <Sparkles className="w-3.5 h-3.5 text-[#ba5d1a]" />
-                      <span className="font-sans text-[0.625rem] font-semibold uppercase tracking-[0.1em] text-[#78746d]">
+                      <Sparkles className="w-3.5 h-3.5 text-[var(--text-primary)]" />
+                      <span className="font-mono text-[0.625rem] font-medium uppercase tracking-[0.08em] text-[var(--text-secondary)]">
                         Live Transcript • {transcriptTime}
                       </span>
+                      <span className="inline-flex items-center gap-1 text-[#e5484d] font-mono text-[0.625rem] font-semibold uppercase tracking-wider ml-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#e5484d] animate-live-breathe inline-block" />
+                        STREAMING
+                      </span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (transcript && !pinnedNotes.includes(transcript)) {
-                          setPinnedNotes((prev) => [transcript, ...prev]);
-                        }
-                      }}
-                      className="font-sans text-[0.6875rem] text-[#ba5d1a] hover:text-[#ffb68c] transition-colors duration-150 flex items-center gap-1 font-medium"
-                    >
-                      <Pin className="w-3 h-3" /> Pin to Notes
-                    </button>
-                  </div>
-                  <p className="font-editorial italic text-sm sm:text-base leading-relaxed text-[#faf9f6]">
-                    &ldquo;{transcript}&rdquo;
-                  </p>
-                </div>
-              )}
-            </div>
 
-            {/* Right Column: Local User + Additional Remote Participants */}
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={handlePinTranscript}
+                        className="font-mono text-xs text-[var(--text-primary)] hover:underline transition-colors flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Pin className="w-3 h-3" /> Pin to Notes
+                      </button>
+
+                      {/* Traveling Pin Icon Animation (§6.3) */}
+                      {showTravelingPin && !shouldReduceMotion && (
+                        <motion.div
+                          initial={{ opacity: 1, x: 0, y: 0, scale: 1 }}
+                          animate={{ opacity: 0, x: 180, y: -40, scale: 0.4 }}
+                          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+                          className="absolute -top-1 left-0 pointer-events-none text-[var(--text-primary)]"
+                        >
+                          <Pin className="w-4 h-4" />
+                        </motion.div>
+                      )}
+                    </div>
+                  </div>
+
+                  <p className="font-serif text-sm sm:text-base leading-relaxed text-[var(--text-primary)]">
+                    <WordByWordTranscript text={transcript} shouldReduceMotion={shouldReduceMotion} />
+                  </p>
+                </motion.div>
+              )}
+            </motion.div>
+
+            {/* Right Column: Local User + Additional Remote Participants (FLIP-animated) */}
             <div className="lg:col-span-4 flex flex-col gap-4 justify-between overflow-y-auto">
               {/* Local Participant Feed */}
-              <div className="flex-1 min-h-[9rem] bg-[#211f1e] rounded-[0.25rem] border border-[#32302f] relative overflow-hidden flex flex-col justify-end p-3 group hover:border-[#554339] transition-colors duration-150">
+              <motion.div
+                layout={!shouldReduceMotion}
+                className="flex-1 min-h-[9.5rem] bg-[var(--bg-elevated)] rounded-[var(--radius-card)] border border-[var(--border-hairline)] relative overflow-hidden flex flex-col justify-end p-3 group hover:border-[var(--border-hover)] transition-colors"
+              >
                 <video
                   ref={localVideoRef}
                   autoPlay
                   playsInline
                   muted
-                  className={`absolute inset-0 w-full h-full object-cover ${isVideoOff ? "hidden" : "block"}`}
+                  className={`absolute inset-0 w-full h-full object-cover ${
+                    isVideoOff ? "hidden" : "block"
+                  }`}
                 />
 
                 {isVideoOff && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-[#242220]">
-                    <div className="w-12 h-12 rounded-full bg-[#2d2a28] border border-[#554339] flex items-center justify-center font-serif font-bold text-sm text-[#faf9f6]">
+                  <div className="absolute inset-0 flex items-center justify-center bg-[var(--bg-inset)]">
+                    <div className="w-12 h-12 rounded-full bg-[var(--bg-elevated)] border border-[var(--border-hairline)] flex items-center justify-center font-mono font-bold text-xs text-[var(--text-primary)]">
                       {scholarInitials}
                     </div>
                   </div>
                 )}
 
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent z-10" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg-primary)]/80 via-transparent to-transparent z-10 pointer-events-none" />
 
                 <div className="relative z-20 flex items-center justify-between text-xs">
                   <div>
-                    <span className="font-sans font-medium text-[#faf9f6] block">
+                    <span className="font-sans font-medium text-[var(--text-primary)] block">
                       {user?.fullName || "You"} (You)
                     </span>
-                    <span className="font-editorial italic text-[0.6875rem] text-[#ddd8cc]/70">
+                    <span className="font-mono text-[0.6875rem] text-[var(--text-secondary)]">
                       {isScreenSharing ? "Sharing Screen" : "Member"}
                     </span>
                   </div>
                   <div className="flex items-center gap-1">
                     {isMuted ? (
-                      <div className="p-1 rounded bg-black/60 text-[#ba1a1a]" title="Microphone muted">
+                      <div
+                        className="p-1 rounded-[var(--radius-button)] bg-[var(--bg-inset)]/80 text-[var(--text-secondary)] border border-[var(--border-hairline)]"
+                        title="Microphone muted"
+                      >
                         <MicOff className="w-3.5 h-3.5" />
                       </div>
                     ) : (
-                      <div className="p-1 rounded bg-black/60 text-[#c4e8d8]" title="Microphone active">
+                      <div
+                        className="p-1 rounded-[var(--radius-button)] bg-[var(--bg-inset)]/80 text-[var(--text-primary)] border border-[var(--border-hairline)]"
+                        title="Microphone active"
+                      >
                         <Mic className="w-3.5 h-3.5" />
                       </div>
                     )}
                   </div>
                 </div>
-              </div>
+              </motion.div>
 
               {/* Additional Remote Participants */}
               {remoteParticipants.slice(1).map((participant) => (
-                <RemoteParticipantTile key={participant.identity} participant={participant} />
+                <RemoteParticipantTile
+                  key={participant.identity}
+                  participant={participant}
+                  shouldReduceMotion={shouldReduceMotion}
+                />
               ))}
 
               {/* If only local user, show Waiting Status tile */}
               {remoteParticipants.length === 0 && (
-                <div className="flex-1 min-h-[9rem] bg-[#1c1b1a] rounded-[0.25rem] border border-dashed border-[#32302f] flex flex-col items-center justify-center p-4 text-center">
-                  <Users className="w-6 h-6 text-[#78746d] mb-2 opacity-50" />
-                  <span className="font-sans text-xs text-[#faf9f6] font-medium mb-1">
+                <div className="flex-1 min-h-[9.5rem] bg-[var(--bg-inset)] rounded-[var(--radius-card)] border border-dashed border-[var(--border-hairline)] flex flex-col items-center justify-center p-4 text-center">
+                  <Users className="w-6 h-6 text-[var(--text-secondary)] mb-2 opacity-50" />
+                  <span className="font-sans text-xs text-[var(--text-primary)] font-medium mb-1">
                     Room Ready
                   </span>
-                  <span className="font-sans text-[0.6875rem] text-[#78746d] max-w-xs leading-relaxed">
+                  <span className="font-mono text-[0.6875rem] text-[var(--text-secondary)] max-w-xs leading-relaxed">
                     1 participant connected. Share invite link to add others.
                   </span>
                 </div>
@@ -795,42 +976,73 @@ export default function MeetingRoomPage() {
             </div>
           </div>
 
-          {/* Floating Bottom Media Control Bar */}
+          {/* Floating Bottom Media Control Bar (§6.3 mic/cam cross-fade glyph swaps) */}
           <div className="pt-4 flex justify-center z-30">
-            <div className="px-5 py-2.5 rounded-[0.25rem] bg-[#1c1b1a] border border-[#32302f] shadow-paper-floating flex items-center gap-3 font-sans">
-              <button
+            <div className="px-5 py-2.5 rounded-[var(--radius-card)] bg-[var(--bg-elevated)] border border-[var(--border-hairline)] flex items-center gap-3 font-sans">
+              {/* Mic Toggle with 150ms Icon Cross-fade */}
+              <motion.button
+                whileTap={shouldReduceMotion ? undefined : { scale: 0.97 }}
                 type="button"
                 onClick={handleToggleMic}
-                className={`p-2.5 rounded-[0.25rem] border transition-colors duration-150 ${
+                className={`p-2.5 rounded-[var(--radius-button)] border transition-colors duration-[var(--dur-fast)] cursor-pointer ${
                   isMuted
-                    ? "bg-[#ffdad6]/10 text-[#ba1a1a] border-[#ba1a1a]"
-                    : "bg-[#282624] text-[#faf9f6] border-[#3e3b38] hover:bg-[#32302f]"
+                    ? "bg-[var(--bg-inset)] text-[var(--text-secondary)] border-[var(--border-focus)]"
+                    : "bg-[var(--bg-overlay)] text-[var(--text-primary)] border-[var(--border-hairline)] hover:border-[var(--border-hover)]"
                 }`}
                 title={isMuted ? "Unmute Microphone" : "Mute Microphone"}
               >
-                {isMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-              </button>
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.span
+                    key={isMuted ? "mic-off" : "mic-on"}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.15 }}
+                    className="flex items-center justify-center"
+                  >
+                    {isMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                  </motion.span>
+                </AnimatePresence>
+              </motion.button>
 
-              <button
+              {/* Video Toggle with 150ms Icon Cross-fade */}
+              <motion.button
+                whileTap={shouldReduceMotion ? undefined : { scale: 0.97 }}
                 type="button"
                 onClick={handleToggleVideo}
-                className={`p-2.5 rounded-[0.25rem] border transition-colors duration-150 ${
+                className={`p-2.5 rounded-[var(--radius-button)] border transition-colors duration-[var(--dur-fast)] cursor-pointer ${
                   isVideoOff
-                    ? "bg-[#ffdad6]/10 text-[#ba1a1a] border-[#ba1a1a]"
-                    : "bg-[#282624] text-[#faf9f6] border-[#3e3b38] hover:bg-[#32302f]"
+                    ? "bg-[var(--bg-inset)] text-[var(--text-secondary)] border-[var(--border-focus)]"
+                    : "bg-[var(--bg-overlay)] text-[var(--text-primary)] border-[var(--border-hairline)] hover:border-[var(--border-hover)]"
                 }`}
                 title={isVideoOff ? "Turn Camera On" : "Turn Camera Off"}
               >
-                {isVideoOff ? <VideoOff className="w-4 h-4" /> : <Video className="w-4 h-4" />}
-              </button>
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.span
+                    key={isVideoOff ? "video-off" : "video-on"}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.15 }}
+                    className="flex items-center justify-center"
+                  >
+                    {isVideoOff ? (
+                      <VideoOff className="w-4 h-4" />
+                    ) : (
+                      <Video className="w-4 h-4" />
+                    )}
+                  </motion.span>
+                </AnimatePresence>
+              </motion.button>
 
+              {/* Screen Share Toggle */}
               <button
                 type="button"
                 onClick={handleToggleScreenShare}
-                className={`px-3.5 py-2 rounded-[0.25rem] border text-xs font-medium flex items-center gap-2 transition-colors duration-150 ${
+                className={`px-3.5 py-2 rounded-[var(--radius-button)] border text-xs font-mono flex items-center gap-2 transition-colors duration-[var(--dur-fast)] cursor-pointer ${
                   isScreenSharing
-                    ? "bg-[#ba5d1a] text-[#ffffff] border-[#ba5d1a]"
-                    : "bg-[#282624] text-[#faf9f6] border-[#3e3b38] hover:bg-[#32302f]"
+                    ? "bg-[var(--invert-bg)] text-[var(--invert-text)] border-[var(--invert-bg)]"
+                    : "bg-[var(--bg-overlay)] text-[var(--text-primary)] border-[var(--border-hairline)] hover:border-[var(--border-hover)]"
                 }`}
                 title="Toggle Screen Share"
               >
@@ -838,13 +1050,14 @@ export default function MeetingRoomPage() {
                 <span>{isScreenSharing ? "Stop Sharing" : "Screen Share"}</span>
               </button>
 
+              {/* Study Notes Toggle */}
               <button
                 type="button"
                 onClick={() => setIsReferenceDeskOpen(!isReferenceDeskOpen)}
-                className={`px-3.5 py-2 rounded-[0.25rem] border text-xs font-medium flex items-center gap-2 transition-colors duration-150 ${
+                className={`px-3.5 py-2 rounded-[var(--radius-button)] border text-xs font-mono flex items-center gap-2 transition-colors duration-[var(--dur-fast)] cursor-pointer ${
                   isReferenceDeskOpen
-                    ? "bg-[#ba5d1a] text-[#ffffff] border-[#ba5d1a]"
-                    : "bg-[#282624] text-[#faf9f6] border-[#3e3b38] hover:bg-[#32302f]"
+                    ? "bg-[var(--invert-bg)] text-[var(--invert-text)] border-[var(--invert-bg)]"
+                    : "bg-[var(--bg-overlay)] text-[var(--text-primary)] border-[var(--border-hairline)] hover:border-[var(--border-hover)]"
                 }`}
                 title="Toggle Study Notes Panel"
               >
@@ -852,32 +1065,33 @@ export default function MeetingRoomPage() {
                 <span>Study Notes</span>
               </button>
 
-              <div className="w-[1px] h-6 bg-[#32302f]" />
+              <div className="w-[1px] h-6 bg-[var(--border-hairline)]" />
 
+              {/* Leave Button: 250ms deliberate closing fade */}
               <button
                 type="button"
                 onClick={handleLeave}
-                className="px-4 py-2 rounded-[0.25rem] bg-[#ba1a1a] hover:bg-[#93000a] text-[#ffffff] text-xs font-semibold flex items-center gap-1.5 transition-colors duration-150"
+                className="px-4 py-2 rounded-[var(--radius-button)] bg-[rgba(229,72,77,0.1)] hover:bg-[rgba(229,72,77,0.22)] border border-[rgba(229,72,77,0.35)] hover:border-[#e5484d] text-[#e5484d] text-xs font-mono font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
                 title="Leave Meeting Room"
               >
-                <PhoneOff className="w-3.5 h-3.5" /> Leave
+                <PhoneOff className="w-3.5 h-3.5" /> Leave Call
               </button>
             </div>
           </div>
         </main>
 
-        {/* Collapsible Reference Desk Side Panel */}
+        {/* Collapsible Reference Desk Side Panel (§6.3 Monochrome restyle) */}
         {isReferenceDeskOpen && (
-          <aside className="w-96 md:w-[26rem] bg-[#faf9f6] text-[#171615] border-l border-[#e5e2d9] flex flex-col shrink-0 z-30 font-sans shadow-paper-floating">
+          <aside className="w-96 md:w-[26rem] bg-[var(--bg-elevated)] text-[var(--text-primary)] border-l border-[var(--border-hairline)] flex flex-col shrink-0 z-30 font-sans">
             {/* Panel Header */}
-            <div className="p-4 bg-[#f4f2eb] border-b border-[#e5e2d9] flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <BookOpen className="w-4 h-4 text-[#ba5d1a]" />
+            <div className="p-4 border-b border-[var(--border-hairline)] flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <BookOpen className="w-4 h-4 text-[var(--text-secondary)]" />
                 <div>
-                  <h3 className="font-serif text-base font-normal text-[#171615]">
+                  <h3 className="font-serif text-base font-normal text-[var(--text-primary)]">
                     Study Notes &amp; Documents
                   </h3>
-                  <p className="font-sans text-[0.625rem] uppercase tracking-[0.08em] text-[#78746d]">
+                  <p className="font-mono text-[0.625rem] uppercase tracking-[0.08em] text-[var(--text-secondary)]">
                     {groupName} Materials
                   </p>
                 </div>
@@ -885,66 +1099,64 @@ export default function MeetingRoomPage() {
               <button
                 type="button"
                 onClick={() => setIsReferenceDeskOpen(false)}
-                className="p-1 text-[#78746d] hover:text-[#171615] rounded transition-colors duration-150"
+                className="p-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded-[var(--radius-button)] transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Tabs */}
-            <div className="px-4 pt-2 flex gap-4 border-b border-[#e5e2d9] text-xs font-semibold uppercase tracking-[0.08em]">
-              <button
-                type="button"
-                onClick={() => setActiveTab("manuscript")}
-                className={`pb-2 border-b-2 transition-colors duration-150 ${
-                  activeTab === "manuscript"
-                    ? "border-[#ba5d1a] text-[#ba5d1a]"
-                    : "border-transparent text-[#78746d] hover:text-[#171615]"
-                }`}
-              >
-                Documents ({assets.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab("notes")}
-                className={`pb-2 border-b-2 transition-colors duration-150 ${
-                  activeTab === "notes"
-                    ? "border-[#ba5d1a] text-[#ba5d1a]"
-                    : "border-transparent text-[#78746d] hover:text-[#171615]"
-                }`}
-              >
-                Notes ({pinnedNotes.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab("citations")}
-                className={`pb-2 border-b-2 transition-colors duration-150 ${
-                  activeTab === "citations"
-                    ? "border-[#ba5d1a] text-[#ba5d1a]"
-                    : "border-transparent text-[#78746d] hover:text-[#171615]"
-                }`}
-              >
-                Citations
-              </button>
+            {/* Tabs (§5 segmented layout transition) */}
+            <div className="px-4 pt-3 flex gap-2 border-b border-[var(--border-hairline)] text-xs font-mono">
+              {[
+                { key: "manuscript", label: `Documents (${assets.length})` },
+                { key: "notes", label: `Notes (${pinnedNotes.length})` },
+                { key: "citations", label: "Citations" },
+              ].map((tab) => {
+                const isActive = activeTab === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setActiveTab(tab.key as typeof activeTab)}
+                    className={`relative pb-2.5 px-2 transition-colors duration-[var(--dur-fast)] cursor-pointer ${
+                      isActive
+                        ? "text-[var(--text-primary)]"
+                        : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                    }`}
+                  >
+                    {isActive && (
+                      <motion.div
+                        layoutId="activeRoomNotesTab"
+                        transition={{ duration: 0.3, ease: [0.25, 1, 0.5, 1] }}
+                        className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--text-primary)]"
+                      />
+                    )}
+                    <span className="relative z-10">{tab.label}</span>
+                  </button>
+                );
+              })}
             </div>
 
             {/* Panel Body */}
             <div className="flex-1 p-5 overflow-y-auto space-y-6">
               {activeTab === "manuscript" && (
                 <div>
-                  <div className="mb-4 pb-3 border-b border-[#e5e2d9]">
-                    <span className="font-sans text-[0.625rem] font-semibold uppercase tracking-[0.1em] text-[#78746d]">
+                  <div className="mb-4 pb-3 border-b border-[var(--border-hairline)]">
+                    <span className="font-mono text-[0.625rem] font-medium uppercase tracking-[0.1em] text-[var(--text-secondary)]">
                       GROUP DOCUMENTS
                     </span>
-                    <h4 className="font-serif text-lg font-normal text-[#171615] mt-1">
+                    <h4 className="font-serif text-lg font-normal text-[var(--text-primary)] mt-1">
                       {selectedAsset ? selectedAsset.title : "No Document Selected"}
                     </h4>
                   </div>
 
                   {assets.length === 0 ? (
-                    <div className="p-6 bg-[#ffffff] border border-dashed border-[#ddd8cc] rounded text-center text-xs text-[#78746d]">
+                    <div className="p-6 bg-[var(--bg-inset)] border border-dashed border-[var(--border-hairline)] rounded-[var(--radius-card)] text-center text-xs text-[var(--text-secondary)]">
                       <p>No documents uploaded to this study group yet.</p>
-                      <Link href={`/lounges/${groupId}`} className="text-[#ba5d1a] hover:underline mt-2 inline-block">
+                      <Link
+                        href={`/lounges/${groupId}`}
+                        className="text-[var(--text-primary)] hover:underline mt-2 inline-block font-mono"
+                      >
                         Upload files in Group Workspace
                       </Link>
                     </div>
@@ -954,19 +1166,19 @@ export default function MeetingRoomPage() {
                         <div
                           key={a.id}
                           onClick={() => setSelectedAsset(a)}
-                          className={`p-3 rounded-[0.25rem] border cursor-pointer transition-all ${
+                          className={`p-3 rounded-[var(--radius-button)] border cursor-pointer transition-all ${
                             selectedAsset?.id === a.id
-                              ? "bg-[#fff9f6] border-[#ba5d1a]"
-                              : "bg-[#ffffff] border-[#e5e2d9] hover:border-[#ddd8cc]"
+                              ? "bg-[var(--bg-overlay)] border-[var(--border-hover)]"
+                              : "bg-[var(--bg-inset)] border-[var(--border-hairline)] hover:border-[var(--border-hover)]"
                           }`}
                         >
                           <div className="flex items-center justify-between text-xs">
-                            <span className="font-medium text-[#171615] truncate max-w-[14rem]">
+                            <span className="font-sans font-medium text-[var(--text-primary)] truncate max-w-[14rem]">
                               {a.title}
                             </span>
-                            <Badge variant={a.fileType === "pdf" ? "forest" : "ochre"}>
+                            <span className="font-mono text-[0.6875rem] px-2 py-0.5 rounded-[var(--radius-button)] bg-[var(--bg-elevated)] border border-[var(--border-hairline)] text-[var(--text-secondary)]">
                               {a.fileType.toUpperCase()}
-                            </Badge>
+                            </span>
                           </div>
                         </div>
                       ))}
@@ -977,16 +1189,18 @@ export default function MeetingRoomPage() {
 
               {activeTab === "notes" && (
                 <div className="space-y-3">
-                  <h4 className="font-serif text-sm text-[#171615]">Session Notes</h4>
+                  <h4 className="font-serif text-sm font-normal text-[var(--text-primary)]">
+                    Session Notes
+                  </h4>
                   {pinnedNotes.length === 0 ? (
-                    <div className="p-4 bg-[#ffffff] border border-dashed border-[#ddd8cc] rounded text-center text-xs text-[#78746d]">
-                      No notes taken during this session yet. Use the form below to record notes.
+                    <div className="p-4 bg-[var(--bg-inset)] border border-dashed border-[var(--border-hairline)] rounded-[var(--radius-card)] text-center text-xs text-[var(--text-secondary)] font-mono">
+                      No notes pinned yet. Use &ldquo;Pin to Notes&rdquo; on transcripts or add below.
                     </div>
                   ) : (
                     pinnedNotes.map((note, i) => (
                       <div
                         key={i}
-                        className="p-3 bg-[#ffffff] border border-[#e5e2d9] rounded text-xs font-editorial italic text-[#171615]"
+                        className="p-3 bg-[var(--bg-inset)] border border-[var(--border-hairline)] rounded-[var(--radius-button)] text-xs font-serif italic text-[var(--text-primary)] leading-relaxed"
                       >
                         &ldquo;{note}&rdquo;
                       </div>
@@ -1000,7 +1214,7 @@ export default function MeetingRoomPage() {
                       placeholder="+ Add a study note..."
                       value={newNoteInput}
                       onChange={(e) => setNewNoteInput(e.target.value)}
-                      className="w-full bg-[#ffffff] border border-dashed border-[#ddd8cc] rounded-[0.25rem] text-xs p-2.5 text-[#171615] placeholder:text-[#78746d] outline-none focus:border-[#ba5d1a] transition-colors"
+                      className="w-full bg-[var(--bg-inset)] border border-[var(--border-hairline)] rounded-[var(--radius-button)] text-xs p-2.5 text-[var(--text-primary)] placeholder:text-[var(--text-disabled)] outline-none focus:border-[var(--border-focus)] transition-colors font-sans"
                     />
                   </form>
                 </div>
@@ -1009,16 +1223,18 @@ export default function MeetingRoomPage() {
               {activeTab === "citations" && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <h4 className="font-serif text-sm text-[#171615]">Meeting Citations</h4>
+                    <h4 className="font-serif text-sm font-normal text-[var(--text-primary)]">
+                      Meeting Citations
+                    </h4>
                     {assets.length > 0 && (
                       <button
                         type="button"
                         onClick={handleCopyCitations}
-                        className="text-xs text-[#ba5d1a] hover:text-[#a24e14] flex items-center gap-1"
+                        className="font-mono text-xs text-[var(--text-primary)] hover:underline flex items-center gap-1 cursor-pointer"
                       >
                         {copiedCitations ? (
                           <>
-                            <Check className="w-3 h-3 text-[#234338]" /> Copied!
+                            <Check className="w-3 h-3" /> Copied!
                           </>
                         ) : (
                           <>
@@ -1030,16 +1246,19 @@ export default function MeetingRoomPage() {
                   </div>
 
                   {assets.length === 0 ? (
-                    <div className="p-4 bg-[#ffffff] border border-dashed border-[#ddd8cc] rounded text-center text-xs text-[#78746d]">
-                      Citations will be generated automatically when study documents are uploaded.
+                    <div className="p-4 bg-[var(--bg-inset)] border border-dashed border-[var(--border-hairline)] rounded-[var(--radius-card)] text-center text-xs text-[var(--text-secondary)] font-mono">
+                      Citations generate automatically when study documents are uploaded.
                     </div>
                   ) : (
                     assets.map((a) => (
-                      <div key={a.id} className="p-3 bg-[#ffffff] border border-[#e5e2d9] rounded text-xs">
-                        <p className="font-editorial italic text-[#171615]">
+                      <div
+                        key={a.id}
+                        className="p-3 bg-[var(--bg-inset)] border border-[var(--border-hairline)] rounded-[var(--radius-button)] text-xs"
+                      >
+                        <p className="font-serif italic text-[var(--text-primary)]">
                           &ldquo;{a.title}&rdquo;
                         </p>
-                        <span className="font-sans text-[0.625rem] text-[#78746d] mt-1 block">
+                        <span className="font-mono text-[0.625rem] text-[var(--text-secondary)] mt-1 block">
                           StudyGroup+ Repository • {groupName}
                         </span>
                       </div>
@@ -1050,7 +1269,7 @@ export default function MeetingRoomPage() {
             </div>
 
             {/* Side Panel Footer Actions */}
-            <div className="p-3 bg-[#f4f2eb] border-t border-[#e5e2d9] flex items-center justify-between">
+            <div className="p-3 border-t border-[var(--border-hairline)] flex items-center justify-between">
               <Button
                 variant="secondary"
                 size="sm"
@@ -1061,7 +1280,7 @@ export default function MeetingRoomPage() {
               </Button>
               <Link
                 href={`/lounges/${groupId}`}
-                className="text-xs text-[#78746d] hover:text-[#171615] transition-colors"
+                className="font-mono text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
               >
                 Back to Workspace
               </Link>

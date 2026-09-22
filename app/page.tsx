@@ -9,7 +9,7 @@ import { LandingFooter } from "@/components/landing/LandingFooter";
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen bg-[#fdf8f6] flex flex-col selection:bg-[#ffdbc9] selection:text-[#171615]">
+    <main className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] flex flex-col selection:bg-[var(--text-primary)] selection:text-[var(--bg-primary)]">
       <LandingHeader />
       <div className="flex-1">
         <HeroSection />

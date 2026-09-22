@@ -4,6 +4,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import {
   Video,
   FileText,
@@ -25,6 +26,7 @@ import { InviteModal } from "@/components/lounges/InviteModal";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
+import { RouteTransition } from "@/components/motion/RouteTransition";
 
 interface GroupDetails {
   id: string;
@@ -73,6 +75,7 @@ export default function LoungeWorkspacePage() {
   const router = useRouter();
   const { user } = useUser();
   const groupId = params.groupId as string;
+  const shouldReduceMotion = useReducedMotion();
 
   const [group, setGroup] = useState<GroupDetails | null>(null);
   const [callerRole, setCallerRole] = useState<"creator" | "member">("member");
@@ -84,20 +87,27 @@ export default function LoungeWorkspacePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isStartingVideo, setIsStartingVideo] = useState(false);
+  const [shakingAssetId, setShakingAssetId] = useState<string | null>(null);
 
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isAccessModalOpen, setIsAccessModalOpen] = useState(false);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
 
   const [chatInput, setChatInput] = useState("");
-  const [chatMessages, setChatMessages] = useState<Array<{ sender: string; text: string; time: string }>>([
+  const [chatMessages, setChatMessages] = useState<
+    Array<{ id: string; sender: string; isSelf: boolean; text: string; time: string }>
+  >([
     {
+      id: "seed-1",
       sender: "Elena Vance",
+      isSelf: false,
       text: "Has anyone started on the Chapter 3 summary questions yet?",
       time: "11:04 AM",
     },
     {
+      id: "seed-2",
       sender: "Julian Thorne",
+      isSelf: false,
       text: "Yes, I uploaded the initial notes to the documents section above.",
       time: "11:12 AM",
     },
@@ -109,7 +119,6 @@ export default function LoungeWorkspacePage() {
     setError(null);
 
     try {
-      // 1. Fetch group details and members
       const groupRes = await fetch(`/api/groups/${groupId}`);
       if (!groupRes.ok) {
         const data = await groupRes.json().catch(() => ({}));
@@ -120,14 +129,12 @@ export default function LoungeWorkspacePage() {
       setCallerRole(groupData.callerRole);
       setMembers(groupData.members || []);
 
-      // 2. Fetch assets
       const assetsRes = await fetch(`/api/assets?groupId=${groupId}`);
       if (assetsRes.ok) {
         const assetsData = await assetsRes.json();
         setAssets(assetsData.assets || []);
       }
 
-      // 3. Fetch sessions
       const sessionsRes = await fetch(`/api/groups/${groupId}/sessions`);
       if (sessionsRes.ok) {
         const sessionsData = await sessionsRes.json();
@@ -192,28 +199,36 @@ export default function LoungeWorkspacePage() {
     if (!chatInput.trim()) return;
     const now = new Date();
     const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    setChatMessages((prev) => [
-      ...prev,
-      {
-        sender: user?.firstName || user?.fullName || "Member",
-        text: chatInput.trim(),
-        time: timeStr,
-      },
-    ]);
+    const newMsg = {
+      id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      sender: user?.firstName || user?.fullName || "You",
+      isSelf: true,
+      text: chatInput.trim(),
+      time: timeStr,
+    };
+    setChatMessages((prev) => [...prev, newMsg]);
     setChatInput("");
   }
 
   function handlePostInviteToChat(inviteMsg: string) {
     const now = new Date();
     const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    setChatMessages((prev) => [
-      ...prev,
-      {
-        sender: user?.firstName || user?.fullName || "You",
-        text: inviteMsg,
-        time: timeStr,
-      },
-    ]);
+    const newMsg = {
+      id: `invite-${Date.now()}`,
+      sender: user?.firstName || user?.fullName || "You",
+      isSelf: true,
+      text: inviteMsg,
+      time: timeStr,
+    };
+    setChatMessages((prev) => [...prev, newMsg]);
+  }
+
+  // Restricted document shake trigger (§6.2)
+  function handleRestrictedCardClick(assetId: string) {
+    setShakingAssetId(assetId);
+    setTimeout(() => {
+      setShakingAssetId(null);
+    }, 250);
   }
 
   const filteredAssets = assets.filter((asset) => {
@@ -226,30 +241,30 @@ export default function LoungeWorkspacePage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#fdf8f6] flex flex-col font-sans">
+      <RouteTransition className="bg-[var(--bg-primary)] flex flex-col font-sans min-h-screen text-[var(--text-primary)]">
         <AppHeader />
-        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 animate-pulse space-y-8">
-          <div className="h-6 bg-[#e5e2d9]/60 rounded w-1/4" />
-          <div className="h-12 bg-[#e5e2d9]/80 rounded w-1/2" />
+        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
+          <div className="h-6 w-1/4 rounded-[var(--radius-button)] skeleton-shimmer" />
+          <div className="h-12 w-1/2 rounded-[var(--radius-button)] skeleton-shimmer" />
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            <div className="lg:col-span-8 h-96 bg-[#e5e2d9]/40 rounded" />
-            <div className="lg:col-span-4 h-96 bg-[#e5e2d9]/40 rounded" />
+            <div className="lg:col-span-8 h-96 rounded-[var(--radius-card)] skeleton-shimmer" />
+            <div className="lg:col-span-4 h-96 rounded-[var(--radius-card)] skeleton-shimmer" />
           </div>
         </main>
-      </div>
+      </RouteTransition>
     );
   }
 
   if (error || !group) {
     return (
-      <div className="min-h-screen bg-[#fdf8f6] flex flex-col font-sans">
+      <RouteTransition className="bg-[var(--bg-primary)] flex flex-col font-sans min-h-screen text-[var(--text-primary)]">
         <AppHeader />
         <main className="flex-1 max-w-2xl mx-auto px-4 py-16 text-center">
-          <AlertCircle className="w-12 h-12 text-[#ba5d1a] mx-auto mb-4" />
-          <h2 className="font-serif text-2xl text-[#171615] mb-2">
+          <AlertCircle className="w-12 h-12 text-[var(--text-primary)] mx-auto mb-4" />
+          <h2 className="font-serif text-2xl font-normal text-[var(--text-primary)] mb-2">
             Study Group Notice
           </h2>
-          <p className="text-sm text-[#5e5a54] mb-6">
+          <p className="font-sans text-xs text-[var(--text-secondary)] mb-6">
             {error || "The requested study group could not be found."}
           </p>
           <div className="flex justify-center gap-3">
@@ -263,49 +278,64 @@ export default function LoungeWorkspacePage() {
             </Button>
           </div>
         </main>
-      </div>
+      </RouteTransition>
     );
   }
 
   const isCreator = callerRole === "creator";
 
   return (
-    <div className="min-h-screen bg-[#fdf8f6] flex flex-col font-sans selection:bg-[#ffdbc9] selection:text-[#171615]">
+    <RouteTransition className="bg-[var(--bg-primary)] flex flex-col font-sans min-h-screen text-[var(--text-primary)] selection:bg-[var(--invert-bg)] selection:text-[var(--invert-text)]">
       <AppHeader />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
+      <main
+        data-inertia-scroll
+        className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10"
+      >
         {/* Top Breadcrumb & Status Sub-header */}
-        <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-[#e5e2d9] mb-6 text-xs text-[#78746d]">
+        <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-[var(--border-hairline)] mb-6 text-xs text-[var(--text-secondary)]">
           <div className="flex items-center gap-2">
-            <Link href="/lounges" className="hover:text-[#171615] transition-colors duration-150">
+            <Link href="/lounges" className="hover:text-[var(--text-primary)] transition-colors">
               Study Groups
             </Link>
-            <span>/</span>
-            <span className="text-[#171615] font-medium">{group.name}</span>
-            <span>•</span>
-            <span className="font-mono text-[#78746d]">Invite Code: #{group.code}</span>
+            <span className="text-[var(--text-disabled)]">/</span>
+            <span className="text-[var(--text-primary)] font-medium">{group.name}</span>
+            <span className="text-[var(--text-disabled)]">•</span>
+            <span className="font-mono text-[var(--text-secondary)]">Invite Code: #{group.code}</span>
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1.5 text-xs text-[#234338] font-medium">
-              <span className="w-2 h-2 rounded-full bg-[#234338] animate-pulse" />
-              <span>Meeting room ready</span>
+            <div className="flex items-center gap-2 font-mono text-xs text-[var(--text-secondary)]">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#e5484d] animate-live-breathe" />
+              <span className="text-[var(--text-primary)]">Meeting room ready</span>
             </div>
-            <Button
-              variant="primary"
-              size="sm"
-              icon={<Video className="w-4 h-4" />}
-              isLoading={isStartingVideo}
+            {/* "Start Video Meeting": Primary button with busy-dot state and magnetic CTA (§6.2) */}
+            <button
+              type="button"
+              data-magnetic
+              disabled={isStartingVideo}
               onClick={handleStartMeeting}
+              className="magnetic-cta px-4 py-2 rounded-[var(--radius-button)] bg-[var(--invert-bg)] text-[var(--invert-text)] font-sans text-xs font-semibold uppercase tracking-[0.04em] hover:bg-white active:scale-[0.97] transition-all duration-[var(--dur-fast)] ease-[var(--ease-out-quart)] shadow-none flex items-center gap-2 cursor-pointer disabled:opacity-70"
             >
-              Start Video Meeting
-            </Button>
+              {isStartingVideo ? (
+                <span className="inline-flex items-center gap-1 py-0.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--invert-text)] animate-busy-dot-1" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--invert-text)] animate-busy-dot-2" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--invert-text)] animate-busy-dot-3" />
+                </span>
+              ) : (
+                <>
+                  <Video className="w-3.5 h-3.5" />
+                  Start Video Meeting
+                </>
+              )}
+            </button>
           </div>
         </div>
 
         {/* Group Title Row & Member Presence Strip */}
-        <div className="pb-8 border-b border-[#e5e2d9] mb-8">
-          <h1 className="font-serif text-3xl sm:text-4xl lg:text-[2.75rem] leading-tight font-normal text-[#171615] mb-3">
+        <div className="pb-8 border-b border-[var(--border-hairline)] mb-8">
+          <h1 className="font-serif text-3xl sm:text-4xl lg:text-[2.75rem] leading-tight font-normal text-[var(--text-primary)] mb-3">
             {group.name}
           </h1>
 
@@ -316,7 +346,7 @@ export default function LoungeWorkspacePage() {
                 {members.slice(0, 5).map((m) => (
                   <div
                     key={m.userId}
-                    className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#234338] text-[0.6875rem] font-bold text-[#faf9f6] ring-2 ring-[#fdf8f6]"
+                    className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-[var(--bg-elevated)] text-[0.6875rem] font-mono font-semibold text-[var(--text-primary)] ring-2 ring-[var(--bg-primary)] border border-[var(--border-hairline)]"
                     title={`${m.name} (${m.role})`}
                   >
                     {m.name.substring(0, 2).toUpperCase()}
@@ -324,8 +354,8 @@ export default function LoungeWorkspacePage() {
                 ))}
               </div>
 
-              <span className="text-xs text-[#5e5a54]">
-                <strong className="text-[#171615] font-semibold">{members.length} members</strong>{" "}
+              <span className="text-xs text-[var(--text-secondary)] font-sans">
+                <strong className="text-[var(--text-primary)] font-medium">{members.length} members</strong>{" "}
                 in group: {members.map((m) => m.name.split(" ")[0]).join(", ")}
               </span>
             </div>
@@ -335,7 +365,7 @@ export default function LoungeWorkspacePage() {
               <Button
                 variant="secondary"
                 size="sm"
-                icon={<Share2 className="w-3.5 h-3.5 text-[#ba5d1a]" />}
+                icon={<Share2 className="w-3.5 h-3.5" />}
                 onClick={() => setIsInviteOpen(true)}
               >
                 Invite
@@ -343,7 +373,7 @@ export default function LoungeWorkspacePage() {
               <Button
                 variant="secondary"
                 size="sm"
-                icon={<Shield className="w-3.5 h-3.5 text-[#ba5d1a]" />}
+                icon={<Shield className="w-3.5 h-3.5" />}
                 onClick={() => setIsAccessModalOpen(true)}
               >
                 {isCreator ? "Manage Access" : "View Members"}
@@ -358,167 +388,192 @@ export default function LoungeWorkspacePage() {
           <div className="lg:col-span-8 space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
-                <h2 className="font-serif text-2xl font-normal text-[#171615]">
+                <h2 className="font-serif text-2xl font-normal text-[var(--text-primary)]">
                   Group Documents &amp; Notes
                 </h2>
-                <p className="text-xs text-[#78746d] font-sans mt-0.5">
+                <p className="text-xs text-[var(--text-secondary)] font-sans mt-0.5">
                   Shared notes, PDFs, and slide decks for this study group.
                 </p>
               </div>
 
-              {/* Filter Tabs */}
-              <div className="flex items-center gap-1.5 p-1 bg-[#f4f2eb] rounded-[0.25rem] border border-[#e5e2d9] text-xs font-medium">
-                <button
-                  type="button"
-                  onClick={() => setFilterType("all")}
-                  className={`px-2.5 py-1 rounded-[0.125rem] transition-colors duration-150 ${
-                    filterType === "all"
-                      ? "bg-[#ffffff] text-[#171615] shadow-xs"
-                      : "text-[#5e5a54] hover:text-[#171615]"
-                  }`}
-                >
-                  All ({assets.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFilterType("md")}
-                  className={`px-2.5 py-1 rounded-[0.125rem] transition-colors duration-150 ${
-                    filterType === "md"
-                      ? "bg-[#ffffff] text-[#171615] shadow-xs"
-                      : "text-[#5e5a54] hover:text-[#171615]"
-                  }`}
-                >
-                  Notes
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFilterType("pdf")}
-                  className={`px-2.5 py-1 rounded-[0.125rem] transition-colors duration-150 ${
-                    filterType === "pdf"
-                      ? "bg-[#ffffff] text-[#171615] shadow-xs"
-                      : "text-[#5e5a54] hover:text-[#171615]"
-                  }`}
-                >
-                  PDFs
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFilterType("pptx")}
-                  className={`px-2.5 py-1 rounded-[0.125rem] transition-colors duration-150 ${
-                    filterType === "pptx"
-                      ? "bg-[#ffffff] text-[#171615] shadow-xs"
-                      : "text-[#5e5a54] hover:text-[#171615]"
-                  }`}
-                >
-                  Decks
-                </button>
-              </div>
-            </div>
-
-            {/* Assets List */}
-            {filteredAssets.length === 0 ? (
-              <div className="p-8 text-center bg-[#ffffff] rounded-[0.25rem] border border-dashed border-[#ddd8cc]">
-                <FileText className="w-8 h-8 text-[#ba5d1a] mx-auto mb-2 opacity-60" />
-                <h4 className="font-serif text-base text-[#171615] mb-1">
-                  No Documents Uploaded Yet
-                </h4>
-                <p className="text-xs text-[#5e5a54] max-w-sm mx-auto mb-4">
-                  Upload shared notes, reading lists, or PDFs using the upload area below.
-                </p>
-                <Button variant="primary" size="sm" onClick={() => setIsUploadOpen(true)}>
-                  Upload First Document
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {filteredAssets.map((asset) => {
-                  const isPdf = asset.fileType === "pdf";
-                  const isMd = asset.fileType === "md";
-                  const badgeVariant = isPdf ? "forest" : isMd ? "ochre" : "neutral";
-                  const badgeText = isPdf
-                    ? "PDF DOCUMENT"
-                    : isMd
-                    ? "NOTES"
-                    : "SLIDE DECK";
-
+              {/* Filter Tabs (§5, §6.2): Animated active pill + sequential cross-fade */}
+              <div className="flex items-center gap-1 p-1 bg-[var(--bg-inset)] rounded-[var(--radius-button)] border border-[var(--border-hairline)] text-xs font-mono">
+                {[
+                  { key: "all", label: `All (${assets.length})` },
+                  { key: "md", label: "Notes" },
+                  { key: "pdf", label: "PDFs" },
+                  { key: "pptx", label: "Decks" },
+                ].map((tab) => {
+                  const isActive = filterType === tab.key;
                   return (
-                    <Card
-                      key={asset.id}
-                      variant="ivory"
-                      className="group hover:border-[#ddd8cc] hover:-translate-y-0.5 hover:shadow-paper-floating transition-all duration-200 overflow-hidden"
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => setFilterType(tab.key)}
+                      className={`relative px-3 py-1 rounded-[calc(var(--radius-button)-2px)] transition-colors duration-[var(--dur-fast)] cursor-pointer ${
+                        isActive
+                          ? "text-[var(--text-primary)]"
+                          : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                      }`}
                     >
-                      <div className="p-5 sm:p-6">
-                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-3">
-                          <div className="flex items-center gap-2">
-                            <Badge variant={badgeVariant}>{badgeText}</Badge>
-                            <span className="text-xs text-[#78746d] font-sans">
-                              {(asset.sizeBytes / 1024 / 1024).toFixed(2)} MB • Added{" "}
-                              {new Date(asset.createdAt).toLocaleDateString()}
-                            </span>
-                          </div>
-
-                          {!asset.canAccess && (
-                            <span className="text-xs text-[#ba1a1a] font-medium flex items-center gap-1">
-                              <Lock className="w-3.5 h-3.5" /> Restricted Access
-                            </span>
-                          )}
-                        </div>
-
-                        <h3 className="font-serif text-lg sm:text-xl font-normal text-[#171615] group-hover:text-[#ba5d1a] transition-colors duration-150 mb-2">
-                          {asset.title}
-                        </h3>
-
-                        {/* Actions */}
-                        <div className="pt-4 border-t border-[#e5e2d9] flex items-center justify-between gap-4">
-                          <div className="text-xs text-[#78746d] font-editorial italic">
-                            File: {asset.r2Key.substring(0, 16)}...
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              icon={<Download className="w-3.5 h-3.5" />}
-                              onClick={() => handleDownloadAsset(asset.id)}
-                            >
-                              Download
-                            </Button>
-                            {asset.canAccess ? (
-                              <Link href={`/lounges/${groupId}/folios/${asset.id}`}>
-                                <Button
-                                  variant="primary"
-                                  size="sm"
-                                  icon={<BookOpen className="w-3.5 h-3.5" />}
-                                >
-                                  Open Document
-                                </Button>
-                              </Link>
-                            ) : (
-                              <Button variant="secondary" size="sm" disabled>
-                                Access Restricted
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </Card>
+                      {isActive && (
+                        <motion.div
+                          layoutId="activeWorkspaceTab"
+                          transition={{
+                            duration: shouldReduceMotion ? 0.1 : 0.3,
+                            ease: [0.25, 1, 0.5, 1],
+                          }}
+                          className="absolute inset-0 rounded-[calc(var(--radius-button)-2px)] bg-[var(--bg-elevated)] border border-[var(--border-hairline)]"
+                        />
+                      )}
+                      <span className="relative z-10">{tab.label}</span>
+                    </button>
                   );
                 })}
               </div>
-            )}
+            </div>
+
+            {/* Assets List: Sequential Cross-fade (§6.2 - 150ms out, then 150ms in via mode="wait") */}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={filterType}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: shouldReduceMotion ? 0.05 : 0.15 }}
+                className="space-y-4"
+              >
+                {filteredAssets.length === 0 ? (
+                  <div className="p-8 text-center bg-[var(--bg-elevated)] rounded-[var(--radius-card)] border border-dashed border-[var(--border-hairline)]">
+                    <FileText className="w-8 h-8 text-[var(--text-secondary)] mx-auto mb-2 opacity-60" />
+                    <h4 className="font-serif text-base font-normal text-[var(--text-primary)] mb-1">
+                      No Documents Uploaded Yet
+                    </h4>
+                    <p className="font-sans text-xs text-[var(--text-secondary)] max-w-sm mx-auto mb-4">
+                      Upload shared notes, reading lists, or PDFs using the upload area below.
+                    </p>
+                    <Button variant="primary" size="sm" onClick={() => setIsUploadOpen(true)}>
+                      Upload First Document
+                    </Button>
+                  </div>
+                ) : (
+                  filteredAssets.map((asset) => {
+                    const isPdf = asset.fileType === "pdf";
+                    const isMd = asset.fileType === "md";
+                    const badgeText = isPdf
+                      ? "PDF DOCUMENT"
+                      : isMd
+                      ? "NOTES"
+                      : "SLIDE DECK";
+
+                    const isLocked = !asset.canAccess;
+                    const isShaking = shakingAssetId === asset.id;
+
+                    return (
+                      <Card
+                        key={asset.id}
+                        variant="elevated"
+                        onClick={() => {
+                          if (isLocked) handleRestrictedCardClick(asset.id);
+                        }}
+                        className={`group transition-all duration-[var(--dur-fast)] overflow-hidden ${
+                          isLocked ? "cursor-not-allowed" : ""
+                        }`}
+                      >
+                        <div className="p-5 sm:p-6">
+                          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-3">
+                            <div className="flex items-center gap-2">
+                              <Badge variant="neutral">{badgeText}</Badge>
+                              <span className="font-mono text-xs text-[var(--text-secondary)]">
+                                {(asset.sizeBytes / 1024 / 1024).toFixed(2)} MB • Added{" "}
+                                {new Date(asset.createdAt).toLocaleDateString()}
+                              </span>
+                            </div>
+
+                            {/* Restricted document lock with shake feedback (§6.2) */}
+                            {isLocked && (
+                              <span
+                                className={`font-mono text-xs text-[var(--text-secondary)] flex items-center gap-1.5 px-2 py-0.5 rounded-[var(--radius-button)] border border-[var(--border-hairline)] bg-[var(--bg-inset)] ${
+                                  isShaking ? "animate-restricted-shake" : ""
+                                }`}
+                              >
+                                <Lock
+                                  className={`w-3.5 h-3.5 text-[var(--text-primary)] ${
+                                    isShaking ? "animate-restricted-shake" : ""
+                                  }`}
+                                />
+                                Restricted Access
+                              </span>
+                            )}
+                          </div>
+
+                          <h3 className="font-serif text-lg sm:text-xl font-normal text-[var(--text-primary)] group-hover:underline transition-colors mb-2">
+                            {asset.title}
+                          </h3>
+
+                          {/* Actions */}
+                          <div className="pt-4 border-t border-[var(--border-hairline)] flex items-center justify-between gap-4">
+                            <div className="font-mono text-[0.6875rem] text-[var(--text-secondary)] truncate max-w-xs">
+                              Key: {asset.r2Key.substring(0, 20)}...
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                icon={<Download className="w-3.5 h-3.5" />}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDownloadAsset(asset.id);
+                                }}
+                              >
+                                Download
+                              </Button>
+                              {asset.canAccess ? (
+                                <Link href={`/lounges/${groupId}/folios/${asset.id}`}>
+                                  <Button
+                                    variant="primary"
+                                    size="sm"
+                                    icon={<BookOpen className="w-3.5 h-3.5" />}
+                                  >
+                                    Open Document
+                                  </Button>
+                                </Link>
+                              ) : (
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  disabled
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleRestrictedCardClick(asset.id);
+                                  }}
+                                >
+                                  Access Restricted
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </Card>
+                    );
+                  })
+                )}
+              </motion.div>
+            </AnimatePresence>
 
             {/* Dropzone Upload Area */}
             <div
               onClick={() => setIsUploadOpen(true)}
-              className="p-8 border-2 border-dashed border-[#ddd8cc] hover:border-[#ba5d1a] bg-[#faf9f6]/70 rounded-[0.25rem] text-center cursor-pointer transition-colors duration-200"
+              className="p-8 border border-dashed border-[var(--border-hairline)] hover:border-[var(--border-hover)] bg-[var(--bg-elevated)] rounded-[var(--radius-card)] text-center cursor-pointer transition-colors duration-[var(--dur-fast)]"
             >
-              <div className="w-10 h-10 rounded-[0.25rem] bg-[#ffffff] border border-[#ddd8cc] text-[#ba5d1a] flex items-center justify-center mx-auto mb-3">
-                <Upload className="w-5 h-5" />
+              <div className="w-10 h-10 rounded-[var(--radius-button)] bg-[var(--bg-inset)] border border-[var(--border-hairline)] text-[var(--text-secondary)] flex items-center justify-center mx-auto mb-3">
+                <Upload className="w-4 h-4" />
               </div>
-              <h4 className="font-serif text-base text-[#171615] mb-1">
+              <h4 className="font-serif text-base font-normal text-[var(--text-primary)] mb-1">
                 Upload Study Materials
               </h4>
-              <p className="text-xs text-[#5e5a54] max-w-md mx-auto mb-4">
+              <p className="font-sans text-xs text-[var(--text-secondary)] max-w-md mx-auto mb-4">
                 Upload PDF, Markdown notes, or slide decks to share with your group
               </p>
               <Button variant="secondary" size="sm" onClick={() => setIsUploadOpen(true)}>
@@ -530,89 +585,106 @@ export default function LoungeWorkspacePage() {
           {/* Right Column (4 cols): Study Stream & Session Logs */}
           <div className="lg:col-span-4 space-y-6">
             {/* Session Record Card */}
-            <div className="bg-[#ffffff] rounded-[0.25rem] border border-[#e5e2d9] p-5 shadow-paper-contact hover:shadow-paper-floating transition-all duration-200">
-              <div className="flex items-center justify-between pb-3 border-b border-[#e5e2d9] mb-4">
+            <div className="bg-[var(--bg-elevated)] rounded-[var(--radius-card)] border border-[var(--border-hairline)] p-5">
+              <div className="flex items-center justify-between pb-3 border-b border-[var(--border-hairline)] mb-4">
                 <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-[#ba5d1a]" />
-                  <h4 className="font-serif text-sm font-normal text-[#171615]">
+                  <Clock className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
+                  <h4 className="font-serif text-sm font-normal text-[var(--text-primary)]">
                     Past Meetings
                   </h4>
                 </div>
-                <span className="font-sans text-[0.625rem] uppercase tracking-[0.08em] text-[#78746d]">
+                <span className="font-mono text-[0.625rem] uppercase tracking-[0.08em] text-[var(--text-secondary)]">
                   History
                 </span>
               </div>
 
               {sessionsList.length > 0 && sessionsList[0] ? (
-                <div className="space-y-3 text-xs font-sans">
-                  <div className="p-3 bg-[#faf9f6] rounded-[0.25rem] border border-[#e5e2d9]">
-                    <div className="flex items-center justify-between text-[#78746d] mb-1">
+                <div className="space-y-3 font-sans text-xs">
+                  <div className="p-3 bg-[var(--bg-inset)] rounded-[var(--radius-button)] border border-[var(--border-hairline)]">
+                    <div className="flex items-center justify-between text-[var(--text-secondary)] font-mono text-[0.6875rem] mb-1">
                       <span>Previous Meeting</span>
-                      <span className="text-[#234338] font-medium">Ended</span>
+                      <span className="text-[var(--text-primary)]">Concluded</span>
                     </div>
-                    <p className="font-medium text-[#171615] mb-1">
+                    <p className="font-medium text-[var(--text-primary)] mb-1">
                       {sessionsList[0]?.roomName}
                     </p>
                     {sessionsList[0]?.summary && (
-                      <p className="font-editorial italic text-xs text-[#5e5a54] mt-1 border-t border-[#e5e2d9]/60 pt-1">
+                      <p className="font-serif italic text-xs text-[var(--text-secondary)] mt-1 border-t border-[var(--border-hairline)] pt-1">
                         Summary: {sessionsList[0]?.summary}
                       </p>
                     )}
                   </div>
                 </div>
               ) : (
-                <div className="text-center py-4 text-xs text-[#78746d]">
+                <div className="text-center py-4 font-mono text-xs text-[var(--text-secondary)]">
                   <p>No past meetings recorded for this group yet.</p>
                 </div>
               )}
             </div>
 
-            {/* Synchronous Chat Stream */}
-            <div className="bg-[#ffffff] rounded-[0.25rem] border border-[#e5e2d9] flex flex-col shadow-paper-contact hover:shadow-paper-floating transition-all duration-200 overflow-hidden">
-              <div className="px-5 py-3.5 bg-[#faf9f6] border-b border-[#e5e2d9] flex items-center justify-between">
+            {/* Synchronous Chat Stream (§6.2 Native scroll, 8px rise+fade, own messages right) */}
+            <div className="bg-[var(--bg-elevated)] rounded-[var(--radius-card)] border border-[var(--border-hairline)] flex flex-col overflow-hidden">
+              <div className="px-5 py-3.5 bg-[var(--bg-elevated)] border-b border-[var(--border-hairline)] flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4 text-[#234338]" />
-                  <h4 className="font-sans text-xs font-semibold uppercase tracking-[0.08em] text-[#171615]">
+                  <MessageSquare className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
+                  <h4 className="font-mono text-xs uppercase tracking-[0.06em] text-[var(--text-primary)]">
                     Group Chat
                   </h4>
                 </div>
-                <span className="font-sans text-[0.625rem] text-[#234338] font-semibold flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#234338] animate-pulse" />
+                <span className="font-mono text-[0.6875rem] text-[var(--text-secondary)] flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-primary)]" />
                   {members.length} Online
                 </span>
               </div>
 
-              {/* Message List */}
-              <div className="p-4 space-y-3.5 max-h-80 overflow-y-auto font-sans text-xs">
-                {chatMessages.map((msg, i) => (
-                  <div key={i} className="space-y-1">
-                    <div className="flex items-baseline justify-between text-[0.625rem] text-[#78746d]">
-                      <span className="font-semibold text-[#171615]">{msg.sender}</span>
+              {/* Message List: Native momentum scroll, 8px rise+fade */}
+              <div className="p-4 space-y-3 max-h-80 overflow-y-auto font-sans text-xs">
+                {chatMessages.map((msg) => (
+                  <motion.div
+                    key={msg.id}
+                    initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{
+                      duration: shouldReduceMotion ? 0.1 : 0.2,
+                      ease: [0.25, 1, 0.5, 1],
+                    }}
+                    className={`flex flex-col space-y-1 ${
+                      msg.isSelf ? "items-end" : "items-start"
+                    }`}
+                  >
+                    <div className="flex items-baseline gap-2 text-[0.625rem] font-mono text-[var(--text-secondary)]">
+                      <span className="font-medium text-[var(--text-primary)]">{msg.sender}</span>
                       <span>{msg.time}</span>
                     </div>
-                    <p className="font-editorial text-[0.8125rem] leading-relaxed text-[#171615] bg-[#fdf8f6] p-2.5 rounded-[0.25rem] border border-[#e5e2d9]">
+                    <div
+                      className={`p-2.5 rounded-[var(--radius-button)] text-xs max-w-[85%] leading-relaxed ${
+                        msg.isSelf
+                          ? "bg-[var(--invert-bg)] text-[var(--invert-text)] font-sans"
+                          : "bg-[var(--bg-inset)] text-[var(--text-primary)] border border-[var(--border-hairline)] font-sans"
+                      }`}
+                    >
                       {msg.text}
-                    </p>
-                  </div>
+                    </div>
+                  </motion.div>
                 ))}
               </div>
 
               {/* Chat Input */}
               <form
                 onSubmit={handleSendChatMessage}
-                className="p-3 border-t border-[#e5e2d9] bg-[#faf9f6]/40 flex gap-2"
+                className="p-3 border-t border-[var(--border-hairline)] bg-[var(--bg-inset)] flex gap-2"
               >
                 <input
                   type="text"
                   placeholder="Type a message..."
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
-                  className="flex-1 bg-[#ffffff] border border-[#ddd8cc] rounded-[0.25rem] text-xs px-3 py-2 text-[#171615] placeholder:text-[#78746d] outline-none focus:border-[#ba5d1a] transition-colors duration-150"
+                  className="flex-1 bg-[var(--bg-elevated)] border border-[var(--border-hairline)] rounded-[var(--radius-button)] text-xs px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-disabled)] outline-none focus:border-[var(--border-focus)] transition-colors duration-[var(--dur-fast)]"
                 />
                 <button
                   type="submit"
                   aria-label="Send message"
-                  className="p-2 bg-[#ba5d1a] hover:bg-[#a24e14] text-[#faf9f6] rounded-[0.25rem] transition-colors duration-150 shrink-0"
+                  className="p-2 bg-[var(--invert-bg)] hover:bg-white text-[var(--invert-text)] rounded-[var(--radius-button)] transition-colors duration-[var(--dur-fast)] shrink-0 cursor-pointer"
                 >
                   <Send className="w-3.5 h-3.5" />
                 </button>
@@ -649,6 +721,6 @@ export default function LoungeWorkspacePage() {
         onClose={() => setIsInviteOpen(false)}
         onPostToChat={handlePostInviteToChat}
       />
-    </div>
+    </RouteTransition>
   );
 }

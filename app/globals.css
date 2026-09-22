@@ -1,113 +1,466 @@
 @import "tailwindcss";
 
-@theme {
-  /* ==========================================================================
-     DESIGN.md — Editorial Academic Workspace Theme Tokens
-     ========================================================================== */
+@custom-variant dark (&:where(.dark, .dark *));
 
-  /* Palette */
-  --color-surface: #fdf8f6;
-  --color-surface-dim: #ddd9d7;
-  --color-surface-bright: #fdf8f6;
-  --color-surface-container-lowest: #ffffff;
-  --color-surface-container-low: #f7f3f0;
-  --color-surface-container: #f2edeb;
-  --color-surface-container-high: #ece7e5;
-  --color-surface-container-highest: #e6e2df;
-  --color-on-surface: #1c1b1a;
-  --color-on-surface-variant: #554339;
-  --color-inverse-surface: #32302f;
-  --color-inverse-on-surface: #f5f0ed;
-  --color-outline: #897367;
-  --color-outline-variant: #dcc1b4;
-  --color-surface-tint: #9a4600;
+/* ==========================================================================
+   StudyGroup+ — DESIGN.md
+   Near-Monochrome, High-Contrast Editorial Studio Design System
+   ========================================================================== */
 
-  --color-primary: #9a4600;
-  --color-on-primary: #ffffff;
-  --color-primary-container: #ba5d1a;
-  --color-on-primary-container: #0d0300;
-  --color-inverse-primary: #ffb68c;
+:root {
+  /* Surfaces — stepped, not flat */
+  --bg-inset: #050505; /* recessed: inputs, code/transcript blocks */
+  --bg-primary: #0a0a0a; /* base page background */
+  --bg-elevated: #141414; /* cards, panels, tab bars */
+  --bg-overlay: #1c1c1c; /* modals, dropdowns, popovers */
 
-  --color-secondary: #446559;
-  --color-on-secondary: #ffffff;
-  --color-secondary-container: #c4e8d8;
-  --color-on-secondary-container: #49695d;
+  /* Text */
+  --text-primary: #ededed; /* never pure #fff */
+  --text-secondary: #8a8a8a; /* metadata, timestamps, captions */
+  --text-disabled: #4a4a4a;
 
-  --color-tertiary: #625e57;
-  --color-on-tertiary: #ffffff;
-  --color-tertiary-container: #7b7670;
-  --color-on-tertiary-container: #060502;
+  /* Structure */
+  --border-hairline: rgba(237, 237, 237, 0.08);
+  --border-hover: rgba(237, 237, 237, 0.18);
+  --border-focus: rgba(237, 237, 237, 0.35);
 
-  --color-error: #ba1a1a;
-  --color-on-error: #ffffff;
-  --color-error-container: #ffdad6;
-  --color-on-error-container: #93000a;
+  /* Interactive — monochrome invert, no brand hue */
+  --invert-bg: #ededed; /* primary button fill (hover/filled state) */
+  --invert-text: #0a0a0a; /* text on invert-bg */
 
-  --color-primary-fixed: #ffdbc9;
-  --color-primary-fixed-dim: #ffb68c;
-  --color-on-primary-fixed: #321200;
-  --color-on-primary-fixed-variant: #753400;
-
-  --color-secondary-fixed: #c6eadb;
-  --color-secondary-fixed-dim: #abcebf;
-  --color-on-secondary-fixed: #002117;
-  --color-on-secondary-fixed-variant: #2d4d42;
-
-  --color-tertiary-fixed: #e8e1da;
-  --color-tertiary-fixed-dim: #ccc6be;
-  --color-on-tertiary-fixed: #1e1b17;
-  --color-on-tertiary-fixed-variant: #4a4641;
-
-  --color-background: #fdf8f6;
-  --color-on-background: #1c1b1a;
-  --color-surface-variant: #e6e2df;
-
-  /* Tactical Print & Material Aliases */
-  --color-parchment: #f4f2eb;
-  --color-parchment-light: #faf9f6;
-  --color-ivory: #ffffff;
-  --color-ivory-warm: #f6f4ed;
-  --color-ink: #171615;
-  --color-ink-light: #5e5a54;
-  --color-ink-muted: #78746d;
-  --color-ochre: #ba5d1a;
-  --color-ochre-hover: #a24e14;
-  --color-ochre-light: #ffdbc9;
-  --color-forest: #234338;
-  --color-forest-hover: #193129;
-  --color-forest-light: #c4e8d8;
-  --color-hairline: #e5e2d9;
-  --color-hairline-dark: #ddd8cc;
+  /* The one accent in the entire system (3 sanctioned places only) */
+  --accent-live: #e5484d; /* reserved exclusively for live/recording/active-call state */
+  --accent-live-wash: rgba(229, 72, 77, 0.12); /* background tint behind live badges only */
 
   /* Typography */
-  --font-serif: var(--font-playfair), Georgia, serif;
-  --font-sans: var(--font-dm-sans), -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-editorial: var(--font-newsreader), Garamond, Georgia, serif;
+  --font-display: var(--font-newsreader), "Newsreader", "Playfair Display", Georgia, serif;
+  --font-body: var(--font-inter), "PP Neue Montreal", "Inter", -apple-system, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), "JetBrains Mono", "PP Mono", ui-monospace, monospace;
+
+  --size-display-lg: clamp(2rem, 3.5vw, 3rem);
+  --size-display-sm: clamp(1.5rem, 2.2vw, 1.875rem);
+  --size-body-lg: 1.0625rem;
+  --size-body: 0.9375rem;
+  --size-caption: 0.8125rem;
+  --size-micro: 0.75rem;
+
+  --tracking-display: normal;
+  --tracking-mono: 0.02em;
+  --leading-display: 1.1;
+  --leading-body: 1.5;
+
+  /* Global Motion Tokens */
+  --dur-instant: 100ms;
+  --dur-fast: 200ms;
+  --dur-base: 300ms;
+  --dur-slow: 450ms;
+  --dur-reveal: 600ms;
+  --dur-page: 550ms;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-in-out-soft: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Structure */
+  --radius-card: 10px;
+  --radius-modal: 14px;
+  --radius-button: 6px;
+
+  --space-section: clamp(2rem, 4vw, 3.5rem);
+  --space-card-pad: 1.25rem;
+}
+
+@theme {
+  /* Surfaces */
+  --color-bg-inset: var(--bg-inset);
+  --color-bg-primary: var(--bg-primary);
+  --color-bg-elevated: var(--bg-elevated);
+  --color-bg-overlay: var(--bg-overlay);
+
+  /* Text */
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-disabled: var(--text-disabled);
+
+  /* Structure */
+  --color-border-hairline: var(--border-hairline);
+  --color-border-hover: var(--border-hover);
+  --color-border-focus: var(--border-focus);
+
+  /* Interactive */
+  --color-invert-bg: var(--invert-bg);
+  --color-invert-text: var(--invert-text);
+
+  /* Accent Live */
+  --color-accent-live: var(--accent-live);
+  --color-accent-live-wash: var(--accent-live-wash);
+
+  /* Fonts */
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+  --font-mono: var(--font-mono);
+  --font-serif: var(--font-display);
+  --font-sans: var(--font-body);
+  --font-editorial: var(--font-display);
 
   /* Radii */
-  --radius-xs: 0.125rem;
-  --radius-sm: 0.125rem;
-  --radius-DEFAULT: 0.25rem;
-  --radius-md: 0.375rem;
-  --radius-lg: 0.5rem;
-  --radius-xl: 0.75rem;
-  --radius-full: 9999px;
+  --radius-card: var(--radius-card);
+  --radius-modal: var(--radius-modal);
+  --radius-button: var(--radius-button);
 }
 
-/* Print Elevation Shadows */
-.shadow-paper-contact {
-  box-shadow: 0 4px 20px -2px rgba(23, 22, 21, 0.04), 0 1px 3px 0 rgba(23, 22, 21, 0.02);
+/* Base Document Setup */
+html,
+body {
+  background-color: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+  font-family: var(--font-body);
+  letter-spacing: normal;
+  color-scheme: dark;
 }
 
-.shadow-paper-floating {
-  box-shadow: 0 12px 32px -4px rgba(23, 22, 21, 0.08), 0 2px 6px 0 rgba(23, 22, 21, 0.04);
+::selection {
+  background-color: var(--invert-bg) !important;
+  color: var(--invert-text) !important;
 }
 
-/* Hairline rule borders */
-.border-hairline {
-  border-color: #e5e2d9;
+/* ==========================================================================
+   NO SHADOWS ANYWHERE (DESIGN.md §2 Hard Rule)
+   "No shadows anywhere. Depth comes only from the four-step surface system
+   and the hairline/hover border tokens."
+   ========================================================================== */
+*,
+::before,
+::after {
+  --tw-shadow: 0 0 #0000 !important;
+  --tw-shadow-colored: 0 0 #0000 !important;
+  --tw-inset-shadow: 0 0 #0000 !important;
+  --tw-inset-ring-shadow: 0 0 #0000 !important;
 }
 
+.shadow-paper-contact,
+.shadow-paper-floating,
+.shadow-xs,
+.shadow-sm,
+.shadow-md,
+.shadow-lg,
+.shadow-xl,
+.shadow-2xl,
+.shadow-2xs {
+  box-shadow: none !important;
+}
+
+/* ==========================================================================
+   Global Motion & Scrollbar (§4)
+   ========================================================================== */
+
+/* Custom scrollbar: 6px wide, transparent track, thumb in hairline border */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-hairline) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-hairline);
+  border-radius: 9999px;
+  transition: background var(--dur-fast) var(--ease-out-quart);
+}
+
+:hover::-webkit-scrollbar-thumb,
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-hover);
+}
+
+/* ==========================================================================
+   Keyframe Animations from DESIGN.md
+   ========================================================================== */
+
+/* Active Live Badge Breathing Dot (§6.1, §6.3) */
+@keyframes liveBreathe {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(0.95);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+}
+
+.animate-live-breathe {
+  animation: liveBreathe 2s ease-in-out infinite;
+}
+
+/* Busy-Button 3-Dot Pulse (§5) */
+@keyframes busyPulse {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-busy-dot-1 {
+  animation: busyPulse 0.9s ease-in-out infinite;
+  animation-delay: 0ms;
+}
+
+.animate-busy-dot-2 {
+  animation: busyPulse 0.9s ease-in-out infinite;
+  animation-delay: 150ms;
+}
+
+.animate-busy-dot-3 {
+  animation: busyPulse 0.9s ease-in-out infinite;
+  animation-delay: 300ms;
+}
+
+/* Skeleton Loading Shimmer Sweep (§5) */
+@keyframes skeletonSweep {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--bg-elevated) 25%,
+    var(--bg-overlay) 50%,
+    var(--bg-elevated) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeletonSweep 1.5s linear infinite;
+}
+
+/* Restricted Document Shake (§6.2) */
+@keyframes restrictedShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
+}
+
+.animate-restricted-shake {
+  animation: restrictedShake var(--dur-instant) ease-in-out 2;
+}
+
+/* Highlight Clip-Path Sweep Reveal (§6.4) */
+@keyframes highlightSweep {
+  0% {
+    clip-path: inset(0 100% 0 0);
+  }
+  100% {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+.animate-highlight-sweep {
+  animation: highlightSweep var(--dur-base) cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+/* ==========================================================================
+   Comprehensive Monochrome System Mapping for Existing Markup
+   Eliminates all legacy colors, mapping them strictly to DESIGN.md tokens
+   ========================================================================== */
+
+/* Base Backgrounds */
+.bg-\[\#fdf8f6\],
+.bg-\[\#f4f2eb\],
+.bg-\[\#fff9f6\],
+.bg-\[\#fffaf5\],
+.bg-\[\#fff2eb\],
+.bg-\[\#fbf9f4\],
+.bg-\[\#f9f8f5\],
+.bg-\[\#f7f3f0\],
+.bg-\[\#f5f0ed\],
+.bg-background {
+  background-color: var(--bg-primary) !important;
+}
+
+.bg-\[\#fdf8f6\]\/95,
+.bg-\[\#f4f2eb\]\/95 {
+  background-color: rgba(10, 10, 10, 0.95) !important;
+}
+
+/* Elevated Surfaces (Cards, Lists, Panels) */
+.bg-\[\#ffffff\],
+.bg-\[\#faf9f6\] {
+  background-color: var(--bg-elevated) !important;
+}
+
+.bg-\[\#ffffff\]\/95,
+.bg-\[\#faf9f6\]\/95 {
+  background-color: rgba(20, 20, 20, 0.95) !important;
+}
+
+.bg-\[\#ffffff\]\/90,
+.bg-\[\#faf9f6\]\/90 {
+  background-color: rgba(20, 20, 20, 0.9) !important;
+}
+
+/* Inset / Recessed Surfaces */
+.bg-\[\#f2edeb\],
+.bg-\[\#f6f4ed\],
+.bg-\[\#ece7e5\],
+.bg-\[\#e6e2df\],
+.bg-\[\#e8e1da\],
+.bg-\[\#ddd9d7\] {
+  background-color: var(--bg-inset) !important;
+}
+
+/* Modals & Dialogs */
+.bg-\[\#ffffff\][role="dialog"],
+.bg-\[\#ffffff\].modal-content {
+  background-color: var(--bg-overlay) !important;
+}
+
+/* Hairline Rules & Borders */
+.border-\[\#e5e2d9\],
+.border-\[\#ddd8cc\],
+.border-\[\#e6e2df\],
+.border-\[\#897367\],
+.border-\[\#dcc1b4\],
+.border-\[\#e8d5c4\],
+.border-hairline,
 .border-hairline-dark {
-  border-color: #ddd8cc;
+  border-color: var(--border-hairline) !important;
+}
+
+.divide-\[\#e5e2d9\] > :not([hidden]) ~ :not([hidden]),
+.divide-\[\#e5e2d9\]\/60 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--border-hairline) !important;
+}
+
+/* Typography & Text Inks */
+.text-\[\#171615\],
+.text-\[\#1c1b1a\],
+.text-on-surface {
+  color: var(--text-primary) !important;
+}
+
+.text-\[\#5e5a54\],
+.text-\[\#78746d\],
+.text-\[\#554339\] {
+  color: var(--text-secondary) !important;
+}
+
+input::placeholder,
+textarea::placeholder,
+.placeholder\:text-\[\#78746d\]::placeholder {
+  color: var(--text-disabled) !important;
+}
+
+/* Interactive States & Hovers (§5) */
+.hover\:bg-\[\#faf9f6\]:hover,
+.hover\:bg-\[\#f2edeb\]:hover,
+.hover\:bg-\[\#ffffff\]:hover,
+.hover\:bg-\[\#f6f4ed\]:hover {
+  background-color: var(--bg-elevated) !important;
+}
+
+.hover\:text-\[\#171615\]:hover,
+.group:hover .group-hover\:text-\[\#171615\] {
+  color: var(--text-primary) !important;
+}
+
+.hover\:border-\[\#78746d\]:hover,
+.hover\:border-\[\#171615\]:hover {
+  border-color: var(--border-hover) !important;
+}
+
+/* Input Focus (§5) — 2px ring in border-focus, offset 2px, no accent color */
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none !important;
+  box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--border-focus) !important;
+  border-color: var(--border-hover) !important;
+}
+
+/* Monochrome Re-Skin of Legacy Accents (Burnt Ochre & Forest Green) */
+.text-\[\#ba5d1a\],
+.text-\[\#234338\] {
+  color: var(--text-primary) !important;
+}
+
+.bg-\[\#ffdbc9\],
+.bg-\[\#ffdbc9\]\/50,
+.bg-\[\#ffdbc9\]\/60,
+.bg-\[\#c4e8d8\],
+.bg-\[\#c4e8d8\]\/50,
+.bg-\[\#c4e8d8\]\/60,
+.bg-\[\#c6eadb\] {
+  background-color: rgba(237, 237, 237, 0.08) !important;
+  color: var(--text-primary) !important;
+}
+
+.border-\[\#ba5d1a\]\/25,
+.border-\[\#ba5d1a\]\/30,
+.border-\[\#234338\]\/25,
+.border-\[\#234338\]\/30 {
+  border-color: var(--border-hairline) !important;
+}
+
+/* Primary buttons hover/invert (§5) */
+.bg-\[\#ba5d1a\] {
+  background-color: var(--bg-elevated) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-hairline) !important;
+  transition: all var(--dur-fast) var(--ease-out-quart);
+}
+
+.bg-\[\#ba5d1a\]:hover {
+  background-color: var(--invert-bg) !important;
+  color: var(--invert-text) !important;
+}
+
+.bg-\[\#234338\] {
+  background-color: var(--bg-elevated) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-hairline) !important;
+}
+
+.bg-\[\#234338\]:hover {
+  background-color: var(--invert-bg) !important;
+  color: var(--invert-text) !important;
+}
+
+/* ==========================================================================
+   Reduced Motion (§7)
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 150ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .animate-live-breathe,
+  .animate-busy-dot-1,
+  .animate-busy-dot-2,
+  .animate-busy-dot-3,
+  .skeleton-shimmer,
+  .animate-restricted-shake,
+  .animate-highlight-sweep {
+    animation: none !important;
+  }
 }

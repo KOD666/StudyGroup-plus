@@ -29,17 +29,17 @@ export function ArchitectureSection() {
   ];
 
   return (
-    <section id="features" className="py-20 md:py-24 border-t border-[#e5e2d9] bg-[#fdf8f6]">
+    <section id="features" className="py-20 md:py-24 border-t border-[var(--border-hairline)] bg-[var(--bg-primary)]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="max-w-3xl mb-14">
-          <span className="font-sans text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-[#78746d] block mb-3">
+          <span className="font-mono text-[0.6875rem] font-medium uppercase tracking-widest text-[var(--text-secondary)] block mb-3">
             Core Features
           </span>
-          <h2 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-normal text-[#171615] tracking-tight mb-4">
+          <h2 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-normal text-[var(--text-primary)] tracking-tight mb-4">
             How StudyGroup+ Works
           </h2>
-          <p className="font-sans text-base sm:text-lg text-[#5e5a54] leading-relaxed">
+          <p className="font-sans text-base sm:text-lg text-[var(--text-secondary)] leading-relaxed">
             Designed for deep focus, shared documents, and effortless group collaboration without
             the friction of disconnected tools.
           </p>
@@ -54,30 +54,30 @@ export function ArchitectureSection() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.25, delay: index * 0.08, ease: "easeOut" }}
-              className="flex flex-col justify-between pt-6 border-t-2 border-[#171615]"
+              className="flex flex-col justify-between pt-6 border-t border-[var(--border-strong)]"
             >
               <div>
                 <div className="flex items-center justify-between mb-4">
-                  <span className="font-editorial italic text-sm text-[#78746d]">
+                  <span className="font-mono text-xs uppercase tracking-wider text-[var(--text-secondary)]">
                     {item.num} / {item.category}
                   </span>
-                  <item.icon className="w-4 h-4 text-[#ba5d1a]" />
+                  <item.icon className="w-4 h-4 text-[var(--text-primary)]" />
                 </div>
 
-                <h3 className="font-serif text-2xl font-normal text-[#171615] mb-3">
+                <h3 className="font-serif text-2xl font-normal text-[var(--text-primary)] mb-3">
                   {item.title}
                 </h3>
 
-                <p className="font-sans text-sm sm:text-base leading-relaxed text-[#5e5a54] mb-8">
+                <p className="font-sans text-sm sm:text-base leading-relaxed text-[var(--text-secondary)] mb-8">
                   {item.description}
                 </p>
               </div>
 
-              <div className="p-3 bg-[#faf9f6] border border-[#e5e2d9] rounded-[0.25rem]">
-                <span className="block font-sans text-[0.625rem] font-semibold uppercase tracking-[0.1em] text-[#78746d] mb-1">
+              <div className="p-3 bg-[var(--bg-elevated)] border border-[var(--border-hairline)] rounded-[6px]">
+                <span className="block font-mono text-[0.625rem] font-medium uppercase tracking-widest text-[var(--text-secondary)] mb-1">
                   {item.statusLabel}
                 </span>
-                <span className="font-sans text-xs font-medium text-[#171615]">
+                <span className="font-sans text-xs font-medium text-[var(--text-primary)]">
                   {item.statusValue}
                 </span>
               </div>

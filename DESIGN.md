@@ -1,230 +1,283 @@
----
-name: Editorial Academic Workspace
-colors:
-  surface: '#fdf8f6'
-  surface-dim: '#ddd9d7'
-  surface-bright: '#fdf8f6'
-  surface-container-lowest: '#ffffff'
-  surface-container-low: '#f7f3f0'
-  surface-container: '#f2edeb'
-  surface-container-high: '#ece7e5'
-  surface-container-highest: '#e6e2df'
-  on-surface: '#1c1b1a'
-  on-surface-variant: '#554339'
-  inverse-surface: '#32302f'
-  inverse-on-surface: '#f5f0ed'
-  outline: '#897367'
-  outline-variant: '#dcc1b4'
-  surface-tint: '#9a4600'
-  primary: '#9a4600'
-  on-primary: '#ffffff'
-  primary-container: '#ba5d1a'
-  on-primary-container: '#0d0300'
-  inverse-primary: '#ffb68c'
-  secondary: '#446559'
-  on-secondary: '#ffffff'
-  secondary-container: '#c4e8d8'
-  on-secondary-container: '#49695d'
-  tertiary: '#625e57'
-  on-tertiary: '#ffffff'
-  tertiary-container: '#7b7670'
-  on-tertiary-container: '#060502'
-  error: '#ba1a1a'
-  on-error: '#ffffff'
-  error-container: '#ffdad6'
-  on-error-container: '#93000a'
-  primary-fixed: '#ffdbc9'
-  primary-fixed-dim: '#ffb68c'
-  on-primary-fixed: '#321200'
-  on-primary-fixed-variant: '#753400'
-  secondary-fixed: '#c6eadb'
-  secondary-fixed-dim: '#abcebf'
-  on-secondary-fixed: '#002117'
-  on-secondary-fixed-variant: '#2d4d42'
-  tertiary-fixed: '#e8e1da'
-  tertiary-fixed-dim: '#ccc6be'
-  on-tertiary-fixed: '#1e1b17'
-  on-tertiary-fixed-variant: '#4a4641'
-  background: '#fdf8f6'
-  on-background: '#1c1b1a'
-  surface-variant: '#e6e2df'
-typography:
-  display-lg:
-    fontFamily: Playfair Display
-    fontSize: 4.5rem
-    fontWeight: '400'
-    lineHeight: 4.75rem
-    letterSpacing: -0.03em
-  display-lg-mobile:
-    fontFamily: Playfair Display
-    fontSize: 2.75rem
-    fontWeight: '400'
-    lineHeight: 3rem
-    letterSpacing: -0.02em
-  display-md:
-    fontFamily: Playfair Display
-    fontSize: 3.25rem
-    fontWeight: '400'
-    lineHeight: 3.5rem
-    letterSpacing: -0.02em
-  display-md-mobile:
-    fontFamily: Playfair Display
-    fontSize: 2.25rem
-    fontWeight: '400'
-    lineHeight: 2.5rem
-    letterSpacing: -0.01em
-  headline-lg:
-    fontFamily: Playfair Display
-    fontSize: 2.25rem
-    fontWeight: '500'
-    lineHeight: 2.625rem
-    letterSpacing: -0.015em
-  headline-md:
-    fontFamily: Playfair Display
-    fontSize: 1.75rem
-    fontWeight: '500'
-    lineHeight: 2.125rem
-    letterSpacing: -0.01em
-  headline-sm:
-    fontFamily: DM Sans
-    fontSize: 1.25rem
-    fontWeight: '600'
-    lineHeight: 1.625rem
-    letterSpacing: -0.005em
-  title-lg:
-    fontFamily: DM Sans
-    fontSize: 1.125rem
-    fontWeight: '500'
-    lineHeight: 1.5rem
-  title-md:
-    fontFamily: DM Sans
-    fontSize: 1rem
-    fontWeight: '500'
-    lineHeight: 1.375rem
-  body-lg:
-    fontFamily: DM Sans
-    fontSize: 1.125rem
-    fontWeight: '400'
-    lineHeight: 1.875rem
-  body-md:
-    fontFamily: DM Sans
-    fontSize: 0.9375rem
-    fontWeight: '400'
-    lineHeight: 1.5rem
-  body-sm:
-    fontFamily: DM Sans
-    fontSize: 0.8125rem
-    fontWeight: '400'
-    lineHeight: 1.25rem
-  label-editorial:
-    fontFamily: Newsreader
-    fontSize: 1.0625rem
-    fontWeight: '400'
-    lineHeight: 1.25rem
-    letterSpacing: 0.01em
-  label-caps:
-    fontFamily: DM Sans
-    fontSize: 0.6875rem
-    fontWeight: '600'
-    lineHeight: 0.875rem
-    letterSpacing: 0.08em
-rounded:
-  sm: 0.125rem
-  DEFAULT: 0.25rem
-  md: 0.375rem
-  lg: 0.5rem
-  xl: 0.75rem
-  full: 9999px
-spacing:
-  gutter: 2rem
-  gutter-mobile: 1rem
-  margin: 3.5rem
-  margin-mobile: 1.25rem
-  space-xs: 0.25rem
-  space-sm: 0.5rem
-  space-md: 1rem
-  space-lg: 1.75rem
-  space-xl: 3rem
+# StudyGroup+ — DESIGN.md
+
+Scope: Student Dashboard, Group Workspace, Meeting Room, Asset Viewer.
+This is an app design system, not a marketing site — motion is used to
+make a dense, functional product feel physical and considered, not to
+decorate it.
+
 ---
 
-## Brand & Style
+## 1. Design Philosophy
 
-This design system embodies the stillness and deliberate pacing of a high-end university reading room, an independent literary publication, and an archival collection. Designed for university scholars and self-directed learners, the interface evokes focus, contemplation, and intellectual rigor.
+Near-monochrome, high-contrast, editorial — closer to a design studio's
+own portfolio than a typical SaaS product. One surface system in shades
+of near-black, one accent reserved entirely for "this is live right now"
+moments. No gradients, no multi-color brand palette, no decorative color.
+Restraint is the differentiator: color means something every time it
+appears instead of being wallpaper.
 
-The aesthetic philosophy draws heavily from modern editorial minimalism, tactile print traditions, and contemporary cultural journals (such as Kinfolk, Cereal, and archival broadsheets). Rather than relying on modern tech clichés—such as saturated neon accents, glassmorphic blurs, floating abstract geometries, or generic bento grids—this system uses typographic authority, asymmetric layout balance, and disciplined hairline ink rules. Surfaces feel like archival paper stocks, interactions are hushed and instantaneous, and hierarchy is articulated primarily through typographic scale, weight contrasts, and breathing space.
+---
 
-## Colors
+## 2. Color Tokens
 
-The palette reproduces the tactile environment of print culture and aged wood reading desks:
+```css
+:root {
+  /* Surfaces — stepped, not flat */
+  --bg-inset:     #050505;   /* recessed: inputs, code/transcript blocks */
+  --bg-primary:   #0a0a0a;   /* base page background */
+  --bg-elevated:  #141414;   /* cards, panels, tab bars */
+  --bg-overlay:   #1c1c1c;   /* modals, dropdowns, popovers */
 
-- **Base Canvas & Paper Surfaces:** The foundational canvas rests on warm, light-absorbing parchment tones (`#F4F2EB` and `#FAF9F6`). Elevated surfaces, active cards, and note editors use an unbleached ivory paper (`#FFFFFF` to `#F6F4ED`). Stark synthetic pure-white backgrounds are strictly avoided on broad fields.
-- **Ink & Typography:** Primary typographic output utilizes an ultra-deep warm charcoal ink (`#171615`). Secondary metadata, citations, and structural subtitles use dried-ink midtones (`#5E5A54` and `#78746D`).
-- **Accent Tones:** 
-  - Primary Accent: A resonant burnt ochre (`#BA5D1A`), referencing hand-stamped book cloth and archival ledger ribbons. It is used sparingly for primary actions, active focus states, and essential milestones.
-  - Secondary Accent: A deep academic forest green (`#234338`), evoking traditional reading lamps and binding buckram. Used for collaborative presence, completion tags, and high-level academic markers.
-- **Borders & Rules:** Structural segmentation relies exclusively on hairline ink rules (`#E5E2D9` and `#DDD8CC`).
+  /* Text */
+  --text-primary:   #ededed;  /* never pure #fff */
+  --text-secondary: #8a8a8a;  /* metadata, timestamps, captions */
+  --text-disabled:  #4a4a4a;
 
-No vibrant digital gradients, saturated neon tones, or synthetic glow states exist within this system.
+  /* Structure */
+  --border-hairline: rgba(237, 237, 237, 0.08);
+  --border-hover:    rgba(237, 237, 237, 0.18);
+  --border-focus:    rgba(237, 237, 237, 0.35);
 
-## Typography
+  /* Interactive — monochrome invert, no brand hue */
+  --invert-bg:   #ededed;  /* primary button fill (hover/filled state) */
+  --invert-text: #0a0a0a;  /* text on invert-bg */
 
-The typographical landscape pairs classical literary cadence with pragmatic Swiss utility:
+  /* The one accent in the entire system */
+  --accent-live: #e5484d;  /* reserved exclusively for live/recording/active-call state */
+  --accent-live-wash: rgba(229, 72, 77, 0.12); /* background tint behind live badges only */
+}
+```
 
-- **Headlines & Display:** Set in *Playfair Display*. Dramatic scale contrast conveys the authority of an editorial broadsheet. Larger headings adopt tight, disciplined tracking and generous baseline line heights to maintain visual calm.
-- **Reading & Interface Body:** Set in *DM Sans*. Unobtrusive, highly legible, and structurally neutral, this face preserves long-form readability during extended research sessions and high-density study tables.
-- **Editorial Labels & Secondary Marginalia:** Set in *Newsreader* (often italicized) for pull quotes, chapter subtitles, citations, and status epigraphs, injecting an authentic collegiate personality.
-- **Micro-Labels & Technical Meta:** Set in uppercase *DM Sans* with deliberate tracking (`letter-spacing: 0.08em`) to designate badges, timestamps, table headers, and category indexes without cluttering visual weight.
+**Hard rules:**
+- `--accent-live` appears in exactly three places across the whole product:
+  the live-session badge on the Dashboard, the recording/live indicator in
+  the Meeting Room, and nowhere else. If a new feature wants an accent
+  color, it does not get a new hue — it borrows structure (weight, size,
+  motion) to stand out instead.
+- Every other interactive state — buttons, links, focus rings, toggles,
+  active tabs — is built from grayscale + the invert pair. This is what
+  keeps the system reading as designed rather than generated.
+- No shadows anywhere. Depth comes only from the four-step surface system
+  and the hairline/hover border tokens.
 
-## Layout & Spacing
+---
 
-The layout is grounded in classic publication proportions rather than app-like utility clusters. It balances expansive asymmetric white space with tightly calibrated columns.
+## 3. Typography
 
-- **Grid Architecture:** 
-  - Desktop: 12-column asymmetric fluid grid with a maximum content container of 1440px, `2rem` gutters, and `3.5rem` outer margins. Modules prioritize breathing space over density; primary reading panes often occupy 7 or 8 columns, while peripheral reference indices, session timers, or participant rosters sit quietly in 3- or 4-column margins.
-  - Tablet (768px – 1024px): 8-column layout with `1.5rem` gutters and `2rem` margins.
-  - Mobile (< 768px): 4-column layout with `1rem` gutters and `1.25rem` margins. Complex tables shift gracefully to single-column vertical scrolls with prominent hairline separators.
-- **Vertical Rhythm:** Generous vertical intervals (`space-xl` and higher) delineate distinct conceptual blocks (e.g., active room agenda vs. shared bibliographies), mimicking the pacing of article breaks in high-end magazines.
+```css
+--font-display: "Instrument Serif", "Canela", Georgia, serif;
+--font-body:    "PP Neue Montreal", "Inter", -apple-system, sans-serif;
+--font-mono:    "JetBrains Mono", "PP Mono", ui-monospace, monospace;
 
-## Elevation & Depth
+--size-display-lg: clamp(2rem, 3.5vw, 3rem);    /* page titles: "Good morning, Elena" */
+--size-display-sm: clamp(1.5rem, 2.2vw, 1.875rem); /* section headers */
+--size-body-lg:     1.0625rem;  /* primary reading content, asset viewer */
+--size-body:        0.9375rem; /* default UI text */
+--size-caption:     0.8125rem;
+--size-micro:       0.75rem;   /* mono labels, timestamps, invite codes */
 
-This design system rejects synthetic depth metaphors, including heavy drop shadows, dynamic Y-axis floating levels, and blurred multi-layer glass effects. Spatial relationships are expressed through tactile print layering:
+--tracking-display: -0.02em;
+--tracking-mono:     0.02em;   /* mono type wants slightly *positive* tracking */
+--leading-display:  1.1;
+--leading-body:     1.5;
+```
 
-- **Low-Contrast Hairline Outlines:** Containment is signaled via 1px rules in `#E5E2D9` (on parchment) or `#DDD8CC` (on ivory). These act like fine printer rules on a deckle-edge page.
-- **Tonal Paper Stacking:** Elevating an element—such as a focused study module, floating toolbar, or bibliographic drawer—is achieved by shifting surfaces from the canvas tone (`#F4F2EB`) to pure ivory (`#FFFFFF` or `#F6F4ED`).
-- **Subtle Contact Inset:** When floating elements require explicit separation from underlying text (e.g., modals, popover glossaries), they use an ambient, low-opacity contact shadow: `0 4px 20px -2px rgba(23, 22, 21, 0.04), 0 1px 3px 0 rgba(23, 22, 21, 0.02)`. The shadow is warm-toned and feather-light, suggesting flat paper resting on paper.
+Three-font system, used deliberately by role, not by page:
+- **Serif (display):** page titles and section headers only. Never body
+  text, never buttons, never inside cards.
+- **Sans (body):** everything functional — labels, buttons, chat, forms,
+  card content.
+- **Mono:** anything that is data rather than prose — timestamps, invite
+  codes, participant counts, file sizes, call duration, transcript
+  speaker tags. This is what gives the product its "designer's own tool"
+  feel; use it more than feels natural at first.
 
-## Shapes
+---
 
-The shape system adopts a soft, bookbound silhouette:
+## 4. Motion System — Global Tokens
 
-- **Corner Radii:** Set to a restrained `0.25rem` (`roundedness: 1`). Cards, panels, input fields, and standard buttons feature slight corner softeners, avoiding both the clinical severity of sharp 90-degree corners and the playful or casual feel of circular/pill-shaped components.
-- **Structural Integrity:** Dialogue windows and large surface modules use `rounded-lg` (`0.5rem`), referencing hardbound folio covers.
-- **Exceptions:** Status indicator dots, user presence pips, and audio level meters retain functional `9999px` circular geometry to communicate live status clearly.
+```css
+/* Durations */
+--dur-instant: 100ms;  /* icon swaps, checkbox ticks */
+--dur-fast:    200ms;  /* hover, focus, toggles */
+--dur-base:    300ms;  /* tab switches, dropdown open */
+--dur-slow:    450ms;  /* modal open, tile re-layout */
+--dur-reveal:  600ms;  /* content entrance on page load */
+--dur-page:    550ms;  /* route transitions */
 
-## Components
+/* Easing */
+--ease-out-expo:   cubic-bezier(0.16, 1, 0.3, 1);   /* entrances, reveals */
+--ease-out-quart:  cubic-bezier(0.25, 1, 0.5, 1);   /* general UI transitions */
+--ease-in-out-soft: cubic-bezier(0.65, 0, 0.35, 1); /* route/page transitions */
+--ease-spring:     cubic-bezier(0.34, 1.56, 0.64, 1); /* press feedback, pop-ins */
+```
 
-### Buttons
-- **Primary:** Solid warm ochre (`#BA5D1A`) background with crisp off-white text (`#FAF9F6`). Rectangular with soft `0.25rem` corners, zero shadow, and an intentional hover shift to `#A24E14`. Active state subtly scales down (`0.99`).
-- **Secondary / Ghost:** Parchment fill (`transparent` or `#F6F4ED`) bounded by a delicate 1px border (`#DDD8CC`), with deep ink text (`#171615`). On hover, the border darkens to `#78746D` and the background subtly shifts to ivory.
-- **Editorial Text Button:** Zero border or background; uses *Newsreader* italic or tracked *DM Sans* caps with an animated 1px underline that expands from left to right on hover.
+**Scroll physics:** inertia scroll (Lenis-style, lerp `0.1`, wheel
+multiplier `1`) on any panel longer than one viewport — the Dashboard's
+group grid, the Group Workspace document grid, the Asset Viewer reading
+column. Live/real-time panels (chat, transcript) use native browser
+scroll with momentum only, no custom lerp — real-time content must feel
+instantaneous, not weighted.
 
-### Form Inputs & Text Fields
-- Clean ivory background (`#FFFFFF`) framed by a 1px border in `#DDD8CC`. Text is rendered in deep charcoal with placeholder text in `#78746D`.
-- Focus states do not use thick glowing rings; instead, the 1px border transitions crisply to `#BA5D1A` accompanied by a 1px inner hairline offset (`box-shadow: inset 0 0 0 1px #BA5D1A`).
+**Custom cursor:** 8px solid dot + a 32px trailing ring that lags via
+spring physics (~150ms settle). On hovering any interactive element, the
+ring scales to 48px and fills to 10% opacity of `--text-primary`.
+Primary CTAs (Dashboard's "Join Live Room," Workspace's "Start Video
+Meeting") get a magnetic pull — the button translates up to 6px toward
+the cursor within a 40px radius. Disabled entirely on touch/coarse
+pointers — detect via `(hover: hover) and (pointer: fine)`.
 
-### Cards & Study Panels
-- Constructed from crisp ivory stock with a continuous 1px `#E5E2D9` border.
-- Headers are divided from card bodies with horizontal hairline rules rather than heavy background fills. Padding uses deliberate spacing (`space-lg`).
+**Route transitions** (Dashboard → Workspace → Meeting Room → Asset
+Viewer): full-bleed cross-fade through `--bg-primary`, `--dur-page`,
+`--ease-in-out-soft`. Outgoing view fades out while scaling to `0.98`;
+incoming view fades in while scaling from `1.02` to `1.0`. This is a
+settle, not a slide — nothing in this system slides horizontally except
+the specific cases noted per-page below.
 
-### Lists & Archival Tables
-- Framed with top and bottom hairline borders. Alternating striping is rejected; hover states illuminate the row with a light wash of `#FAF9F6`.
-- Metadata columns use *Newsreader* numerals and *DM Sans* tracked labels for aligned, tabular scanability.
+**Custom scrollbar:** 6px wide, transparent track, thumb in
+`--border-hairline` at rest, brightening to `--border-hover` on hover of
+the scroll container. Applies inside every scrollable panel, not just
+the page body.
 
-### Checkboxes & Radios
-- Square forms (`checkbox`) with a slight `2px` radius; circular forms (`radio`).
-- Constructed with a 1.5px border in `#78746D`. When checked, the fill settles into academic forest green (`#234338`) with a warm off-white tick.
+---
 
-### Domain-Specific Components
-- **Study Session Ribbon (Presence Bar):** A quiet, fixed horizontal bar displaying active room members with small monogram tiles, current study topic in *Newsreader* italics, and a steady forest green ambient indicator.
-- **Focus Timer Deck:** Minimal typographic clock rendered in large *Playfair Display* numbers, anchored by fine rule demarcations and muted start/pause controls.
-- **Citation & Annotation Pill:** Compact tags with a faint `#F4F2EB` background, `#E5E2D9` border, and deep charcoal text, styled like scholarly footnotes.
+## 5. Interaction Catalog (applies everywhere unless a page overrides it)
+
+| Element | Behavior |
+|---|---|
+| Primary button | Rest: `--bg-elevated` fill, `--text-primary` label, `--border-hairline`. Hover: inverts to `--invert-bg` fill / `--invert-text` label over `--dur-fast` `--ease-out-quart`. Press: scales to `0.97` via `--ease-spring`, `150ms`, releases on pointerup. |
+| Secondary/ghost button | No fill at rest; hover adds `--bg-elevated` fill only, no invert. |
+| Card | Hover: lifts `-4px` (translateY) + border brightens hairline→hover, `--dur-fast`. No scale. |
+| Toggle/switch | Thumb slides on `--ease-spring`, `250ms`. Track: `--bg-elevated` (off) → `rgba(237,237,237,0.2)` (on). No color change — state is communicated by position and track brightness only. |
+| Tab / segmented control | Active indicator (underline or pill) animates position via layout transition, `--dur-base`, `--ease-out-quart`. Content beneath cross-fades: `150ms` out, then `150ms` in — sequential, not simultaneous, to avoid a flash of empty state. |
+| Modal / dialog | Backdrop fades to `--bg-primary` at 60% opacity. Modal itself: scale `0.96 → 1` + fade, `--dur-slow`, `--ease-out-expo`. |
+| Input focus | 2px ring in `--border-focus`, offset 2px, `--dur-fast`. No accent color used for focus anywhere in the system. |
+| Confirm action (e.g. "Copy") | Label/icon morphs to a checkmark: `200ms` in, holds `800ms`, `200ms` back out. Shape communicates success — no color change. |
+| Busy/loading button | Label is replaced by a 3-dot pulse (opacity `0.3→1→0.3`, staggered `150ms` per dot, `900ms` loop) rather than a spinner. |
+| Skeleton loading | Shimmer sweeps left-to-right between `--bg-elevated` and `--bg-overlay`, `1.5s` linear, looping. Used for all initial data fetches in place of spinners. |
+
+---
+
+## 6. Page-Specific Motion
+
+### 6.1 Student Dashboard
+
+- **Greeting clock:** live local time in mono type; each digit that
+  changes does a vertical digit-roll (odometer-style, `--dur-fast`)
+  rather than a hard replace — only on the digit that actually changed.
+- **Active Study Room banner:** static except the "LIVE" badge dot,
+  which breathes — opacity `0.6 → 1 → 0.6`, `2s`, `ease-in-out`, looping.
+  This is one of the three sanctioned uses of `--accent-live`.
+- **Groups grid entrance:** staggered fade+rise (`24px`), `60ms` between
+  cards, row-first order. Total stagger is capped at `500ms` regardless
+  of card count (`index * min(60ms, 500ms / total)`) so a large grid
+  doesn't feel slow to finish painting.
+- **Card click:** brief `0.98` scale via `--ease-spring` before the route
+  transition fires — confirms the tap before the page changes.
+- **Right sidebar** (Upcoming Sessions, Recent Notes): enters `100ms`
+  after the main grid starts, same fade+rise treatment.
+
+### 6.2 Group Workspace
+
+- **Filter tabs** (All / Notes / PDFs / Decks): standard tab behavior
+  from §5. Document grid re-populates using the same sequential
+  cross-fade, not a re-run of the full entrance stagger.
+- **Restricted document:** clicking a locked card does a `2px` × 2 shake
+  on the lock icon, `--dur-instant` per shake — a clear "no" without
+  introducing a warning color.
+- **Chat panel:** new messages enter with an `8px` rise + fade,
+  `--dur-fast`, no bounce. Own messages align right, others left;
+  otherwise identical motion.
+- **"Start Video Meeting":** primary button per §5; on click, the label
+  is replaced by the busy-button dot pattern while the LiveKit token
+  request resolves, then the route transition fires.
+- **Manage Access modal:** standard modal open per §5. Each permission
+  toggle uses the standard toggle spec — deliberately unremarkable, so
+  the one thing that stands out on this screen is the data, not the UI.
+
+### 6.3 Meeting Room
+
+This is the highest-motion screen in the product — treat it as the
+centerpiece of the whole system.
+
+- **Video tile grid:** uses FLIP-style layout animation whenever a
+  participant joins, leaves, or the active speaker changes — tiles
+  animate to their new position/size over `--dur-slow`,
+  `--ease-in-out-soft`, never snap. This happens constantly during a
+  call, so it has to be the most reliable animation in the system.
+- **Active speaker:** border brightens to `--text-primary` + subtle
+  `1.02` scale on the active tile, `--dur-fast`, reverting the instant
+  the active speaker changes. No color shift — brightness and scale
+  only, so it stays calm during a live call.
+- **Mic/cam toggles:** press-spring feedback per §5. Muted state swaps
+  the icon glyph via a `150ms` cross-fade — the icon shape communicates
+  mute, not a color change.
+- **Live/recording indicator:** a small pulsing dot, identical spec to
+  the Dashboard's LIVE badge — the second of the three sanctioned
+  `--accent-live` uses. Positioned top-left of the call chrome, always
+  visible, never combined with other colored elements nearby so it
+  keeps its meaning.
+- **Transcript panel:** new lines fade in with a `4px` rise. Reveal
+  word-by-word (~`40ms` per word) to mimic live captioning, with a
+  documented fallback to line-level fade if word-level proves too busy
+  during fast speech — test both before committing.
+- **"Pin to Notes":** the transcript line flashes its background to
+  `--bg-elevated` and settles, while a small icon travels (translate +
+  fade, `--dur-reveal`, `--ease-out-expo`) from the line toward the
+  Notes tab in the sidebar — visual confirmation the action landed
+  somewhere specific, not just "saved."
+- **Mode switcher** (Silent Study / Discussion): segmented control per
+  §5's tab spec.
+- **Leave call:** screen fades to `--bg-primary` over `250ms` before the
+  route transition to Group Workspace fires — a deliberate closing beat
+  rather than an abrupt cut.
+
+### 6.4 Asset Viewer
+
+- **Page enter:** reading column fades up `12px` over `--dur-reveal`
+  (slower than the global default) — this screen is for deep reading,
+  so its entrance should feel settled, not snappy.
+- **Pagination:** cross-fade (`200ms` out / `200ms` in) with an `8px`
+  horizontal drift in the direction of travel — a suggestion of
+  direction, not a full slide.
+- **Zoom (75–150%):** scales via `--ease-out-quart`, `250ms`,
+  transform-origin centered on the viewport so zooming doesn't jump the
+  reading position.
+- **Selection toolbar:** appears above the selection with an `8px` rise
+  + fade, `--dur-fast` — this one needs to feel immediate since it
+  fires mid-read.
+- **Highlight action:** the highlight color sweeps in left-to-right via
+  a clip-path reveal over `300ms`, `--ease-out-quart`, rather than
+  snapping to full opacity on click.
+- **Marginal notes:** pop in from their anchor with a `0.9 → 1` scale
+  spring (`--ease-spring`, `250ms`). While the reader scrolls, each
+  note's vertical position lerps to follow its anchored line rather than
+  snapping — they should feel physically attached to the text.
+- **Copy Citation:** standard confirm-action morph from §5.
+
+---
+
+## 7. Reduced Motion
+
+When `prefers-reduced-motion: reduce` is set:
+- Disable entirely: custom cursor, magnetic buttons, FLIP tile
+  re-layout (snap instead), word-by-word transcript reveal (fall back to
+  line-level), digit-roll clock (hard replace instead), marginal-note
+  scroll-follow lerp (snap to position).
+- Keep, at reduced duration (`150ms`, opacity only): entrance fades,
+  route transitions, hover states, confirm-action morphs.
+- Never remove state feedback entirely — reduced motion means calmer,
+  not silent.
+
+---
+
+## 8. Structure
+
+```css
+--radius-card:   10px;
+--radius-modal:  14px;
+--radius-button: 6px;
+
+--space-section:  clamp(2rem, 4vw, 3.5rem);
+--space-card-pad: 1.25rem;
+```

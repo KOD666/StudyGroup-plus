@@ -2,22 +2,32 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
+import { motion, useReducedMotion } from "framer-motion";
 import {
-  BookOpen,
   Plus,
-  Clock,
   ArrowRight,
   AlertCircle,
   Calendar,
-  Volume2,
-  ExternalLink,
+  FileText,
+  CheckCircle2,
+  LayoutGrid,
+  Radio,
+  FolderArchive,
+  MessageSquare,
+  Settings,
+  HelpCircle,
+  KeyRound,
+  Download,
+  Users,
 } from "lucide-react";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { CreateLoungeModal } from "@/components/lounges/CreateLoungeModal";
 import { Button } from "@/components/ui/Button";
-import { Badge } from "@/components/ui/Badge";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/Card";
+import { GreetingClock } from "@/components/dashboard/GreetingClock";
+import { RouteTransition } from "@/components/motion/RouteTransition";
 
 interface GroupItem {
   id: string;
@@ -41,24 +51,16 @@ interface RecentAsset {
 }
 
 export default function LoungesDashboardPage() {
+  const router = useRouter();
   const { user, isLoaded: isUserLoaded } = useUser();
+  const shouldReduceMotion = useReducedMotion();
+
   const [groups, setGroups] = useState<GroupItem[]>([]);
   const [recentAssets, setRecentAssets] = useState<RecentAsset[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingRecent, setIsLoadingRecent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [despatchTime, setDespatchTime] = useState("09:42 AM");
-
-  useEffect(() => {
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    });
-    setDespatchTime(timeStr);
-  }, []);
+  const [modalTab, setModalTab] = useState<"create" | "join">("create");
 
   const fetchGroups = useCallback(async () => {
     setIsLoading(true);
@@ -66,392 +68,575 @@ export default function LoungesDashboardPage() {
     try {
       const res = await fetch("/api/groups");
       if (!res.ok) {
-        if (res.status === 401) {
-          throw new Error("Please sign in to view your study groups.");
-        }
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || "Failed to load study groups");
+        throw new Error(`Failed to fetch study groups (${res.status})`);
       }
       const data = await res.json();
       setGroups(data.groups || []);
     } catch (err: unknown) {
+      console.error("Error fetching study groups:", err);
       setError(err instanceof Error ? err.message : "Failed to load study groups");
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-  const fetchRecentNotes = useCallback(async () => {
-    setIsLoadingRecent(true);
+  const fetchRecentAssets = useCallback(async () => {
     try {
       const res = await fetch("/api/assets?recent=true");
       if (res.ok) {
         const data = await res.json();
         setRecentAssets(data.assets || []);
       }
-    } catch (err) {
-      console.warn("Could not load recent assets:", err);
-    } finally {
-      setIsLoadingRecent(false);
+    } catch (err: unknown) {
+      console.error("Error fetching recent assets:", err);
     }
   }, []);
 
   useEffect(() => {
-    if (isUserLoaded) {
+    if (isUserLoaded && user) {
       fetchGroups();
-      fetchRecentNotes();
+      fetchRecentAssets();
+    } else if (isUserLoaded && !user) {
+      setIsLoading(false);
     }
-  }, [isUserLoaded, fetchGroups, fetchRecentNotes]);
+  }, [isUserLoaded, user, fetchGroups, fetchRecentAssets]);
 
-  const scholarName = user?.firstName || user?.fullName || "Member";
+  const scholarName = user?.firstName || user?.username || "Member";
   const activeLounge = groups[0] || null;
 
+  const getCardDelay = (index: number) => {
+    if (shouldReduceMotion) return 0;
+    const total = Math.max(1, groups.length);
+    const step = Math.min(0.06, 0.5 / total);
+    return index * step;
+  };
+
+  const handleCardClick = (groupId: string) => {
+    setTimeout(() => {
+      router.push(`/lounges/${groupId}`);
+    }, shouldReduceMotion ? 0 : 80);
+  };
+
   return (
-    <div className="min-h-screen bg-[#fdf8f6] flex flex-col font-sans selection:bg-[#ffdbc9] selection:text-[#171615]">
+    <RouteTransition className="bg-[var(--bg-primary)] flex flex-col font-sans text-[var(--text-primary)] selection:bg-[var(--invert-bg)] selection:text-[var(--invert-text)] min-h-screen">
       <AppHeader activeLoungesCount={groups.length} />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
-        {/* Top Overview Greeting Bar */}
-        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 pb-8 border-b border-[#e5e2d9] mb-8">
+      <div className="flex-1 w-full max-w-[1536px] mx-auto flex">
+        {/* Left Sidebar Navigation (Stitched to real application routes) */}
+        <aside className="hidden xl:flex flex-col w-60 shrink-0 border-r border-[var(--border-hairline)] bg-[var(--bg-primary)] p-5 space-y-7 min-h-[calc(100vh-4rem)]">
+          {/* Workspace Title */}
           <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="font-sans text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-[#78746d]">
-                Study Dashboard • {despatchTime}
+            <div className="flex items-center gap-2 mb-1">
+              <span className="w-2 h-2 bg-[var(--text-primary)] inline-block rounded-[1px]" />
+              <span className="font-mono text-[0.6875rem] uppercase tracking-wider font-semibold text-[var(--text-primary)] truncate">
+                Study Workspace
               </span>
             </div>
-            <h1 className="font-serif text-3xl sm:text-4xl lg:text-[2.75rem] leading-tight font-normal text-[#171615]">
-              Good {new Date().getHours() < 12 ? "morning" : "afternoon"},{" "}
-              <span className="italic font-normal">{scholarName}</span>.{" "}
-              {groups.length > 0
-                ? `You have ${groups.length} active study ${groups.length === 1 ? "group" : "groups"}.`
-                : "Create or join a study group to get started."}
-            </h1>
-          </div>
-
-          {/* Quick Ticker Chips */}
-          <div className="flex items-center gap-3 self-start lg:self-end">
-            <div className="px-3 py-2 rounded-[0.25rem] bg-[#ffffff] border border-[#e5e2d9] flex items-center gap-2.5 text-xs shadow-xs transition-all duration-150">
-              <span className="w-2 h-2 rounded-full bg-[#234338] animate-pulse" />
-              <span className="font-semibold text-[#171615]">
-                {activeLounge ? activeLounge.name.split(":")[0] : "STUDY ROOM"}
-              </span>
-              <span className="text-[#78746d]">
-                {activeLounge ? "Meeting room ready" : "No active meeting"}
-              </span>
+            <div className="font-mono text-[0.625rem] uppercase tracking-wider text-[var(--text-secondary)] pl-4">
+              Personal Dashboard
             </div>
           </div>
-        </div>
 
-        {/* Error Notification with Retry */}
-        {error && (
-          <div className="mb-8 p-4 bg-[#fffaf5] border border-[#ba5d1a]/40 rounded-[0.25rem] flex items-start justify-between gap-4 transition-all duration-150">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-[#ba5d1a] shrink-0 mt-0.5" />
-              <div>
-                <h4 className="font-sans text-sm font-semibold text-[#171615]">
-                  Unable to Load Study Groups
-                </h4>
-                <p className="font-sans text-xs text-[#5e5a54] mt-0.5">{error}</p>
+          {/* Action Buttons: Create & Join */}
+          <div className="space-y-2">
+            <button
+              type="button"
+              data-magnetic
+              onClick={() => {
+                setModalTab("create");
+                setIsModalOpen(true);
+              }}
+              className="w-full py-2 px-3 rounded-[var(--radius-button)] bg-[var(--invert-bg)] text-[var(--invert-text)] font-sans text-xs font-semibold uppercase tracking-wider hover:bg-white active:scale-[0.97] transition-all duration-[var(--dur-fast)] cursor-pointer flex items-center justify-center gap-1.5 shadow-none"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Create Group</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setModalTab("join");
+                setIsModalOpen(true);
+              }}
+              className="w-full py-2 px-3 rounded-[var(--radius-button)] bg-[var(--bg-elevated)] hover:bg-[var(--bg-overlay)] border border-[var(--border-hairline)] text-[var(--text-primary)] font-mono text-xs uppercase tracking-wider transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-none"
+            >
+              <KeyRound className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
+              <span>Join with Code</span>
+            </button>
+          </div>
+
+          {/* Navigation Links (Stitched to real pages) */}
+          <nav className="space-y-1 font-sans text-xs">
+            <Link
+              href="/lounges"
+              className="flex items-center gap-3 px-3 py-2 rounded-[var(--radius-button)] bg-[var(--bg-elevated)] text-[var(--text-primary)] font-medium border border-[var(--border-hairline)]"
+            >
+              <LayoutGrid className="w-3.5 h-3.5 text-[var(--text-primary)]" />
+              <span>Overview</span>
+            </Link>
+
+            <Link
+              href={
+                activeLounge
+                  ? `/lounges/${activeLounge.id}/room`
+                  : "/lounges"
+              }
+              onClick={(e) => {
+                if (!activeLounge) {
+                  e.preventDefault();
+                  setModalTab("create");
+                  setIsModalOpen(true);
+                }
+              }}
+              className="flex items-center justify-between px-3 py-2 rounded-[var(--radius-button)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors group"
+            >
+              <div className="flex items-center gap-3">
+                <Radio className="w-3.5 h-3.5 group-hover:text-[var(--text-primary)] text-[var(--text-secondary)]" />
+                <span>Live Sessions</span>
               </div>
-            </div>
-            <Button variant="secondary" size="sm" onClick={fetchGroups}>
-              Try Again
-            </Button>
+              {activeLounge && (
+                <span className="w-2 h-2 rounded-full bg-[#e5484d] animate-live-breathe" />
+              )}
+            </Link>
+
+            <Link
+              href={activeLounge ? `/lounges/${activeLounge.id}` : "/lounges"}
+              onClick={(e) => {
+                if (!activeLounge) {
+                  e.preventDefault();
+                  setModalTab("create");
+                  setIsModalOpen(true);
+                }
+              }}
+              className="flex items-center gap-3 px-3 py-2 rounded-[var(--radius-button)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>Shared Notes</span>
+            </Link>
+
+            <Link
+              href={activeLounge ? `/lounges/${activeLounge.id}` : "/lounges"}
+              onClick={(e) => {
+                if (!activeLounge) {
+                  e.preventDefault();
+                  setModalTab("create");
+                  setIsModalOpen(true);
+                }
+              }}
+              className="flex items-center gap-3 px-3 py-2 rounded-[var(--radius-button)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors"
+            >
+              <FolderArchive className="w-3.5 h-3.5" />
+              <span>Asset Library</span>
+            </Link>
+
+            <Link
+              href={activeLounge ? `/lounges/${activeLounge.id}` : "/lounges"}
+              onClick={(e) => {
+                if (!activeLounge) {
+                  e.preventDefault();
+                  setModalTab("create");
+                  setIsModalOpen(true);
+                }
+              }}
+              className="flex items-center gap-3 px-3 py-2 rounded-[var(--radius-button)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors"
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              <span>Discussion Board</span>
+            </Link>
+          </nav>
+
+          {/* Bottom Settings & Docs */}
+          <div className="pt-6 border-t border-[var(--border-hairline)] space-y-1 font-sans text-xs text-[var(--text-secondary)] mt-auto">
+            <Link
+              href="/profile"
+              className="flex items-center gap-2.5 px-3 py-1.5 rounded-[var(--radius-button)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors"
+            >
+              <Settings className="w-3.5 h-3.5" />
+              <span>Settings</span>
+            </Link>
+            <Link
+              href="/"
+              className="flex items-center gap-2.5 px-3 py-1.5 rounded-[var(--radius-button)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors"
+            >
+              <HelpCircle className="w-3.5 h-3.5" />
+              <span>Documentation</span>
+            </Link>
           </div>
-        )}
+        </aside>
 
-        {/* Main 2-Column Dashboard Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Left Column (8 cols): Active Seminar Banner + Enrolled Lounges */}
-          <div className="lg:col-span-8 space-y-8">
-            {/* Active Live Seminar Card */}
-            {activeLounge ? (
-              <div className="bg-[#ffffff] rounded-[0.25rem] border border-[#e5e2d9] shadow-paper-contact hover:shadow-paper-floating transition-all duration-200 overflow-hidden">
-                <div className="p-6 sm:p-7 bg-[#faf9f6]/40">
-                  {/* Banner Sub-Header */}
-                  <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="forest" dot>
-                        Live Study Room Available
-                      </Badge>
-                      <span className="text-xs font-sans text-[#78746d]">
-                        Invite Code: #{activeLounge.code}
-                      </span>
-                    </div>
-                    <span className="font-editorial italic text-xs text-[#5e5a54] flex items-center gap-1.5">
-                      <Volume2 className="w-3.5 h-3.5 text-[#234338]" /> Focus Mode
-                    </span>
-                  </div>
-
-                  {/* Lounge Title & Action */}
-                  <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-4 mb-6">
-                    <div>
-                      <span className="font-sans text-[0.6875rem] font-semibold uppercase tracking-[0.1em] text-[#78746d] block mb-1">
-                        {activeLounge.role === "creator" ? "Your Study Group" : "Joined Study Group"}
-                      </span>
-                      <h2 className="font-serif text-2xl sm:text-3xl font-normal text-[#171615]">
-                        {activeLounge.name}
-                      </h2>
-                    </div>
-
-                    <Link href={`/lounges/${activeLounge.id}/room`}>
-                      <Button variant="primary" size="md" icon={<ArrowRight className="w-4 h-4" />} iconPosition="right">
-                        Join Live Room
-                      </Button>
-                    </Link>
-                  </div>
-
-                  {/* Current Text Callout */}
-                  <div className="p-4 bg-[#f4f2eb] border border-[#e5e2d9] rounded-[0.25rem] mb-6 flex items-center justify-between gap-4">
-                    <div>
-                      <span className="font-sans text-[0.625rem] font-semibold uppercase tracking-[0.08em] text-[#78746d] block mb-0.5">
-                        Current Topic &amp; Materials
-                      </span>
-                      <p className="font-editorial italic text-sm text-[#171615]">
-                        {activeLounge.description || "Shared study notes, reading lists, and discussion materials"}
-                      </p>
-                    </div>
-                    <span className="font-sans text-xs px-2 py-1 bg-[#ffffff] border border-[#ddd8cc] rounded-[0.125rem] text-[#5e5a54] shrink-0 font-medium">
-                      Notes
-                    </span>
-                  </div>
-
-                  {/* Presence Row */}
-                  <div className="pt-4 border-t border-[#e5e2d9] flex flex-wrap items-center justify-between gap-4 text-xs font-sans text-[#78746d]">
-                    <div className="flex items-center gap-3">
-                      <div className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#234338] text-[0.625rem] font-bold text-[#faf9f6] ring-2 ring-[#ffffff]">
-                        {scholarName.substring(0, 2).toUpperCase()}
-                      </div>
-                      <span className="text-[#171615] font-medium">
-                        {scholarName} • Ready to collaborate
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 text-[#5e5a54]">
-                      <Clock className="w-3.5 h-3.5 text-[#78746d]" />
-                      <span>Live video room available</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Attached Folios Desk Sub-bar */}
-                <div className="px-6 py-3.5 bg-[#faf9f6] border-t border-[#e5e2d9] flex flex-wrap items-center justify-between gap-4">
-                  <span className="font-sans text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[#78746d]">
-                    Shared Group Materials
-                  </span>
-                  <Link
-                    href={`/lounges/${activeLounge.id}`}
-                    className="font-editorial italic text-xs text-[#ba5d1a] hover:underline inline-flex items-center gap-1 transition-all duration-150"
-                  >
-                    Open Study Group <ExternalLink className="w-3 h-3" />
-                  </Link>
-                </div>
-              </div>
-            ) : null}
-
-            {/* Enrolled Academic Lounges Section */}
+        {/* Main Content Area */}
+        <main
+          data-inertia-scroll
+          className="flex-1 min-w-0 px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-8"
+        >
+          {/* Top Header & Greeting Bar */}
+          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 pb-6 border-b border-[var(--border-hairline)]">
             <div>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-serif text-xl sm:text-2xl font-normal text-[#171615]">
-                  Your Study Groups
-                </h3>
-                <span className="font-sans text-xs uppercase tracking-[0.08em] text-[#78746d]">
-                  {groups.length} {groups.length === 1 ? "Group" : "Groups"}
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-2 h-2 bg-[var(--text-primary)] inline-block rounded-[1px]" />
+                <span className="font-mono text-xs uppercase tracking-[0.12em] text-[var(--text-secondary)]">
+                  Matriculation Academic Archive
                 </span>
+              </div>
+              <h1 className="font-serif text-[clamp(2.5rem,4vw,3.5rem)] leading-none font-normal text-[var(--text-primary)] tracking-normal">
+                Good {new Date().getHours() < 12 ? "morning" : "afternoon"},{" "}
+                <span className="italic font-normal">{scholarName}</span>
+              </h1>
+            </div>
+
+            {/* Right Header: Greeting Clock (Removed academic term 2025 per instruction) */}
+            <div className="flex items-center self-start lg:self-end px-3.5 py-1.5 rounded-[var(--radius-button)] border border-[var(--border-hairline)] bg-[var(--bg-elevated)]">
+              <GreetingClock />
+            </div>
+          </div>
+
+          {/* Error Notification */}
+          {error && (
+            <div className="p-4 bg-[var(--bg-elevated)] border border-[var(--border-focus)] rounded-[var(--radius-card)] flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-[var(--text-primary)] shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-sans text-sm font-medium text-[var(--text-primary)]">
+                    Unable to Load Study Groups
+                  </h4>
+                  <p className="font-sans text-xs text-[var(--text-secondary)] mt-0.5">{error}</p>
+                </div>
+              </div>
+              <Button variant="secondary" size="sm" onClick={fetchGroups}>
+                Retry
+              </Button>
+            </div>
+          )}
+
+          {/* Active Live Room Banner (Only shown when an actual group room exists) */}
+          {activeLounge && (
+            <div className="bg-[var(--bg-elevated)] rounded-[var(--radius-card)] border border-[var(--border-hairline)] p-6 sm:p-7 relative overflow-hidden transition-all">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                <div className="space-y-3 max-w-3xl">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <span className="inline-flex items-center gap-2 px-2.5 py-1 rounded-[var(--radius-button)] border border-[rgba(229,72,77,0.4)] bg-[rgba(229,72,77,0.12)] text-[#e5484d] font-mono text-xs uppercase tracking-wider font-semibold">
+                      <span className="w-2 h-2 rounded-full bg-[#e5484d] animate-live-breathe" />
+                      Live Study Room Active
+                    </span>
+                    <span className="font-mono text-xs text-[var(--text-secondary)] px-2 py-0.5 rounded-[var(--radius-button)] border border-[var(--border-hairline)] bg-[var(--bg-inset)]">
+                      Invite Code: #{activeLounge.code}
+                    </span>
+                    <span className="font-mono text-xs text-[var(--text-secondary)]">
+                      {activeLounge.role === "creator" ? "Host" : "Enrolled"}
+                    </span>
+                  </div>
+
+                  <h2 className="font-sans text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-primary)]">
+                    {activeLounge.name}
+                  </h2>
+
+                  <p className="font-sans text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
+                    {activeLounge.description ||
+                      "Active study group workspace with collaborative notes, shared documents, and live video meeting."}
+                  </p>
+                </div>
+
+                <Link href={`/lounges/${activeLounge.id}/room`}>
+                  <button
+                    type="button"
+                    data-magnetic
+                    className="magnetic-cta px-5 py-2.5 rounded-[var(--radius-button)] bg-[var(--invert-bg)] text-[var(--invert-text)] font-sans text-xs font-semibold uppercase tracking-wider hover:bg-white active:scale-[0.97] transition-all duration-[var(--dur-fast)] shadow-none flex items-center gap-2 cursor-pointer"
+                  >
+                    <span>Enter Live Room</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </Link>
+              </div>
+            </div>
+          )}
+
+          {/* 2-Column Grid: Groups Section (8 cols) + Right Sidebar (4 cols) */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            {/* Main Study Groups Section */}
+            <div className="lg:col-span-8 space-y-6">
+              <div className="flex items-center justify-between pb-3 border-b border-[var(--border-hairline)]">
+                <div className="flex items-center gap-3">
+                  <h3 className="font-sans text-lg sm:text-xl font-bold tracking-tight text-[var(--text-primary)]">
+                    Active Study Groups
+                  </h3>
+                  <span className="font-mono text-xs px-2 py-0.5 rounded-[var(--radius-button)] border border-[var(--border-hairline)] bg-[var(--bg-inset)] text-[var(--text-secondary)]">
+                    {String(groups.length).padStart(2, "0")} Enrolled
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon={<KeyRound className="w-3.5 h-3.5" />}
+                    onClick={() => {
+                      setModalTab("join");
+                      setIsModalOpen(true);
+                    }}
+                  >
+                    Join with Code
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    icon={<Plus className="w-3.5 h-3.5" />}
+                    onClick={() => {
+                      setModalTab("create");
+                      setIsModalOpen(true);
+                    }}
+                  >
+                    Convene Group
+                  </Button>
+                </div>
               </div>
 
               {isLoading ? (
-                /* Loading Skeletons */
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                /* Skeleton Loading Shimmer */
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {[1, 2].map((i) => (
                     <div
                       key={i}
-                      className="p-6 bg-[#ffffff] rounded-[0.25rem] border border-[#e5e2d9] animate-pulse space-y-4"
+                      className="p-6 rounded-[var(--radius-card)] border border-[var(--border-hairline)] bg-[var(--bg-elevated)] space-y-4 overflow-hidden relative"
                     >
-                      <div className="h-4 bg-[#e5e2d9]/60 rounded w-1/3" />
-                      <div className="h-6 bg-[#e5e2d9]/80 rounded w-3/4" />
-                      <div className="h-12 bg-[#e5e2d9]/40 rounded w-full" />
+                      <div className="h-4 w-1/3 rounded-[var(--radius-button)] skeleton-shimmer" />
+                      <div className="h-6 w-3/4 rounded-[var(--radius-button)] skeleton-shimmer" />
+                      <div className="h-12 w-full rounded-[var(--radius-button)] skeleton-shimmer" />
                     </div>
                   ))}
                 </div>
               ) : groups.length === 0 ? (
-                /* Empty State */
-                <div className="p-10 text-center bg-[#ffffff] rounded-[0.25rem] border border-dashed border-[#ddd8cc]">
-                  <div className="w-12 h-12 rounded-[0.25rem] bg-[#f4f2eb] border border-[#e5e2d9] flex items-center justify-center mx-auto mb-4 text-[#ba5d1a]">
-                    <BookOpen className="w-6 h-6" />
+                /* Authentic Empty State (No hardcoded fake rooms) */
+                <div className="p-12 text-center rounded-[var(--radius-card)] border border-dashed border-[var(--border-hairline)] bg-[var(--bg-elevated)] space-y-4">
+                  <div className="w-12 h-12 rounded-[var(--radius-button)] bg-[var(--bg-inset)] border border-[var(--border-hairline)] flex items-center justify-center mx-auto text-[var(--text-secondary)]">
+                    <Users className="w-6 h-6 text-[var(--text-secondary)]" />
                   </div>
-                  <h4 className="font-serif text-lg font-normal text-[#171615] mb-2">
-                    No Study Groups Yet
+                  <h4 className="font-sans text-lg font-semibold text-[var(--text-primary)]">
+                    No Active Study Groups
                   </h4>
-                  <p className="font-sans text-sm text-[#5e5a54] max-w-md mx-auto mb-6">
-                    You haven&apos;t created or joined any study groups yet. Create a new study
-                    group or enter an invite code to join one.
+                  <p className="font-sans text-xs text-[var(--text-secondary)] max-w-sm mx-auto leading-relaxed">
+                    Create your first study group or enter an invite code to start collaborating with your peers.
                   </p>
-                  <div className="flex items-center justify-center gap-3">
-                    <Button variant="primary" size="sm" onClick={() => setIsModalOpen(true)}>
-                      Create a Study Group
+                  <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      icon={<Plus className="w-3.5 h-3.5" />}
+                      onClick={() => {
+                        setModalTab("create");
+                        setIsModalOpen(true);
+                      }}
+                    >
+                      Create Study Group
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      icon={<KeyRound className="w-3.5 h-3.5" />}
+                      onClick={() => {
+                        setModalTab("join");
+                        setIsModalOpen(true);
+                      }}
+                    >
+                      Join with Code
                     </Button>
                   </div>
                 </div>
               ) : (
-                /* Grid of Lounges */
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {groups.map((group) => (
-                    <Card
+                /* Only real user-created groups */
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {groups.map((group, idx) => (
+                    <motion.div
                       key={group.id}
-                      variant="ivory"
-                      className="group flex flex-col justify-between hover:border-[#ddd8cc] hover:-translate-y-0.5 hover:shadow-paper-floating transition-all duration-200"
+                      initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 24 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{
+                        duration: shouldReduceMotion ? 0.15 : 0.45,
+                        delay: getCardDelay(idx),
+                        ease: [0.16, 1, 0.3, 1],
+                      }}
+                      whileTap={shouldReduceMotion ? undefined : { scale: 0.98 }}
+                      onClick={() => handleCardClick(group.id)}
+                      className="cursor-pointer"
                     >
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="font-sans text-[0.625rem] font-semibold uppercase tracking-[0.1em] text-[#78746d]">
-                            Invite Code #{group.code}
+                      <Card
+                        variant="elevated"
+                        className="group flex flex-col justify-between h-full hover:border-[var(--border-hover)] transition-all duration-[var(--dur-fast)]"
+                      >
+                        <CardHeader className="pb-3">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="font-mono text-[0.6875rem] uppercase tracking-wider px-2 py-0.5 rounded-[var(--radius-button)] border border-[var(--border-hairline)] bg-[var(--bg-inset)] text-[var(--text-secondary)]">
+                              #{group.code}
+                            </span>
+                            <span className="font-mono text-[0.6875rem] text-[var(--text-secondary)]">
+                              {group.role === "creator" ? "Owner" : "Member"}
+                            </span>
+                          </div>
+                          <h4 className="font-serif text-lg font-normal text-[var(--text-primary)] group-hover:underline transition-colors leading-snug tracking-normal">
+                            {group.name}
+                          </h4>
+                        </CardHeader>
+
+                        <CardContent className="pt-0 flex-1">
+                          <p className="font-sans text-xs text-[var(--text-secondary)] line-clamp-3 leading-relaxed">
+                            {group.description ||
+                              "Shared study workspace with documents, notes, and live video meeting."}
+                          </p>
+                        </CardContent>
+
+                        <CardFooter className="flex items-center justify-between text-xs font-mono text-[var(--text-secondary)] pt-3 border-t border-[var(--border-hairline)]">
+                          <span>{new Date(group.createdAt).toLocaleDateString()}</span>
+                          <span className="flex items-center gap-1 group-hover:text-[var(--text-primary)] transition-colors text-xs font-mono">
+                            Enter Workspace <ArrowRight className="w-3.5 h-3.5" />
                           </span>
-                          <Badge variant={group.role === "creator" ? "ochre" : "parchment"}>
-                            {group.role === "creator" ? "Owner" : "Member"}
-                          </Badge>
-                        </div>
-                        <h4 className="font-serif text-lg font-normal text-[#171615] group-hover:text-[#ba5d1a] transition-colors duration-150 leading-snug">
-                          {group.name}
-                        </h4>
-                      </CardHeader>
-
-                      <CardContent className="pt-0 flex-1">
-                        <p className="font-sans text-xs text-[#5e5a54] line-clamp-3 leading-relaxed">
-                          {group.description || "Shared workspace for notes, readings, and video study sessions."}
-                        </p>
-                      </CardContent>
-
-                      <CardFooter className="flex items-center justify-between text-xs">
-                        <span className="font-editorial italic text-[#78746d]">
-                          Joined {new Date(group.joinedAt).toLocaleDateString()}
-                        </span>
-                        <Link
-                          href={`/lounges/${group.id}`}
-                          className="font-sans font-semibold text-xs text-[#ba5d1a] hover:text-[#a24e14] flex items-center gap-1 transition-colors duration-150"
-                        >
-                          Open Group <ArrowRight className="w-3.5 h-3.5" />
-                        </Link>
-                      </CardFooter>
-                    </Card>
+                        </CardFooter>
+                      </Card>
+                    </motion.div>
                   ))}
                 </div>
               )}
-            </div>
-          </div>
 
-          {/* Right Column (4 cols): Actions & Tools */}
-          <div className="lg:col-span-4 space-y-6">
-            {/* Create Study Group Callout Card */}
-            <div className="p-6 bg-[#faf9f6] rounded-[0.25rem] border border-dashed border-[#ddd8cc] hover:border-[#ba5d1a] transition-colors duration-200 text-center">
-              <button
-                type="button"
-                onClick={() => setIsModalOpen(true)}
-                className="w-10 h-10 rounded-[0.25rem] bg-[#ffffff] border border-[#ddd8cc] text-[#ba5d1a] hover:bg-[#ba5d1a] hover:text-[#ffffff] transition-all duration-200 flex items-center justify-center mx-auto mb-3"
-              >
-                <Plus className="w-5 h-5" />
-              </button>
-              <h4 className="font-serif text-base font-normal text-[#171615] mb-1">
-                Create a Study Group
-              </h4>
-              <p className="font-sans text-xs text-[#5e5a54] mb-4">
-                Set up a shared study space, upload files and notes, and invite friends.
-              </p>
-              <Button
-                variant="secondary"
-                size="sm"
-                className="w-full"
-                onClick={() => setIsModalOpen(true)}
-              >
-                Create Study Group
-              </Button>
-            </div>
-
-            {/* Upcoming Study Sessions Card */}
-            <div className="bg-[#ffffff] rounded-[0.25rem] border border-[#e5e2d9] p-5 shadow-paper-contact hover:shadow-paper-floating transition-all duration-200">
-              <div className="flex items-center justify-between pb-3 border-b border-[#e5e2d9] mb-4">
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-[#ba5d1a]" />
-                  <h4 className="font-serif text-sm font-normal text-[#171615]">
-                    Upcoming Study Sessions
-                  </h4>
-                </div>
-                <span className="font-sans text-[0.625rem] uppercase tracking-[0.08em] text-[#78746d]">
-                  Schedule
-                </span>
-              </div>
-
-              <div className="p-4 bg-[#faf9f6] rounded-[0.25rem] border border-dashed border-[#ddd8cc] text-center">
-                <Calendar className="w-6 h-6 text-[#78746d] mx-auto mb-2 opacity-50" />
-                <p className="font-serif text-xs text-[#171615] font-medium mb-1">
-                  No Scheduled Sessions
-                </p>
-                <p className="font-sans text-[0.6875rem] text-[#78746d] leading-relaxed">
-                  Scheduled calendar sessions are not supported in the database schema. Join or start a live room directly from your study groups.
-                </p>
-              </div>
-            </div>
-
-            {/* Recent Notes & Documents */}
-            <div className="bg-[#ffffff] rounded-[0.25rem] border border-[#e5e2d9] p-5 shadow-paper-contact hover:shadow-paper-floating transition-all duration-200">
-              <div className="flex items-center justify-between pb-3 border-b border-[#e5e2d9] mb-4">
-                <h4 className="font-serif text-sm font-normal text-[#171615]">
-                  Recent Notes &amp; Documents
-                </h4>
-                <span className="font-editorial italic text-xs text-[#78746d]">
-                  {recentAssets.length} {recentAssets.length === 1 ? "file" : "files"}
-                </span>
-              </div>
-
-              {isLoadingRecent ? (
-                <div className="space-y-3 animate-pulse">
-                  <div className="h-12 bg-[#e5e2d9]/50 rounded" />
-                  <div className="h-12 bg-[#e5e2d9]/50 rounded" />
-                </div>
-              ) : recentAssets.length === 0 ? (
-                <div className="p-4 bg-[#faf9f6] rounded-[0.25rem] border border-dashed border-[#ddd8cc] text-center">
-                  <BookOpen className="w-6 h-6 text-[#78746d] mx-auto mb-2 opacity-50" />
-                  <p className="font-serif text-xs text-[#171615] font-medium mb-1">
-                    No Recent Notes
-                  </p>
-                  <p className="font-sans text-[0.6875rem] text-[#78746d] leading-relaxed">
-                    Notes and documents uploaded to your study groups will appear here.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {recentAssets.slice(0, 4).map((asset) => (
-                    <Link
-                      key={asset.id}
-                      href={`/lounges/${asset.groupId}/folios/${asset.id}`}
-                      className="block p-3 bg-[#fdf8f6] border-l-2 border-[#ba5d1a] border-y border-r border-[#e5e2d9] rounded-r-[0.25rem] hover:border-l-[#a24e14] hover:bg-[#fff9f6] transition-all duration-150 group"
-                    >
-                      <p className="font-medium text-xs text-[#171615] group-hover:text-[#ba5d1a] transition-colors truncate mb-1">
-                        {asset.title}
-                      </p>
-                      <div className="flex items-center justify-between text-[0.625rem] font-sans text-[#78746d]">
-                        <span className="truncate max-w-[10rem]">{asset.groupName}</span>
-                        <span className="uppercase text-[#ba5d1a] font-semibold">
-                          {asset.fileType}
-                        </span>
+              {/* Milestone Progress Bar (Only shown when user has groups) */}
+              {groups.length > 0 && (
+                <div className="p-4 rounded-[var(--radius-card)] border border-[var(--border-hairline)] bg-[var(--bg-elevated)] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <CheckCircle2 className="w-4 h-4 text-[var(--text-secondary)]" />
+                    <div>
+                      <div className="font-sans text-xs font-medium text-[var(--text-primary)]">
+                        Active Study Enrolment
                       </div>
-                    </Link>
-                  ))}
+                      <div className="font-mono text-[0.6875rem] text-[var(--text-secondary)]">
+                        {groups.length} {groups.length === 1 ? "group" : "groups"} active in your workspace
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-32 sm:w-44 h-1.5 rounded-full bg-[var(--bg-inset)] overflow-hidden">
+                      <div className="h-full bg-[var(--text-primary)] rounded-full w-full" />
+                    </div>
+                    <span className="font-mono text-xs text-[var(--text-secondary)]">100%</span>
+                  </div>
                 </div>
               )}
             </div>
+
+            {/* Right Sidebar */}
+            <motion.div
+              initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                duration: shouldReduceMotion ? 0.15 : 0.45,
+                delay: shouldReduceMotion ? 0 : 0.1,
+                ease: [0.16, 1, 0.3, 1],
+              }}
+              className="lg:col-span-4 space-y-6"
+            >
+              {/* Upcoming Sessions Card (Clean, Authentic State) */}
+              <div className="p-5 rounded-[var(--radius-card)] border border-[var(--border-hairline)] bg-[var(--bg-elevated)]">
+                <div className="flex items-center justify-between pb-3 border-b border-[var(--border-hairline)] mb-4">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
+                    <span className="font-sans text-sm font-semibold text-[var(--text-primary)]">
+                      Upcoming Sessions
+                    </span>
+                  </div>
+                  <span className="font-mono text-[0.6875rem] text-[var(--text-secondary)] uppercase">
+                    Schedule
+                  </span>
+                </div>
+
+                <div className="py-6 text-center text-xs text-[var(--text-secondary)]">
+                  <p className="font-sans">No upcoming sessions scheduled</p>
+                  <p className="font-mono text-[0.625rem] text-[var(--text-disabled)] mt-1">
+                    Start a live video room anytime from your workspace
+                  </p>
+                </div>
+              </div>
+
+              {/* Recent Notes & Transcripts (Wired to Real Assets) */}
+              <div className="p-5 rounded-[var(--radius-card)] border border-[var(--border-hairline)] bg-[var(--bg-elevated)]">
+                <div className="flex items-center justify-between pb-3 border-b border-[var(--border-hairline)] mb-4">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
+                    <span className="font-sans text-sm font-semibold text-[var(--text-primary)]">
+                      Recent Notes &amp; Transcripts
+                    </span>
+                  </div>
+                  <span className="font-mono text-[0.6875rem] text-[var(--text-secondary)]">
+                    {recentAssets.length} Files
+                  </span>
+                </div>
+
+                {recentAssets.length > 0 ? (
+                  <div className="space-y-2.5">
+                    {recentAssets.slice(0, 5).map((asset) => (
+                      <Link
+                        key={asset.id}
+                        href={`/lounges/${asset.groupId}/folios/${asset.id}`}
+                        className="p-2.5 rounded-[var(--radius-button)] border border-[var(--border-hairline)] bg-[var(--bg-inset)] flex items-center justify-between gap-3 group hover:border-[var(--border-hover)] transition-colors cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <FileText className="w-4 h-4 text-[var(--text-secondary)] shrink-0" />
+                          <div className="min-w-0">
+                            <div className="font-mono text-xs text-[var(--text-primary)] truncate group-hover:underline">
+                              {asset.title}
+                            </div>
+                            <div className="font-mono text-[0.625rem] text-[var(--text-secondary)] truncate">
+                              {asset.groupName}
+                            </div>
+                          </div>
+                        </div>
+                        <Download className="w-3.5 h-3.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] shrink-0" />
+                      </Link>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="py-6 text-center text-xs text-[var(--text-secondary)]">
+                    <p className="font-sans">No notes or transcripts yet</p>
+                    <p className="font-mono text-[0.625rem] text-[var(--text-disabled)] mt-1">
+                      Uploaded documents and session transcripts will appear here
+                    </p>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        </main>
+      </div>
+
+      {/* Footer (Clean Grounded Editorial Footer) */}
+      <footer className="w-full border-t border-[var(--border-hairline)] bg-[var(--bg-inset)] py-6 px-4 sm:px-8 text-xs font-mono text-[var(--text-secondary)] mt-auto">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p>© 2026 StudyGroup+ • Collaborative Study Workspace</p>
+          <div className="flex items-center gap-4">
+            <Link href="/lounges" className="hover:text-[var(--text-primary)] transition-colors">
+              Study Groups
+            </Link>
+            <span>•</span>
+            <Link href="/profile" className="hover:text-[var(--text-primary)] transition-colors">
+              Profile
+            </Link>
+            <span>•</span>
+            <Link href="/" className="hover:text-[var(--text-primary)] transition-colors">
+              Home
+            </Link>
+            <span>•</span>
+            <a href="#" className="hover:text-[var(--text-primary)] transition-colors">
+              Back to top ↑
+            </a>
           </div>
         </div>
-      </main>
+      </footer>
 
-      {/* Modal for Creating / Joining Study Group */}
+      {/* Create / Join Study Group Modal */}
       <CreateLoungeModal
         isOpen={isModalOpen}
+        initialTab={modalTab}
         onClose={() => setIsModalOpen(false)}
-        onLoungeCreated={() => {
+        onLoungeCreated={(newId) => {
           fetchGroups();
+          router.push(`/lounges/${newId}`);
         }}
       />
-    </div>
+    </RouteTransition>
   );
 }

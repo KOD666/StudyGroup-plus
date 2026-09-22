@@ -29,42 +29,49 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ) => {
     const sizeClasses = {
-      sm: "text-xs px-2.5 py-1 gap-1.5 h-8 font-medium",
+      sm: "text-xs px-3 py-1.5 gap-1.5 h-8 font-medium",
       md: "text-sm px-4 py-2 gap-2 h-10 font-medium",
       lg: "text-base px-6 py-2.5 gap-2.5 h-12 font-medium",
     }[size];
 
+    // DESIGN.md §5: Primary button inverts on hover over --dur-fast --ease-out-quart. Press scales to 0.97.
+    // Secondary/ghost has no fill at rest; hover adds --bg-elevated fill only.
     const variantClasses = {
       primary:
-        "bg-[#ba5d1a] hover:bg-[#a24e14] text-[#faf9f6] border border-transparent shadow-none active:scale-[0.99] transition-all duration-150 rounded-[0.25rem]",
+        "bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-hairline)] hover:bg-[var(--invert-bg)] hover:text-[var(--invert-text)] hover:border-transparent active:scale-[0.97] transition-all duration-[var(--dur-fast)] ease-[var(--ease-out-quart)] rounded-[var(--radius-button)]",
       secondary:
-        "bg-transparent hover:bg-[#ffffff] text-[#171615] border border-[#ddd8cc] hover:border-[#78746d] active:scale-[0.99] transition-all duration-150 rounded-[0.25rem]",
+        "bg-transparent text-[var(--text-primary)] border border-[var(--border-hairline)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-hover)] active:scale-[0.97] transition-all duration-[var(--dur-fast)] ease-[var(--ease-out-quart)] rounded-[var(--radius-button)]",
       ghost:
-        "bg-[#f6f4ed] hover:bg-[#ffffff] text-[#171615] border border-[#ddd8cc] hover:border-[#78746d] active:scale-[0.99] transition-all duration-150 rounded-[0.25rem]",
+        "bg-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] active:scale-[0.97] transition-all duration-[var(--dur-fast)] ease-[var(--ease-out-quart)] rounded-[var(--radius-button)]",
       forest:
-        "bg-[#234338] hover:bg-[#193129] text-[#faf9f6] border border-transparent shadow-none active:scale-[0.99] transition-all duration-150 rounded-[0.25rem]",
+        "bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-hairline)] hover:bg-[var(--invert-bg)] hover:text-[var(--invert-text)] active:scale-[0.97] transition-all duration-[var(--dur-fast)] ease-[var(--ease-out-quart)] rounded-[var(--radius-button)]",
       editorial:
-        "bg-transparent text-[#171615] hover:text-[#ba5d1a] border-0 p-0 h-auto font-editorial italic relative group transition-colors duration-150",
+        "bg-transparent text-[var(--text-primary)] hover:text-[var(--text-secondary)] border-0 p-0 h-auto font-mono text-xs tracking-[0.02em] relative group transition-colors duration-[var(--dur-fast)]",
     }[variant];
 
     return (
       <button
         ref={ref}
         disabled={disabled || isLoading}
-        className={`inline-flex items-center justify-center cursor-pointer select-none font-sans disabled:opacity-50 disabled:cursor-not-allowed ${
+        className={`inline-flex items-center justify-center cursor-pointer select-none font-sans disabled:opacity-40 disabled:cursor-not-allowed shadow-none ${
           variant === "editorial" ? "" : sizeClasses
         } ${variantClasses} ${className}`}
         {...props}
       >
         {isLoading ? (
-          <span className="inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+          /* DESIGN.md §5: 3-dot pulse rather than a spinner */
+          <span className="inline-flex items-center gap-1 py-1" aria-label="Loading">
+            <span className="w-1.5 h-1.5 rounded-full bg-current animate-busy-dot-1" />
+            <span className="w-1.5 h-1.5 rounded-full bg-current animate-busy-dot-2" />
+            <span className="w-1.5 h-1.5 rounded-full bg-current animate-busy-dot-3" />
+          </span>
         ) : (
           <>
             {icon && iconPosition === "left" && <span className="inline-flex shrink-0">{icon}</span>}
             <span className="relative">
               {children}
               {variant === "editorial" && (
-                <span className="absolute bottom-0 left-0 w-0 h-[1px] bg-[#ba5d1a] transition-all duration-200 group-hover:w-full" />
+                <span className="absolute bottom-0 left-0 w-0 h-[1px] bg-current transition-all duration-200 group-hover:w-full" />
               )}
             </span>
             {icon && iconPosition === "right" && <span className="inline-flex shrink-0">{icon}</span>}

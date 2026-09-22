@@ -12,35 +12,37 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     const inputId = id || (label ? label.toLowerCase().replace(/\s+/g, "-") : undefined);
 
     return (
-      <div className="flex flex-col gap-1 w-full">
+      <div className="flex flex-col gap-1.5 w-full">
         {label && (
           <label
             htmlFor={inputId}
-            className="font-sans text-xs font-semibold uppercase tracking-[0.08em] text-[#5e5a54]"
+            className="font-mono text-xs uppercase tracking-[0.02em] text-[var(--text-secondary)] select-none"
           >
             {label}
           </label>
         )}
         <div className="relative flex items-center w-full">
           {icon && (
-            <span className="absolute left-3 text-[#78746d] pointer-events-none flex items-center">
+            <span className="absolute left-3 text-[var(--text-secondary)] pointer-events-none flex items-center">
               {icon}
             </span>
           )}
           <input
             id={inputId}
             ref={ref}
-            className={`w-full bg-[#ffffff] text-[#171615] placeholder:text-[#78746d] border border-[#ddd8cc] rounded-[0.25rem] text-sm py-2 ${
+            className={`w-full bg-[var(--bg-inset)] text-[var(--text-primary)] placeholder:text-[var(--text-disabled)] border border-[var(--border-hairline)] hover:border-[var(--border-hover)] rounded-[var(--radius-button)] text-sm py-2 ${
               icon ? "pl-9 pr-3" : "px-3"
-            } transition-all duration-150 outline-none focus:border-[#ba5d1a] focus:ring-1 focus:ring-[#ba5d1a] disabled:opacity-50 disabled:bg-[#f6f4ed] disabled:cursor-not-allowed ${
-              error ? "border-[#ba1a1a] focus:border-[#ba1a1a] focus:ring-[#ba1a1a]" : ""
+            } transition-all duration-[var(--dur-fast)] ease-[var(--ease-out-quart)] outline-none focus:border-[var(--border-hover)] focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 focus:ring-offset-[var(--bg-primary)] disabled:opacity-40 disabled:cursor-not-allowed shadow-none ${
+              error ? "border-[var(--border-focus)]" : ""
             } ${className}`}
             {...props}
           />
         </div>
-        {error && <span className="font-sans text-xs text-[#ba1a1a]">{error}</span>}
+        {error && (
+          <span className="font-mono text-xs text-[var(--text-primary)] tracking-[0.02em]">{error}</span>
+        )}
         {helperText && !error && (
-          <span className="font-sans text-xs text-[#78746d]">{helperText}</span>
+          <span className="font-sans text-xs text-[var(--text-secondary)]">{helperText}</span>
         )}
       </div>
     );
