@@ -4,7 +4,6 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
-  ArrowRight,
   Timer,
   Play,
   Pause,
@@ -15,6 +14,11 @@ import {
   Volume2,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { KineticReveal } from "@/components/motion/KineticReveal";
+import { MagneticSkew } from "@/components/motion/MagneticSkew";
+import { ArrowHover } from "@/components/motion/ArrowHover";
+import { CardSpotlight } from "@/components/motion/CardSpotlight";
+import { HeroSculpture } from "@/components/motion/HeroSculpture";
 
 export function HeroSection() {
   // Interactive preview states
@@ -41,13 +45,18 @@ export function HeroSection() {
 
   return (
     <section className="relative overflow-hidden pt-12 pb-20 md:pt-16 md:pb-28">
+      {/* 3D Geometric Sculpture in Hero Background (ainsley.dev .home-three-d signature) */}
+      <div className="pointer-events-none absolute -top-10 -right-16 md:right-4 lg:right-20 lg:top-4 w-72 sm:w-96 lg:w-[480px] opacity-35 lg:opacity-55 -z-10">
+        <HeroSculpture />
+      </div>
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-start">
           {/* Left Column: Headline & Plain Intro */}
           <motion.div
-            initial={{ opacity: 0, y: 12 }}
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.25, ease: "easeOut" }}
+            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
             className="lg:col-span-6 flex flex-col justify-center pt-2"
           >
             {/* Tag */}
@@ -57,9 +66,12 @@ export function HeroSection() {
               </span>
             </div>
 
-            {/* Display Headline */}
-            <h1 className="font-serif text-4xl sm:text-5xl lg:text-[4.25rem] leading-[1.08] tracking-[-0.03em] text-[var(--text-primary)] font-normal mb-8">
-              A quiet room for serious study. Where the call lives inside your work.
+            {/* Display Headline with word-by-word kinetic mask reveal */}
+            <h1 className="font-serif text-4xl sm:text-5xl lg:text-[4.25rem] leading-[1.08] tracking-[-0.02em] text-[var(--text-primary)] font-normal mb-8">
+              <KineticReveal
+                text="A quiet room for serious study. Where the call lives inside your work."
+                delay={0.05}
+              />
             </h1>
 
             {/* Plain Language Subheading */}
@@ -69,19 +81,21 @@ export function HeroSection() {
               directly inside shared reading documents, focus timers, question checkouts, and persistent archives.
             </p>
 
-            {/* Actions */}
+            {/* Actions with Magnetic Skew and ArrowHover */}
             <div className="flex flex-wrap items-center gap-4 sm:gap-6 mb-16">
-              <Link href="/sign-up">
-                <Button variant="primary" size="lg" className="px-8 magnetic-cta">
-                  Create a Study Group
-                </Button>
-              </Link>
+              <MagneticSkew transformFactor={0.16} rotateFactor={0.1}>
+                <Link href="/sign-up">
+                  <Button variant="primary" size="lg" className="px-8 magnetic-cta">
+                    Create a Study Group
+                  </Button>
+                </Link>
+              </MagneticSkew>
               <a
                 href="#features"
-                className="font-serif italic text-base text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors inline-flex items-center gap-1.5 group"
+                className="font-serif italic text-base text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors inline-flex items-center gap-2 group cursor-element"
               >
                 <span>Learn How It Works</span>
-                <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1 text-[var(--text-primary)]" />
+                <ArrowHover size={18} />
               </a>
             </div>
 
@@ -100,14 +114,16 @@ export function HeroSection() {
             </div>
           </motion.div>
 
-          {/* Right Column: Live Interactive Study Studio Preview */}
+          {/* Right Column: Live Interactive Study Studio Preview with CardSpotlight & MagneticSkew */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.98, y: 12 }}
+            initial={{ opacity: 0, scale: 0.97, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ duration: 0.25, delay: 0.1, ease: "easeOut" }}
+            transition={{ duration: 0.7, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
             className="lg:col-span-6 lg:pl-4"
           >
-            <div className="bg-[var(--bg-elevated)] rounded-[10px] border border-[var(--border-hairline)] overflow-hidden font-sans">
+            <MagneticSkew transformFactor={0.04} rotateFactor={0.03} shouldRotate={true} className="w-full">
+              <CardSpotlight glowColor="rgba(239, 70, 57, 0.08)" borderColor="rgba(239, 70, 57, 0.3)" className="rounded-[10px]">
+                <div className="bg-[var(--bg-elevated)] rounded-[10px] border border-[var(--border-hairline)] overflow-hidden font-sans">
               {/* Window Chrome Header */}
               <div className="px-4 sm:px-5 py-3 bg-[var(--bg-inset)] border-b border-[var(--border-hairline)] flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -348,7 +364,9 @@ export function HeroSection() {
                 </div>
               </div>
             </div>
-          </motion.div>
+          </CardSpotlight>
+        </MagneticSkew>
+      </motion.div>
         </div>
       </div>
     </section>

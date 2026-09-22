@@ -28,6 +28,9 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/Card";
 import { GreetingClock } from "@/components/dashboard/GreetingClock";
 import { RouteTransition } from "@/components/motion/RouteTransition";
+import { CardSpotlight } from "@/components/motion/CardSpotlight";
+import { MagneticSkew } from "@/components/motion/MagneticSkew";
+import { ArrowHover } from "@/components/motion/ArrowHover";
 
 interface GroupItem {
   id: string;
@@ -456,40 +459,44 @@ export default function LoungesDashboardPage() {
                       }}
                       whileTap={shouldReduceMotion ? undefined : { scale: 0.98 }}
                       onClick={() => handleCardClick(group.id)}
-                      className="cursor-pointer"
+                      className="cursor-pointer h-full"
                     >
-                      <Card
-                        variant="elevated"
-                        className="group flex flex-col justify-between h-full hover:border-[var(--border-hover)] transition-all duration-[var(--dur-fast)]"
-                      >
-                        <CardHeader className="pb-3">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="font-mono text-[0.6875rem] uppercase tracking-wider px-2 py-0.5 rounded-[var(--radius-button)] border border-[var(--border-hairline)] bg-[var(--bg-inset)] text-[var(--text-secondary)]">
-                              #{group.code}
-                            </span>
-                            <span className="font-mono text-[0.6875rem] text-[var(--text-secondary)]">
-                              {group.role === "creator" ? "Owner" : "Member"}
-                            </span>
-                          </div>
-                          <h4 className="font-serif text-lg font-normal text-[var(--text-primary)] group-hover:underline transition-colors leading-snug tracking-normal">
-                            {group.name}
-                          </h4>
-                        </CardHeader>
+                      <MagneticSkew transformFactor={0.05} rotateFactor={0.04} className="h-full">
+                        <CardSpotlight glowColor="rgba(239, 70, 57, 0.08)" borderColor="rgba(239, 70, 57, 0.3)" className="h-full rounded-[var(--radius-card)]">
+                          <Card
+                            variant="elevated"
+                            className="group flex flex-col justify-between h-full hover:border-[var(--border-hover)] transition-all duration-[var(--dur-fast)]"
+                          >
+                            <CardHeader className="pb-3">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="font-mono text-[0.6875rem] uppercase tracking-wider px-2 py-0.5 rounded-[var(--radius-button)] border border-[var(--border-hairline)] bg-[var(--bg-inset)] text-[var(--text-secondary)]">
+                                  #{group.code}
+                                </span>
+                                <span className="font-mono text-[0.6875rem] text-[var(--text-secondary)]">
+                                  {group.role === "creator" ? "Owner" : "Member"}
+                                </span>
+                              </div>
+                              <h4 className="font-serif text-lg font-normal text-[var(--text-primary)] group-hover:underline transition-colors leading-snug tracking-normal">
+                                {group.name}
+                              </h4>
+                            </CardHeader>
 
-                        <CardContent className="pt-0 flex-1">
-                          <p className="font-sans text-xs text-[var(--text-secondary)] line-clamp-3 leading-relaxed">
-                            {group.description ||
-                              "Shared study workspace with documents, notes, and live video meeting."}
-                          </p>
-                        </CardContent>
+                            <CardContent className="pt-0 flex-1">
+                              <p className="font-sans text-xs text-[var(--text-secondary)] line-clamp-3 leading-relaxed">
+                                {group.description ||
+                                  "Shared study workspace with documents, notes, and live video meeting."}
+                              </p>
+                            </CardContent>
 
-                        <CardFooter className="flex items-center justify-between text-xs font-mono text-[var(--text-secondary)] pt-3 border-t border-[var(--border-hairline)]">
-                          <span>{new Date(group.createdAt).toLocaleDateString()}</span>
-                          <span className="flex items-center gap-1 group-hover:text-[var(--text-primary)] transition-colors text-xs font-mono">
-                            Enter Workspace <ArrowRight className="w-3.5 h-3.5" />
-                          </span>
-                        </CardFooter>
-                      </Card>
+                            <CardFooter className="flex items-center justify-between text-xs font-mono text-[var(--text-secondary)] pt-3 border-t border-[var(--border-hairline)]">
+                              <span>{new Date(group.createdAt).toLocaleDateString()}</span>
+                              <span className="flex items-center gap-1.5 group-hover:text-[var(--text-primary)] transition-colors text-xs font-mono">
+                                Enter Workspace <ArrowHover size={14} />
+                              </span>
+                            </CardFooter>
+                          </Card>
+                        </CardSpotlight>
+                      </MagneticSkew>
                     </motion.div>
                   ))}
                 </div>

@@ -275,6 +275,59 @@ body {
 }
 
 /* ==========================================================================
+   Lenis Smooth Scroll & Ainsley.dev Motion Primitives
+   ========================================================================== */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+.lenis:not(.lenis-autoToggle).lenis-stopped {
+  overflow: clip;
+}
+
+.lenis [data-lenis-prevent],
+.lenis [data-lenis-prevent-wheel],
+.lenis [data-lenis-prevent-touch],
+.lenis [data-lenis-prevent-vertical],
+.lenis [data-lenis-prevent-horizontal] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-smooth iframe {
+  pointer-events: none;
+}
+
+/* Kinetic Infinite Marquee (ainsley.dev .home-marquee) */
+@keyframes kineticMarquee {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-33.333333%);
+  }
+}
+
+.animate-kinetic-marquee {
+  animation: kineticMarquee 30s linear infinite;
+  will-change: transform;
+}
+
+/* 3D Sculpture Float */
+@keyframes floatSlow {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(1deg);
+  }
+}
+
+.animate-float-slow {
+  animation: floatSlow 6s ease-in-out infinite;
+}
+
+/* ==========================================================================
    Comprehensive Monochrome System Mapping for Existing Markup
    Eliminates all legacy colors, mapping them strictly to DESIGN.md tokens
    ========================================================================== */

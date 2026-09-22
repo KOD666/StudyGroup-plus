@@ -1,6 +1,7 @@
 import React from "react";
 import { LandingHeader } from "@/components/landing/LandingHeader";
 import { HeroSection } from "@/components/landing/HeroSection";
+import { KineticMarquee } from "@/components/motion/KineticMarquee";
 import { ArchitectureSection } from "@/components/landing/ArchitectureSection";
 import { TestimonialSection } from "@/components/landing/TestimonialSection";
 import { ReferenceDeskSection } from "@/components/landing/ReferenceDeskSection";
@@ -13,6 +14,20 @@ export default function HomePage() {
       <LandingHeader />
       <div className="flex-1">
         <HeroSection />
+        <KineticMarquee
+          items={[
+            "DEEP FOCUS ROOMS",
+            "AI NOTE SYNTHESIS",
+            "LATEX SYNC VAULT",
+            "LIVEKIT AUDIO MESH",
+            "REALTIME TRANSCRIPTS",
+            "QUESTION CHECKOUTS",
+            "ZERO LATENCY COLLAB",
+            "PERSISTENT ARCHIVES",
+          ]}
+          speed={30}
+          tilt={true}
+        />
         <ArchitectureSection />
         <TestimonialSection />
         <ReferenceDeskSection />

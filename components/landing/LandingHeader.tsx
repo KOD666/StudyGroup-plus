@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import Link from "next/link";
 import { Search, Bell, BookOpen, ArrowRight } from "lucide-react";
 import { useAuth } from "@clerk/nextjs";
@@ -9,40 +9,9 @@ import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 export function LandingHeader() {
   const { isSignedIn } = useAuth();
-  const [currentTime, setCurrentTime] = useState("14:32 GMT");
-
-  useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      const hours = String(now.getUTCHours()).padStart(2, "0");
-      const minutes = String(now.getUTCMinutes()).padStart(2, "0");
-      setCurrentTime(`${hours}:${minutes} GMT`);
-    };
-    updateTime();
-    const interval = setInterval(updateTime, 60000);
-    return () => clearInterval(interval);
-  }, []);
 
   return (
     <header className="w-full sticky top-0 z-50 bg-[var(--bg-primary)]/90 backdrop-blur-md border-b border-[var(--border-hairline)]">
-      {/* Top Ticker Bar */}
-      <div className="w-full bg-[var(--bg-inset)] border-b border-[var(--border-hairline)] px-4 py-1.5 text-xs text-[var(--text-secondary)] flex flex-wrap items-center justify-between gap-2 font-mono">
-        <div className="flex items-center gap-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-primary)] inline-block" />
-          <span className="font-medium uppercase tracking-wider text-[var(--text-primary)]">
-            Live Study Room Active:
-          </span>
-          <span className="text-[var(--text-secondary)]">
-            Ethics &amp; Agency Seminar — 4 members studying together
-          </span>
-        </div>
-        <div className="flex items-center gap-4 text-[0.6875rem] font-medium tracking-wider uppercase text-[var(--text-secondary)]">
-          <span className="hidden sm:inline">
-            Reading: Aristotle, Nicomachean Ethics Bk. III
-          </span>
-          <span className="text-[var(--text-primary)] font-mono">{currentTime}</span>
-        </div>
-      </div>
 
       {/* Main Navigation Bar */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">

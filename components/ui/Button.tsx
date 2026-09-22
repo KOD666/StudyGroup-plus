@@ -53,7 +53,8 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         ref={ref}
         disabled={disabled || isLoading}
-        className={`inline-flex items-center justify-center cursor-pointer select-none font-sans disabled:opacity-40 disabled:cursor-not-allowed shadow-none ${
+        data-cursor-invert="true"
+        className={`cursor-element inline-flex items-center justify-center cursor-pointer select-none font-sans disabled:opacity-40 disabled:cursor-not-allowed shadow-none ${
           variant === "editorial" ? "" : sizeClasses
         } ${variantClasses} ${className}`}
         {...props}
