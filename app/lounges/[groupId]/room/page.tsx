@@ -279,6 +279,7 @@ export default function MeetingRoomPage() {
   const [inCallMessages, setInCallMessages] = useState<InCallMessage[]>([]);
   const [inCallInput, setInCallInput] = useState("");
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [connectionTargetUrl, setConnectionTargetUrl] = useState<string | null>(null);
   const [connectionRetryCount, setConnectionRetryCount] = useState(0);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
 
@@ -397,6 +398,9 @@ export default function MeetingRoomPage() {
         const tokenData = await tokenRes.json();
         const token = tokenData.token;
         const wsUrl = tokenData.url || tokenData.livekitUrl;
+        if (wsUrl) {
+          setConnectionTargetUrl(wsUrl);
+        }
 
         if (!wsUrl || !token) {
           throw new Error("LiveKit URL or token is missing from token response");
@@ -799,6 +803,11 @@ export default function MeetingRoomPage() {
           <p className="font-sans text-xs text-[var(--text-secondary)] leading-relaxed">
             {connectionError}
           </p>
+          {connectionTargetUrl && (
+            <p className="font-mono text-[0.6875rem] text-[var(--text-secondary)] break-all border border-[var(--border-hairline)] p-2.5 rounded-[var(--radius-button)] bg-[var(--bg-inset)]">
+              Target Server: {connectionTargetUrl}
+            </p>
+          )}
           <div className="flex items-center justify-center gap-3 pt-2">
             <Link href={`/lounges/${groupId}`}>
               <Button variant="secondary" size="md">
