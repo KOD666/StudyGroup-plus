@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
@@ -279,6 +279,7 @@ export default function MeetingRoomPage() {
   const [inCallMessages, setInCallMessages] = useState<InCallMessage[]>([]);
   const [inCallInput, setInCallInput] = useState("");
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [connectionRetryCount, setConnectionRetryCount] = useState(0);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
 
   // Live transcript & Pin Animation state (§6.3)
@@ -327,199 +328,233 @@ export default function MeetingRoomPage() {
     loadLoungeDetails();
   }, [groupId]);
 
-  // Connect to LiveKit Room and initialize local media
-  const connectLiveKit = useCallback(async () => {
-    try {
-      if (
-        typeof navigator !== "undefined" &&
-        navigator.mediaDevices?.getUserMedia
-      ) {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: true,
-          video: { width: { ideal: 1280 }, height: { ideal: 720 } },
-        });
-        localStreamRef.current = stream;
-        if (localVideoRef.current) {
-          localVideoRef.current.srcObject = stream;
-        }
-        if (stageVideoRef.current) {
-          stageVideoRef.current.srcObject = stream;
-        }
-      }
-    } catch (mediaErr) {
-      console.warn("Could not acquire initial camera/mic permissions:", mediaErr);
-    }
+  // Connect to LiveKit Room and initialize local media with cancellation protection
+  useEffect(() => {
+    let isCancelled = false;
+    let localRoom: Room | null = null;
+    let localStream: MediaStream | null = null;
 
-    try {
-      // Start or join the active session record in DB
+    async function initializeAndConnect() {
       try {
-        const sessionRes = await fetch(`/api/groups/${groupId}/sessions/start`, {
-          method: "POST",
-        });
-        if (sessionRes.ok) {
-          const sData = await sessionRes.json();
-          if (sData.session?.id) {
-            setActiveSessionId(sData.session.id);
+        if (
+          typeof navigator !== "undefined" &&
+          navigator.mediaDevices?.getUserMedia
+        ) {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+            video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+          });
+
+          if (isCancelled) {
+            stream.getTracks().forEach((track) => track.stop());
+            return;
           }
-        }
-      } catch (sessionErr) {
-        console.warn("Could not register active session:", sessionErr);
-      }
 
-      const tokenRes = await fetch("/api/livekit/token", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ groupId }),
-      });
-
-      if (!tokenRes.ok) {
-        const errData = await tokenRes.json().catch(() => ({}));
-        throw new Error(errData.error || "Unable to obtain live room token");
-      }
-
-      const tokenData = await tokenRes.json();
-      const token = tokenData.token;
-      const wsUrl = tokenData.url || tokenData.livekitUrl;
-
-      if (!wsUrl || !token) {
-        throw new Error("LiveKit URL or token is missing from token response");
-      }
-
-      const room = new Room({
-        adaptiveStream: true,
-        dynacast: true,
-      });
-      roomRef.current = room;
-
-      const updateParticipants = () => {
-        setRemoteParticipants(Array.from(room.remoteParticipants.values()));
-      };
-
-      room.on(RoomEvent.ParticipantConnected, updateParticipants);
-      room.on(RoomEvent.ParticipantDisconnected, (participant) => {
-        const audios = audioContainerRef.current?.querySelectorAll(
-          `[id^="audio-${participant.identity}"]`
-        );
-        audios?.forEach((el) => el.remove());
-        updateParticipants();
-      });
-
-      room.on(
-        RoomEvent.TrackSubscribed,
-        (
-          track: Track,
-          _pub: RemoteTrackPublication,
-          participant: RemoteParticipant
-        ) => {
-          if (track.kind === Track.Kind.Audio) {
-            const el = track.attach();
-            el.id = `audio-${participant.identity}-${track.sid}`;
-            audioContainerRef.current?.appendChild(el);
-          }
-          updateParticipants();
-        }
-      );
-
-      room.on(RoomEvent.TrackUnsubscribed, (track: Track) => {
-        if (track.kind === Track.Kind.Audio) {
-          track.detach().forEach((el) => el.remove());
-        }
-        updateParticipants();
-      });
-
-      room.on(RoomEvent.TrackMuted, updateParticipants);
-      room.on(RoomEvent.TrackUnmuted, updateParticipants);
-
-      room.on(
-        RoomEvent.DataReceived,
-        (payload: Uint8Array, participant?: RemoteParticipant) => {
-          try {
-            const text = new TextDecoder().decode(payload);
-            const data = JSON.parse(text);
-            if (data.type === "transcript") {
-              setTranscript(data.text);
-              const now = new Date();
-              setTranscriptTime(
-                now.toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  second: "2-digit",
-                })
-              );
-            } else if (data.type === "chat" && data.text) {
-              const now = new Date();
-              const timeStr =
-                data.time ||
-                now.toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                });
-              const sender =
-                data.senderName ||
-                participant?.name ||
-                participant?.identity ||
-                "Member";
-              setInCallMessages((prev) => [
-                ...prev,
-                {
-                  id:
-                    data.id ||
-                    `incall-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-                  senderName: sender,
-                  senderId: data.senderId || participant?.identity,
-                  text: data.text,
-                  time: timeStr,
-                  isSelf: false,
-                },
-              ]);
-            }
-          } catch {
-            // ignore non-json data
-          }
-        }
-      );
-
-      await room.connect(wsUrl, token);
-      setIsConnected(true);
-      setConnectionError(null);
-      updateParticipants();
-
-      try {
-        await room.localParticipant.enableCameraAndMicrophone();
-        const camTrack = room.localParticipant.getTrackPublication(
-          Track.Source.Camera
-        );
-        if (camTrack?.track) {
+          localStream = stream;
+          localStreamRef.current = stream;
           if (localVideoRef.current) {
-            camTrack.track.attach(localVideoRef.current);
+            localVideoRef.current.srcObject = stream;
           }
           if (stageVideoRef.current) {
-            camTrack.track.attach(stageVideoRef.current);
+            stageVideoRef.current.srcObject = stream;
           }
         }
       } catch (mediaErr) {
-        console.warn("Could not enable LiveKit camera/microphone:", mediaErr);
+        console.warn("Could not acquire initial camera/mic permissions:", mediaErr);
       }
-    } catch (err: unknown) {
-      console.error("LiveKit connection failure:", err);
-      const errMsg =
-        err instanceof Error ? err.message : "Failed to connect to LiveKit room";
-      setConnectionError(errMsg);
-      setIsConnected(false);
-    }
-  }, [groupId]);
 
-  useEffect(() => {
-    connectLiveKit();
+      if (isCancelled) return;
+
+      try {
+        // Start or join the active session record in DB
+        try {
+          const sessionRes = await fetch(`/api/groups/${groupId}/sessions/start`, {
+            method: "POST",
+          });
+          if (sessionRes.ok) {
+            const sData = await sessionRes.json();
+            if (sData.session?.id && !isCancelled) {
+              setActiveSessionId(sData.session.id);
+            }
+          }
+        } catch (sessionErr) {
+          console.warn("Could not register active session:", sessionErr);
+        }
+
+        if (isCancelled) return;
+
+        const tokenRes = await fetch("/api/livekit/token", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ groupId }),
+        });
+
+        if (!tokenRes.ok) {
+          const errData = await tokenRes.json().catch(() => ({}));
+          throw new Error(errData.error || "Unable to obtain live room token");
+        }
+
+        const tokenData = await tokenRes.json();
+        const token = tokenData.token;
+        const wsUrl = tokenData.url || tokenData.livekitUrl;
+
+        if (!wsUrl || !token) {
+          throw new Error("LiveKit URL or token is missing from token response");
+        }
+
+        if (isCancelled) return;
+
+        const room = new Room({
+          adaptiveStream: true,
+          dynacast: true,
+        });
+        localRoom = room;
+        roomRef.current = room;
+
+        const updateParticipants = () => {
+          if (!isCancelled) {
+            setRemoteParticipants(Array.from(room.remoteParticipants.values()));
+          }
+        };
+
+        room.on(RoomEvent.ParticipantConnected, updateParticipants);
+        room.on(RoomEvent.ParticipantDisconnected, (participant) => {
+          const audios = audioContainerRef.current?.querySelectorAll(
+            `[id^="audio-${participant.identity}"]`
+          );
+          audios?.forEach((el) => el.remove());
+          updateParticipants();
+        });
+
+        room.on(
+          RoomEvent.TrackSubscribed,
+          (
+            track: Track,
+            _pub: RemoteTrackPublication,
+            participant: RemoteParticipant
+          ) => {
+            if (track.kind === Track.Kind.Audio) {
+              const el = track.attach();
+              el.id = `audio-${participant.identity}-${track.sid}`;
+              audioContainerRef.current?.appendChild(el);
+            }
+            updateParticipants();
+          }
+        );
+
+        room.on(RoomEvent.TrackUnsubscribed, (track: Track) => {
+          if (track.kind === Track.Kind.Audio) {
+            track.detach().forEach((el) => el.remove());
+          }
+          updateParticipants();
+        });
+
+        room.on(RoomEvent.TrackMuted, updateParticipants);
+        room.on(RoomEvent.TrackUnmuted, updateParticipants);
+
+        room.on(
+          RoomEvent.DataReceived,
+          (payload: Uint8Array, participant?: RemoteParticipant) => {
+            if (isCancelled) return;
+            try {
+              const text = new TextDecoder().decode(payload);
+              const data = JSON.parse(text);
+              if (data.type === "transcript") {
+                setTranscript(data.text);
+                const now = new Date();
+                setTranscriptTime(
+                  now.toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit",
+                  })
+                );
+              } else if (data.type === "chat" && data.text) {
+                const now = new Date();
+                const timeStr =
+                  data.time ||
+                  now.toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  });
+                const sender =
+                  data.senderName ||
+                  participant?.name ||
+                  participant?.identity ||
+                  "Member";
+                setInCallMessages((prev) => [
+                  ...prev,
+                  {
+                    id:
+                      data.id ||
+                      `incall-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+                    senderName: sender,
+                    senderId: data.senderId || participant?.identity,
+                    text: data.text,
+                    time: timeStr,
+                    isSelf: false,
+                  },
+                ]);
+              }
+            } catch {
+              // ignore non-json data
+            }
+          }
+        );
+
+        await room.connect(wsUrl, token);
+
+        if (isCancelled) {
+          room.disconnect();
+          return;
+        }
+
+        setIsConnected(true);
+        setConnectionError(null);
+        updateParticipants();
+
+        try {
+          await room.localParticipant.enableCameraAndMicrophone();
+          const camTrack = room.localParticipant.getTrackPublication(
+            Track.Source.Camera
+          );
+          if (camTrack?.track && !isCancelled) {
+            if (localVideoRef.current) {
+              camTrack.track.attach(localVideoRef.current);
+            }
+            if (stageVideoRef.current) {
+              camTrack.track.attach(stageVideoRef.current);
+            }
+          }
+        } catch (mediaErr) {
+          console.warn("Could not enable LiveKit camera/microphone:", mediaErr);
+        }
+      } catch (err: unknown) {
+        if (isCancelled) return;
+        console.error("LiveKit connection failure:", err);
+        const errMsg =
+          err instanceof Error ? err.message : "Failed to connect to LiveKit room";
+        setConnectionError(errMsg);
+        setIsConnected(false);
+      }
+    }
+
+    initializeAndConnect();
+
     return () => {
-      if (roomRef.current) {
+      isCancelled = true;
+      if (localRoom) {
+        localRoom.disconnect();
+      } else if (roomRef.current) {
         roomRef.current.disconnect();
       }
-      if (localStreamRef.current) {
+      if (localStream) {
+        localStream.getTracks().forEach((track) => track.stop());
+      } else if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach((track) => track.stop());
       }
     };
-  }, [connectLiveKit]);
+  }, [groupId, connectionRetryCount]);
 
   // Duration Timer (from 00:00:00)
   useEffect(() => {
@@ -775,7 +810,7 @@ export default function MeetingRoomPage() {
               size="md"
               onClick={() => {
                 setConnectionError(null);
-                connectLiveKit();
+                setConnectionRetryCount((c) => c + 1);
               }}
             >
               Retry Connection
