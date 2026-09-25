@@ -7,14 +7,15 @@
     "build": "next build",
     "start": "next start",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
+    "db:migrate": "node --env-file=.env.local node_modules/.bin/drizzle-kit migrate",
     "db:check": "node --env-file=.env.local scripts/db-check.cjs",
     "lint": "next lint",
     "format": "prettier --check .",
     "format:fix": "prettier --write .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "livekit": "./infra/bin/livekit-server --dev"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1134.0",

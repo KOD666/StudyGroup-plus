@@ -4,17 +4,20 @@ import { groups } from "./Group";
 import { memberships } from "./Membership";
 import { assets } from "./Asset";
 import { sessions } from "./Session";
+import { groupMessages } from "./GroupMessage";
 
 export * from "./User";
 export * from "./Group";
 export * from "./Membership";
 export * from "./Asset";
 export * from "./Session";
+export * from "./GroupMessage";
 
 export const usersRelations = relations(users, ({ many }) => ({
   memberships: many(memberships),
   createdGroups: many(groups),
   uploadedAssets: many(assets),
+  sentMessages: many(groupMessages),
 }));
 
 export const groupsRelations = relations(groups, ({ one, many }) => ({
@@ -25,6 +28,7 @@ export const groupsRelations = relations(groups, ({ one, many }) => ({
   memberships: many(memberships),
   assets: many(assets),
   sessions: many(sessions),
+  messages: many(groupMessages),
 }));
 
 export const membershipsRelations = relations(memberships, ({ one }) => ({
@@ -60,3 +64,15 @@ export const sessionsRelations = relations(sessions, ({ one }) => ({
     references: [assets.id],
   }),
 }));
+
+export const groupMessagesRelations = relations(groupMessages, ({ one }) => ({
+  group: one(groups, {
+    fields: [groupMessages.groupId],
+    references: [groups.id],
+  }),
+  sender: one(users, {
+    fields: [groupMessages.senderId],
+    references: [users.id],
+  }),
+}));
+

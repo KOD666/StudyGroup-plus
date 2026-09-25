@@ -23,6 +23,9 @@ import {
   Users,
   Copy,
   Check,
+  MessageSquare,
+  Send,
+  AlertCircle,
 } from "lucide-react";
 import {
   Room,
@@ -126,14 +129,18 @@ function RemoteParticipantTile({
     };
 
     participant.on(ParticipantEvent.TrackSubscribed, syncTracks);
+    participant.on(ParticipantEvent.TrackPublished, syncTracks);
     participant.on(ParticipantEvent.TrackUnsubscribed, syncTracks);
+    participant.on(ParticipantEvent.TrackUnpublished, syncTracks);
     participant.on(ParticipantEvent.TrackMuted, syncTracks);
     participant.on(ParticipantEvent.TrackUnmuted, syncTracks);
     participant.on(ParticipantEvent.IsSpeakingChanged, onSpeakingChange);
 
     return () => {
       participant.off(ParticipantEvent.TrackSubscribed, syncTracks);
+      participant.off(ParticipantEvent.TrackPublished, syncTracks);
       participant.off(ParticipantEvent.TrackUnsubscribed, syncTracks);
+      participant.off(ParticipantEvent.TrackUnpublished, syncTracks);
       participant.off(ParticipantEvent.TrackMuted, syncTracks);
       participant.off(ParticipantEvent.TrackUnmuted, syncTracks);
       participant.off(ParticipantEvent.IsSpeakingChanged, onSpeakingChange);
@@ -255,10 +262,24 @@ export default function MeetingRoomPage() {
   const [pinnedNotes, setPinnedNotes] = useState<string[]>([]);
   const [newNoteInput, setNewNoteInput] = useState("");
   const [activeTab, setActiveTab] = useState<
-    "manuscript" | "notes" | "citations"
-  >("manuscript");
+    "chat" | "manuscript" | "notes" | "citations"
+  >("chat");
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedCitations, setCopiedCitations] = useState(false);
+
+  // In-call WebRTC Data-Channel Chat state
+  interface InCallMessage {
+    id: string;
+    senderName: string;
+    senderId?: string;
+    text: string;
+    time: string;
+    isSelf: boolean;
+  }
+  const [inCallMessages, setInCallMessages] = useState<InCallMessage[]>([]);
+  const [inCallInput, setInCallInput] = useState("");
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
 
   // Live transcript & Pin Animation state (§6.3)
   const [transcript, setTranscript] = useState<string | null>(null);
@@ -330,6 +351,21 @@ export default function MeetingRoomPage() {
     }
 
     try {
+      // Start or join the active session record in DB
+      try {
+        const sessionRes = await fetch(`/api/groups/${groupId}/sessions/start`, {
+          method: "POST",
+        });
+        if (sessionRes.ok) {
+          const sData = await sessionRes.json();
+          if (sData.session?.id) {
+            setActiveSessionId(sData.session.id);
+          }
+        }
+      } catch (sessionErr) {
+        console.warn("Could not register active session:", sessionErr);
+      }
+
       const tokenRes = await fetch("/api/livekit/token", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -337,12 +373,17 @@ export default function MeetingRoomPage() {
       });
 
       if (!tokenRes.ok) {
-        throw new Error("Unable to obtain live room token");
+        const errData = await tokenRes.json().catch(() => ({}));
+        throw new Error(errData.error || "Unable to obtain live room token");
       }
 
       const tokenData = await tokenRes.json();
       const token = tokenData.token;
       const wsUrl = tokenData.url || tokenData.livekitUrl;
+
+      if (!wsUrl || !token) {
+        throw new Error("LiveKit URL or token is missing from token response");
+      }
 
       const room = new Room({
         adaptiveStream: true,
@@ -389,51 +430,82 @@ export default function MeetingRoomPage() {
       room.on(RoomEvent.TrackMuted, updateParticipants);
       room.on(RoomEvent.TrackUnmuted, updateParticipants);
 
-      room.on(RoomEvent.DataReceived, (payload: Uint8Array) => {
-        try {
-          const text = new TextDecoder().decode(payload);
-          const data = JSON.parse(text);
-          if (data.type === "transcript") {
-            setTranscript(data.text);
-            const now = new Date();
-            setTranscriptTime(
-              now.toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-                second: "2-digit",
-              })
-            );
-          }
-        } catch {
-          // ignore non-json data
-        }
-      });
-
-      if (wsUrl && token) {
-        await room.connect(wsUrl, token);
-        setIsConnected(true);
-        updateParticipants();
-
-        try {
-          await room.localParticipant.enableCameraAndMicrophone();
-          const camTrack = room.localParticipant.getTrackPublication(
-            Track.Source.Camera
-          );
-          if (camTrack?.track) {
-            if (localVideoRef.current) {
-              camTrack.track.attach(localVideoRef.current);
+      room.on(
+        RoomEvent.DataReceived,
+        (payload: Uint8Array, participant?: RemoteParticipant) => {
+          try {
+            const text = new TextDecoder().decode(payload);
+            const data = JSON.parse(text);
+            if (data.type === "transcript") {
+              setTranscript(data.text);
+              const now = new Date();
+              setTranscriptTime(
+                now.toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  second: "2-digit",
+                })
+              );
+            } else if (data.type === "chat" && data.text) {
+              const now = new Date();
+              const timeStr =
+                data.time ||
+                now.toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                });
+              const sender =
+                data.senderName ||
+                participant?.name ||
+                participant?.identity ||
+                "Member";
+              setInCallMessages((prev) => [
+                ...prev,
+                {
+                  id:
+                    data.id ||
+                    `incall-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+                  senderName: sender,
+                  senderId: data.senderId || participant?.identity,
+                  text: data.text,
+                  time: timeStr,
+                  isSelf: false,
+                },
+              ]);
             }
-            if (stageVideoRef.current) {
-              camTrack.track.attach(stageVideoRef.current);
-            }
+          } catch {
+            // ignore non-json data
           }
-        } catch (mediaErr) {
-          console.warn("Could not enable LiveKit camera/microphone:", mediaErr);
         }
+      );
+
+      await room.connect(wsUrl, token);
+      setIsConnected(true);
+      setConnectionError(null);
+      updateParticipants();
+
+      try {
+        await room.localParticipant.enableCameraAndMicrophone();
+        const camTrack = room.localParticipant.getTrackPublication(
+          Track.Source.Camera
+        );
+        if (camTrack?.track) {
+          if (localVideoRef.current) {
+            camTrack.track.attach(localVideoRef.current);
+          }
+          if (stageVideoRef.current) {
+            camTrack.track.attach(stageVideoRef.current);
+          }
+        }
+      } catch (mediaErr) {
+        console.warn("Could not enable LiveKit camera/microphone:", mediaErr);
       }
     } catch (err: unknown) {
-      console.warn("LiveKit connection notice:", err);
-      setIsConnected(true);
+      console.error("LiveKit connection failure:", err);
+      const errMsg =
+        err instanceof Error ? err.message : "Failed to connect to LiveKit room";
+      setConnectionError(errMsg);
+      setIsConnected(false);
     }
   }, [groupId]);
 
@@ -570,14 +642,66 @@ export default function MeetingRoomPage() {
   }
 
   // Leave Call (§6.3 - deliberate 250ms closing fade to --bg-primary before route transition)
-  function handleLeave() {
+  async function handleLeave() {
     setIsLeaving(true);
+    if (activeSessionId && roomRef.current && roomRef.current.remoteParticipants.size === 0) {
+      try {
+        await fetch(`/api/groups/${groupId}/sessions/${activeSessionId}/end`, {
+          method: "POST",
+        });
+      } catch (endErr) {
+        console.warn("Could not mark session ended:", endErr);
+      }
+    }
     setTimeout(() => {
       if (roomRef.current) {
         roomRef.current.disconnect();
       }
       router.push(`/lounges/${groupId}`);
     }, 250);
+  }
+
+  async function handleSendInCallMessage(e: React.FormEvent) {
+    e.preventDefault();
+    const text = inCallInput.trim();
+    if (!text || !roomRef.current) return;
+
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const msgId = `incall-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const sender = user?.fullName || user?.firstName || "You";
+
+    const payload = {
+      type: "chat",
+      id: msgId,
+      senderName: sender,
+      senderId: user?.id,
+      text,
+      time: timeStr,
+    };
+
+    try {
+      const encoder = new TextEncoder();
+      await roomRef.current.localParticipant.publishData(
+        encoder.encode(JSON.stringify(payload)),
+        { reliable: true }
+      );
+    } catch (publishErr) {
+      console.warn("Failed to publish in-call chat:", publishErr);
+    }
+
+    setInCallMessages((prev) => [
+      ...prev,
+      {
+        id: msgId,
+        senderName: sender,
+        senderId: user?.id,
+        text,
+        time: timeStr,
+        isSelf: true,
+      },
+    ]);
+    setInCallInput("");
   }
 
   function handleCopyInviteLink() {
@@ -626,6 +750,41 @@ export default function MeetingRoomPage() {
   const scholarInitials = user?.firstName
     ? user.firstName.substring(0, 2).toUpperCase()
     : "ME";
+
+  if (connectionError) {
+    return (
+      <div className="h-screen w-screen bg-[var(--bg-primary)] text-[var(--text-primary)] flex flex-col font-sans items-center justify-center p-4">
+        <div className="max-w-md w-full bg-[var(--bg-elevated)] border border-[var(--border-hairline)] rounded-[var(--radius-card)] p-6 sm:p-8 text-center space-y-4">
+          <div className="w-12 h-12 rounded-full bg-[rgba(229,72,77,0.1)] border border-[rgba(229,72,77,0.3)] flex items-center justify-center mx-auto text-[#e5484d]">
+            <AlertCircle className="w-6 h-6" />
+          </div>
+          <h2 className="font-serif text-2xl font-normal text-[var(--text-primary)]">
+            Live Room Connection Error
+          </h2>
+          <p className="font-sans text-xs text-[var(--text-secondary)] leading-relaxed">
+            {connectionError}
+          </p>
+          <div className="flex items-center justify-center gap-3 pt-2">
+            <Link href={`/lounges/${groupId}`}>
+              <Button variant="secondary" size="md">
+                Back to Workspace
+              </Button>
+            </Link>
+            <Button
+              variant="primary"
+              size="md"
+              onClick={() => {
+                setConnectionError(null);
+                connectLiveKit();
+              }}
+            >
+              Retry Connection
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen w-screen bg-[var(--bg-primary)] text-[var(--text-primary)] flex flex-col font-sans overflow-hidden select-none relative selection:bg-[var(--invert-bg)] selection:text-[var(--invert-text)]">
@@ -1050,12 +1209,37 @@ export default function MeetingRoomPage() {
                 <span>{isScreenSharing ? "Stop Sharing" : "Screen Share"}</span>
               </button>
 
+              {/* In-Call Chat Toggle */}
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab("chat");
+                  setIsReferenceDeskOpen(true);
+                }}
+                className={`px-3.5 py-2 rounded-[var(--radius-button)] border text-xs font-mono flex items-center gap-2 transition-colors duration-[var(--dur-fast)] cursor-pointer ${
+                  isReferenceDeskOpen && activeTab === "chat"
+                    ? "bg-[var(--invert-bg)] text-[var(--invert-text)] border-[var(--invert-bg)]"
+                    : "bg-[var(--bg-overlay)] text-[var(--text-primary)] border-[var(--border-hairline)] hover:border-[var(--border-hover)]"
+                }`}
+                title="Toggle In-Call Chat Panel"
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+                <span>Chat{inCallMessages.length > 0 ? ` (${inCallMessages.length})` : ""}</span>
+              </button>
+
               {/* Study Notes Toggle */}
               <button
                 type="button"
-                onClick={() => setIsReferenceDeskOpen(!isReferenceDeskOpen)}
+                onClick={() => {
+                  if (isReferenceDeskOpen && activeTab !== "chat") {
+                    setIsReferenceDeskOpen(false);
+                  } else {
+                    setActiveTab("notes");
+                    setIsReferenceDeskOpen(true);
+                  }
+                }}
                 className={`px-3.5 py-2 rounded-[var(--radius-button)] border text-xs font-mono flex items-center gap-2 transition-colors duration-[var(--dur-fast)] cursor-pointer ${
-                  isReferenceDeskOpen
+                  isReferenceDeskOpen && activeTab !== "chat"
                     ? "bg-[var(--invert-bg)] text-[var(--invert-text)] border-[var(--invert-bg)]"
                     : "bg-[var(--bg-overlay)] text-[var(--text-primary)] border-[var(--border-hairline)] hover:border-[var(--border-hover)]"
                 }`}
@@ -1086,10 +1270,14 @@ export default function MeetingRoomPage() {
             {/* Panel Header */}
             <div className="p-4 border-b border-[var(--border-hairline)] flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <BookOpen className="w-4 h-4 text-[var(--text-secondary)]" />
+                {activeTab === "chat" ? (
+                  <MessageSquare className="w-4 h-4 text-[var(--text-secondary)]" />
+                ) : (
+                  <BookOpen className="w-4 h-4 text-[var(--text-secondary)]" />
+                )}
                 <div>
                   <h3 className="font-serif text-base font-normal text-[var(--text-primary)]">
-                    Study Notes &amp; Documents
+                    {activeTab === "chat" ? "In-Call Group Chat" : "Study Notes & Documents"}
                   </h3>
                   <p className="font-mono text-[0.625rem] uppercase tracking-[0.08em] text-[var(--text-secondary)]">
                     {groupName} Materials
@@ -1108,7 +1296,8 @@ export default function MeetingRoomPage() {
             {/* Tabs (§5 segmented layout transition) */}
             <div className="px-4 pt-3 flex gap-2 border-b border-[var(--border-hairline)] text-xs font-mono">
               {[
-                { key: "manuscript", label: `Documents (${assets.length})` },
+                { key: "chat", label: `Chat (${inCallMessages.length})` },
+                { key: "manuscript", label: `Docs (${assets.length})` },
                 { key: "notes", label: `Notes (${pinnedNotes.length})` },
                 { key: "citations", label: "Citations" },
               ].map((tab) => {
@@ -1139,6 +1328,68 @@ export default function MeetingRoomPage() {
 
             {/* Panel Body */}
             <div className="flex-1 p-5 overflow-y-auto space-y-6">
+              {activeTab === "chat" && (
+                <div className="flex flex-col h-[calc(100vh-17rem)]">
+                  <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+                    {inCallMessages.length === 0 ? (
+                      <div className="h-full min-h-[14rem] flex flex-col items-center justify-center text-center p-6 border border-dashed border-[var(--border-hairline)] rounded-[var(--radius-card)]">
+                        <MessageSquare className="w-8 h-8 text-[var(--text-secondary)] opacity-40 mb-2" />
+                        <span className="font-serif text-sm text-[var(--text-primary)]">In-Call Room Chat</span>
+                        <p className="font-sans text-[0.6875rem] text-[var(--text-secondary)] mt-1 max-w-[200px] leading-relaxed">
+                          Messages sent here are broadcast over WebRTC data channels to all connected participants.
+                        </p>
+                      </div>
+                    ) : (
+                      inCallMessages.map((msg) => (
+                        <motion.div
+                          key={msg.id}
+                          initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className={`p-3 rounded-[var(--radius-card)] border text-xs ${
+                            msg.isSelf
+                              ? "bg-[var(--bg-overlay)] border-[var(--border-hover)] ml-4"
+                              : "bg-[var(--bg-inset)] border-[var(--border-hairline)] mr-4"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <span className="font-mono text-[0.625rem] font-semibold text-[var(--text-primary)]">
+                              {msg.isSelf ? "You" : msg.senderName}
+                            </span>
+                            <span className="font-mono text-[0.5625rem] text-[var(--text-secondary)]">
+                              {msg.time}
+                            </span>
+                          </div>
+                          <p className="font-sans text-xs text-[var(--text-primary)] leading-relaxed break-words">
+                            {msg.text}
+                          </p>
+                        </motion.div>
+                      ))
+                    )}
+                  </div>
+
+                  <form onSubmit={handleSendInCallMessage} className="pt-3 border-t border-[var(--border-hairline)] mt-3">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={inCallInput}
+                        onChange={(e) => setInCallInput(e.target.value)}
+                        placeholder="Type in-call message..."
+                        className="flex-1 bg-[var(--bg-inset)] border border-[var(--border-hairline)] rounded-[var(--radius-button)] px-3 py-2 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:outline-none focus:border-[var(--text-primary)] transition-colors"
+                      />
+                      <button
+                        type="submit"
+                        disabled={!inCallInput.trim()}
+                        className="p-2 rounded-[var(--radius-button)] bg-[var(--invert-bg)] text-[var(--invert-text)] hover:bg-white disabled:opacity-30 transition-colors cursor-pointer"
+                        title="Send Message"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+
               {activeTab === "manuscript" && (
                 <div>
                   <div className="mb-4 pb-3 border-b border-[var(--border-hairline)]">

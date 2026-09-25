@@ -17,18 +17,18 @@ Instead of fracturing study sessions across separate video calls, buried chat ch
 
 ### 2. 4-Category Highlighting & Persistent Margin Notes
 - **Academic Palette Highlighting**: Highlight passages across 4 distinct study categories:
-  - 🟡 **Concept** — Core definitions and theoretical foundations
-  - 🟢 **Evidence** — Empirical data, citations, and experiments
-  - 🔴 **Exam Focus** — Critical theorems and high-priority quiz topics
-  - 🟠 **Question** — Unresolved arguments and seminar talking points
+  - **Concept** — Core definitions and theoretical foundations
+  - **Evidence** — Empirical data, citations, and experiments
+  - **Exam Focus** — Critical theorems and high-priority quiz topics
+  - **Question** — Unresolved arguments and seminar talking points
 - **Shared Marginalia**: Add marginal notes linked to specific page numbers, with formatted quote citations and instant clipboard copying.
 
 ### 3. Study Focus Timer (Pomodoro & Stopwatch)
 - **Study Sprints**: Integrated timer with one-click presets:
-  - 🍅 **25m Focus** — Classic Pomodoro study block
-  - 📚 **50m Deep Work** — Extended deep focus cycle
-  - ☕ **5m Break** — Quick rest interval
-  - ⏱️ **Stopwatch** — Open-ended count-up timer
+  - **25m Focus** — Classic Pomodoro study block
+  - **50m Deep Work** — Extended deep focus cycle
+  - **5m Break** — Quick rest interval
+  - **Stopwatch** — Open-ended count-up timer
 - **Harmonic Audio Chime**: Synthesizes a gentle two-tone chime (D5 to A5) via the browser's Web Audio API upon session completion (zero external audio file dependencies).
 - **Secondary Bar Sync**: Compact timer pill on the top navigation bar keeps countdown visible and controllable even when the sidebar is collapsed.
 - **Sprint Metrics**: Tracks completed sessions with flame stats badges and progress percentages.

@@ -7,6 +7,7 @@
 # Testing & Local Fallback
 /coverage
 /.storage/
+/infra/bin/
 
 # Next.js Build Output
 /.next/

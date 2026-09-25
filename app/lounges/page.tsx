@@ -64,6 +64,25 @@ export default function LoungesDashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalTab, setModalTab] = useState<"create" | "join">("create");
+  const [activeLiveGroup, setActiveLiveGroup] = useState<GroupItem | null>(null);
+
+  const checkActiveLiveGroups = useCallback(async (groupItems: GroupItem[]) => {
+    for (const g of groupItems) {
+      try {
+        const res = await fetch(`/api/groups/${g.id}/sessions/active`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.active && data.session) {
+            setActiveLiveGroup(g);
+            return;
+          }
+        }
+      } catch {
+        // continue checking
+      }
+    }
+    setActiveLiveGroup(null);
+  }, []);
 
   const fetchGroups = useCallback(async () => {
     setIsLoading(true);
@@ -74,14 +93,16 @@ export default function LoungesDashboardPage() {
         throw new Error(`Failed to fetch study groups (${res.status})`);
       }
       const data = await res.json();
-      setGroups(data.groups || []);
+      const loadedGroups = data.groups || [];
+      setGroups(loadedGroups);
+      checkActiveLiveGroups(loadedGroups);
     } catch (err: unknown) {
       console.error("Error fetching study groups:", err);
       setError(err instanceof Error ? err.message : "Failed to load study groups");
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [checkActiveLiveGroups]);
 
   const fetchRecentAssets = useCallback(async () => {
     try {
@@ -105,7 +126,7 @@ export default function LoungesDashboardPage() {
   }, [isUserLoaded, user, fetchGroups, fetchRecentAssets]);
 
   const scholarName = user?.firstName || user?.username || "Member";
-  const activeLounge = groups[0] || null;
+  const activeLounge = activeLiveGroup;
 
   const getCardDelay = (index: number) => {
     if (shouldReduceMotion) return 0;

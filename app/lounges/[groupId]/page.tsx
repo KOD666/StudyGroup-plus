@@ -70,6 +70,23 @@ interface SessionRecord {
   createdAt: string;
 }
 
+interface ChatMessage {
+  id: string;
+  groupId: string;
+  senderId: string;
+  senderName: string;
+  senderAvatar: string | null;
+  text: string;
+  createdAt: string;
+}
+
+interface ActiveSessionData {
+  id: string;
+  groupId: string;
+  roomName: string;
+  startedAt: string;
+}
+
 export default function LoungeWorkspacePage() {
   const params = useParams();
   const router = useRouter();
@@ -94,24 +111,9 @@ export default function LoungeWorkspacePage() {
   const [isInviteOpen, setIsInviteOpen] = useState(false);
 
   const [chatInput, setChatInput] = useState("");
-  const [chatMessages, setChatMessages] = useState<
-    Array<{ id: string; sender: string; isSelf: boolean; text: string; time: string }>
-  >([
-    {
-      id: "seed-1",
-      sender: "Elena Vance",
-      isSelf: false,
-      text: "Has anyone started on the Chapter 3 summary questions yet?",
-      time: "11:04 AM",
-    },
-    {
-      id: "seed-2",
-      sender: "Julian Thorne",
-      isSelf: false,
-      text: "Yes, I uploaded the initial notes to the documents section above.",
-      time: "11:12 AM",
-    },
-  ]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
+  const [activeSession, setActiveSession] = useState<ActiveSessionData | null>(null);
 
   const fetchWorkspaceData = useCallback(async () => {
     if (!groupId) return;
@@ -147,23 +149,57 @@ export default function LoungeWorkspacePage() {
     }
   }, [groupId]);
 
+  const fetchMessages = useCallback(async () => {
+    if (!groupId) return;
+    try {
+      const res = await fetch(`/api/groups/${groupId}/messages`);
+      if (res.ok) {
+        const data = await res.json();
+        setChatMessages(data.messages || []);
+      }
+    } catch (err) {
+      console.warn("Could not fetch messages:", err);
+    }
+  }, [groupId]);
+
+  const fetchActiveSession = useCallback(async () => {
+    if (!groupId) return;
+    try {
+      const res = await fetch(`/api/groups/${groupId}/sessions/active`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.active && data.session) {
+          setActiveSession(data.session);
+        } else {
+          setActiveSession(null);
+        }
+      }
+    } catch (err) {
+      console.warn("Could not check active session:", err);
+    }
+  }, [groupId]);
+
   useEffect(() => {
     fetchWorkspaceData();
-  }, [fetchWorkspaceData]);
+    fetchMessages();
+    fetchActiveSession();
+
+    // 2.5s real-time polling for group chat and live meeting presence
+    const interval = setInterval(() => {
+      fetchMessages();
+      fetchActiveSession();
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, [fetchWorkspaceData, fetchMessages, fetchActiveSession]);
 
   async function handleStartMeeting() {
     setIsStartingVideo(true);
     try {
-      const res = await fetch("/api/livekit/token", {
+      // Start or join the active session record in DB
+      await fetch(`/api/groups/${groupId}/sessions/start`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ groupId }),
       });
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || "Failed to connect to video meeting");
-      }
 
       router.push(`/lounges/${groupId}/room`);
     } catch (err: unknown) {
@@ -194,33 +230,51 @@ export default function LoungeWorkspacePage() {
     }
   }
 
-  function handleSendChatMessage(e: React.FormEvent) {
+  async function handleSendChatMessage(e: React.FormEvent) {
     e.preventDefault();
-    if (!chatInput.trim()) return;
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    const newMsg = {
-      id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-      sender: user?.firstName || user?.fullName || "You",
-      isSelf: true,
-      text: chatInput.trim(),
-      time: timeStr,
-    };
-    setChatMessages((prev) => [...prev, newMsg]);
+    const text = chatInput.trim();
+    if (!text || isSendingMessage) return;
+
     setChatInput("");
+    setIsSendingMessage(true);
+    try {
+      const res = await fetch(`/api/groups/${groupId}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.message) {
+          setChatMessages((prev) => {
+            if (prev.some((m) => m.id === data.message.id)) return prev;
+            return [...prev, data.message];
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Failed to send message:", err);
+    } finally {
+      setIsSendingMessage(false);
+    }
   }
 
-  function handlePostInviteToChat(inviteMsg: string) {
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    const newMsg = {
-      id: `invite-${Date.now()}`,
-      sender: user?.firstName || user?.fullName || "You",
-      isSelf: true,
-      text: inviteMsg,
-      time: timeStr,
-    };
-    setChatMessages((prev) => [...prev, newMsg]);
+  async function handlePostInviteToChat(inviteMsg: string) {
+    try {
+      const res = await fetch(`/api/groups/${groupId}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: inviteMsg }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.message) {
+          setChatMessages((prev) => [...prev, data.message]);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to post invite message:", err);
+    }
   }
 
   // Restricted document shake trigger (§6.2)
@@ -305,24 +359,41 @@ export default function LoungeWorkspacePage() {
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 font-mono text-xs text-[var(--text-secondary)]">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#e5484d] animate-live-breathe" />
-              <span className="text-[var(--text-primary)]">Meeting room ready</span>
-            </div>
-            {/* "Start Video Meeting": Primary button with busy-dot state and magnetic CTA (§6.2) */}
+            {activeSession ? (
+              <div className="flex items-center gap-2 font-mono text-xs">
+                <span className="w-2 h-2 rounded-full bg-[#e5484d] animate-live-breathe" />
+                <span className="text-[#e5484d] font-semibold">Live meeting in progress</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 font-mono text-xs text-[var(--text-secondary)]">
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-disabled)]" />
+                <span>Meeting room idle</span>
+              </div>
+            )}
+
+            {/* "Join Live Meeting" vs "Start Video Meeting" */}
             <button
               type="button"
               data-magnetic
               disabled={isStartingVideo}
               onClick={handleStartMeeting}
-              className="magnetic-cta px-4 py-2 rounded-[var(--radius-button)] bg-[var(--invert-bg)] text-[var(--invert-text)] font-sans text-xs font-semibold uppercase tracking-[0.04em] hover:bg-white active:scale-[0.97] transition-all duration-[var(--dur-fast)] ease-[var(--ease-out-quart)] shadow-none flex items-center gap-2 cursor-pointer disabled:opacity-70"
+              className={`magnetic-cta px-4 py-2 rounded-[var(--radius-button)] font-sans text-xs font-semibold uppercase tracking-[0.04em] active:scale-[0.97] transition-all duration-[var(--dur-fast)] ease-[var(--ease-out-quart)] shadow-none flex items-center gap-2 cursor-pointer disabled:opacity-70 ${
+                activeSession
+                  ? "bg-[#e5484d] text-white hover:bg-[#d63b40]"
+                  : "bg-[var(--invert-bg)] text-[var(--invert-text)] hover:bg-white"
+              }`}
             >
               {isStartingVideo ? (
                 <span className="inline-flex items-center gap-1 py-0.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--invert-text)] animate-busy-dot-1" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--invert-text)] animate-busy-dot-2" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--invert-text)] animate-busy-dot-3" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-current animate-busy-dot-1" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-current animate-busy-dot-2" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-current animate-busy-dot-3" />
                 </span>
+              ) : activeSession ? (
+                <>
+                  <Video className="w-3.5 h-3.5" />
+                  Join Live Meeting
+                </>
               ) : (
                 <>
                   <Video className="w-3.5 h-3.5" />
@@ -639,34 +710,57 @@ export default function LoungeWorkspacePage() {
 
               {/* Message List: Native momentum scroll, 8px rise+fade */}
               <div className="p-4 space-y-3 max-h-80 overflow-y-auto font-sans text-xs">
-                {chatMessages.map((msg) => (
-                  <motion.div
-                    key={msg.id}
-                    initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{
-                      duration: shouldReduceMotion ? 0.1 : 0.2,
-                      ease: [0.25, 1, 0.5, 1],
-                    }}
-                    className={`flex flex-col space-y-1 ${
-                      msg.isSelf ? "items-end" : "items-start"
-                    }`}
-                  >
-                    <div className="flex items-baseline gap-2 text-[0.625rem] font-mono text-[var(--text-secondary)]">
-                      <span className="font-medium text-[var(--text-primary)]">{msg.sender}</span>
-                      <span>{msg.time}</span>
-                    </div>
-                    <div
-                      className={`p-2.5 rounded-[var(--radius-button)] text-xs max-w-[85%] leading-relaxed ${
-                        msg.isSelf
-                          ? "bg-[var(--invert-bg)] text-[var(--invert-text)] font-sans"
-                          : "bg-[var(--bg-inset)] text-[var(--text-primary)] border border-[var(--border-hairline)] font-sans"
-                      }`}
-                    >
-                      {msg.text}
-                    </div>
-                  </motion.div>
-                ))}
+                {chatMessages.length === 0 ? (
+                  <div className="py-12 text-center text-xs text-[var(--text-secondary)] font-mono">
+                    No messages in this study group yet. Say hello to your peers!
+                  </div>
+                ) : (
+                  chatMessages.map((msg) => {
+                    const isSelf =
+                      msg.senderName === (user?.fullName || user?.firstName) ||
+                      members.some(
+                        (m) =>
+                          m.userId === msg.senderId &&
+                          m.email === user?.primaryEmailAddress?.emailAddress
+                      );
+                    const time = new Date(msg.createdAt).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    });
+                    return (
+                      <motion.div
+                        key={msg.id}
+                        initial={
+                          shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }
+                        }
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{
+                          duration: shouldReduceMotion ? 0.1 : 0.2,
+                          ease: [0.25, 1, 0.5, 1],
+                        }}
+                        className={`flex flex-col space-y-1 ${
+                          isSelf ? "items-end" : "items-start"
+                        }`}
+                      >
+                        <div className="flex items-baseline gap-2 text-[0.625rem] font-mono text-[var(--text-secondary)]">
+                          <span className="font-medium text-[var(--text-primary)]">
+                            {isSelf ? "You" : msg.senderName}
+                          </span>
+                          <span>{time}</span>
+                        </div>
+                        <div
+                          className={`p-2.5 rounded-[var(--radius-button)] text-xs max-w-[85%] leading-relaxed ${
+                            isSelf
+                              ? "bg-[var(--invert-bg)] text-[var(--invert-text)] font-sans"
+                              : "bg-[var(--bg-inset)] text-[var(--text-primary)] border border-[var(--border-hairline)] font-sans"
+                          }`}
+                        >
+                          {msg.text}
+                        </div>
+                      </motion.div>
+                    );
+                  })
+                )}
               </div>
 
               {/* Chat Input */}
