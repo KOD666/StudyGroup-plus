@@ -4,6 +4,7 @@ import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { groups, memberships, users } from "@/models";
 import { getGroupMembership, isGroupCreator } from "@/lib/permissions";
+import { isValidYouTubeUrl } from "@/lib/utils";
 
 // GET /api/groups/[groupId] - Get details and member roster of a group
 export async function GET(
@@ -121,6 +122,101 @@ export async function DELETE(
     console.error("Failed to delete group:", error);
     return NextResponse.json(
       { error: "Internal Server Error: Could not delete study group" },
+      { status: 500 }
+    );
+  }
+}
+
+// PATCH /api/groups/[groupId] - Update group settings (e.g. youtubeUrl) (creator-only)
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ groupId: string }> }
+) {
+  const authResult = await requireAuth();
+  if (!authResult.success) {
+    return authResult.response;
+  }
+
+  const { groupId } = await params;
+  if (!groupId) {
+    return NextResponse.json(
+      { error: "Bad Request: Missing groupId parameter" },
+      { status: 400 }
+    );
+  }
+
+  const currentUserId = authResult.context.userId;
+
+  try {
+    const isCreator = await isGroupCreator(currentUserId, groupId);
+    if (!isCreator) {
+      return NextResponse.json(
+        {
+          error: "Forbidden: Only the group creator can edit lounge settings",
+        },
+        { status: 403 }
+      );
+    }
+
+    const body = await req.json().catch(() => ({}));
+    const updateData: {
+      updatedAt: Date;
+      youtubeUrl?: string | null;
+    } = {
+      updatedAt: new Date(),
+    };
+
+    if ("youtubeUrl" in body) {
+      const rawUrl = body.youtubeUrl;
+      if (rawUrl === null || rawUrl === "" || rawUrl === undefined) {
+        updateData.youtubeUrl = null;
+      } else if (typeof rawUrl === "string") {
+        const trimmed = rawUrl.trim();
+        if (trimmed === "") {
+          updateData.youtubeUrl = null;
+        } else if (!isValidYouTubeUrl(trimmed)) {
+          return NextResponse.json(
+            {
+              error:
+                "Please enter a valid YouTube URL (e.g. https://www.youtube.com/watch?v=... or https://youtu.be/...)",
+            },
+            { status: 400 }
+          );
+        } else {
+          updateData.youtubeUrl = trimmed;
+        }
+      } else {
+        return NextResponse.json(
+          { error: "Invalid youtubeUrl format: must be a string or null" },
+          { status: 400 }
+        );
+      }
+    }
+
+    const [updatedGroup] = await db
+      .update(groups)
+      .set(updateData)
+      .where(and(eq(groups.id, groupId), isNull(groups.deletedAt)))
+      .returning();
+
+    if (!updatedGroup) {
+      return NextResponse.json(
+        { error: "Not Found: Study group not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(
+      {
+        group: updatedGroup,
+        message: "Lounge settings updated successfully",
+      },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error("Failed to update group settings:", error);
+    return NextResponse.json(
+      { error: "Internal Server Error: Could not update lounge settings" },
       { status: 500 }
     );
   }

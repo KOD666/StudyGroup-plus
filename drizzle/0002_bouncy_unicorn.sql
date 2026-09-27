@@ -1,0 +1,1 @@
+ALTER TABLE "groups" ADD COLUMN "youtube_url" text;

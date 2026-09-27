@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
@@ -18,11 +18,15 @@ import {
   Lock,
   Send,
   Share2,
+  Settings,
 } from "lucide-react";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { UploadAssetModal } from "@/components/lounges/UploadAssetModal";
 import { MemberAccessModal } from "@/components/lounges/MemberAccessModal";
 import { InviteModal } from "@/components/lounges/InviteModal";
+import { LoungeSettingsModal } from "@/components/lounges/LoungeSettingsModal";
+import { EmojiPickerButton } from "@/components/chat/EmojiPickerButton";
+import { YouTubeIcon } from "@/components/icons/YouTubeIcon";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
@@ -34,6 +38,7 @@ interface GroupDetails {
   description: string | null;
   code: string;
   creatorId: string;
+  youtubeUrl?: string | null;
   createdAt: string;
 }
 
@@ -109,11 +114,16 @@ export default function LoungeWorkspacePage() {
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isAccessModalOpen, setIsAccessModalOpen] = useState(false);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const [chatInput, setChatInput] = useState("");
+  const chatInputRef = useRef<HTMLInputElement>(null);
+  const chatCursorPosRef = useRef<number | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isSendingMessage, setIsSendingMessage] = useState(false);
-  const [activeSession, setActiveSession] = useState<ActiveSessionData | null>(null);
+  const [activeSession, setActiveSession] = useState<ActiveSessionData | null>(
+    null
+  );
 
   const fetchWorkspaceData = useCallback(async () => {
     if (!groupId) return;
@@ -203,7 +213,9 @@ export default function LoungeWorkspacePage() {
 
       router.push(`/lounges/${groupId}/room`);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Could not start video meeting");
+      alert(
+        err instanceof Error ? err.message : "Could not start video meeting"
+      );
       setIsStartingVideo(false);
     }
   }
@@ -236,6 +248,7 @@ export default function LoungeWorkspacePage() {
     if (!text || isSendingMessage) return;
 
     setChatInput("");
+    chatCursorPosRef.current = null;
     setIsSendingMessage(true);
     try {
       const res = await fetch(`/api/groups/${groupId}/messages`, {
@@ -258,6 +271,34 @@ export default function LoungeWorkspacePage() {
       setIsSendingMessage(false);
     }
   }
+
+  const handleEmojiSelect = (emoji: string) => {
+    const input = chatInputRef.current;
+    const currentText = chatInput;
+    const start =
+      chatCursorPosRef.current !== null
+        ? chatCursorPosRef.current
+        : input?.selectionStart !== null && input?.selectionStart !== undefined
+          ? input.selectionStart
+          : currentText.length;
+    const end =
+      input?.selectionEnd !== null && input?.selectionEnd !== undefined
+        ? input.selectionEnd
+        : start;
+
+    const newText =
+      currentText.slice(0, start) + emoji + currentText.slice(end);
+    setChatInput(newText);
+    const newCursorPos = start + emoji.length;
+    chatCursorPosRef.current = newCursorPos;
+
+    requestAnimationFrame(() => {
+      if (input) {
+        input.focus();
+        input.setSelectionRange(newCursorPos, newCursorPos);
+      }
+    });
+  };
 
   async function handlePostInviteToChat(inviteMsg: string) {
     try {
@@ -349,20 +390,29 @@ export default function LoungeWorkspacePage() {
         {/* Top Breadcrumb & Status Sub-header */}
         <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-[var(--border-hairline)] mb-6 text-xs text-[var(--text-secondary)]">
           <div className="flex items-center gap-2">
-            <Link href="/lounges" className="hover:text-[var(--text-primary)] transition-colors">
+            <Link
+              href="/lounges"
+              className="hover:text-[var(--text-primary)] transition-colors"
+            >
               Study Groups
             </Link>
             <span className="text-[var(--text-disabled)]">/</span>
-            <span className="text-[var(--text-primary)] font-medium">{group.name}</span>
+            <span className="text-[var(--text-primary)] font-medium">
+              {group.name}
+            </span>
             <span className="text-[var(--text-disabled)]">•</span>
-            <span className="font-mono text-[var(--text-secondary)]">Invite Code: #{group.code}</span>
+            <span className="font-mono text-[var(--text-secondary)]">
+              Invite Code: #{group.code}
+            </span>
           </div>
 
           <div className="flex items-center gap-4">
             {activeSession ? (
               <div className="flex items-center gap-2 font-mono text-xs">
                 <span className="w-2 h-2 rounded-full bg-[#e5484d] animate-live-breathe" />
-                <span className="text-[#e5484d] font-semibold">Live meeting in progress</span>
+                <span className="text-[#e5484d] font-semibold">
+                  Live meeting in progress
+                </span>
               </div>
             ) : (
               <div className="flex items-center gap-2 font-mono text-xs text-[var(--text-secondary)]">
@@ -406,9 +456,23 @@ export default function LoungeWorkspacePage() {
 
         {/* Group Title Row & Member Presence Strip */}
         <div className="pb-8 border-b border-[var(--border-hairline)] mb-8">
-          <h1 className="font-serif text-3xl sm:text-4xl lg:text-[2.75rem] leading-tight font-normal text-[var(--text-primary)] mb-3">
-            {group.name}
-          </h1>
+          <div className="flex flex-wrap items-center gap-3 mb-3">
+            <h1 className="font-serif text-3xl sm:text-4xl lg:text-[2.75rem] leading-tight font-normal text-[var(--text-primary)]">
+              {group.name}
+            </h1>
+            {group.youtubeUrl && (
+              <a
+                href={group.youtubeUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Open YouTube live stream or video in new tab"
+                title="Watch on YouTube (opens in new tab)"
+                className="inline-flex items-center justify-center p-2 rounded-[var(--radius-button)] bg-[var(--bg-elevated)] border border-[var(--border-hairline)] text-[var(--text-primary)] hover:border-[var(--border-hover)] hover:bg-[var(--bg-overlay)] transition-colors duration-[var(--dur-fast)] cursor-pointer"
+              >
+                <YouTubeIcon className="w-4 h-4 text-[var(--text-primary)]" />
+              </a>
+            )}
+          </div>
 
           <div className="flex flex-wrap items-center justify-between gap-4">
             {/* Member Avatars */}
@@ -426,13 +490,28 @@ export default function LoungeWorkspacePage() {
               </div>
 
               <span className="text-xs text-[var(--text-secondary)] font-sans">
-                <strong className="text-[var(--text-primary)] font-medium">{members.length} members</strong>{" "}
+                <strong className="text-[var(--text-primary)] font-medium">
+                  {members.length} members
+                </strong>{" "}
                 in group: {members.map((m) => m.name.split(" ")[0]).join(", ")}
               </span>
             </div>
 
-            {/* Actions: Invite & Access */}
+            {/* Actions: YouTube Link, Invite, Access, Settings */}
             <div className="flex items-center gap-2">
+              {group.youtubeUrl && (
+                <a
+                  href={group.youtubeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Open YouTube live stream or video in new tab"
+                  title="Watch on YouTube (opens in new tab)"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-button)] bg-[var(--bg-elevated)] border border-[var(--border-hairline)] text-[var(--text-primary)] hover:border-[var(--border-hover)] hover:bg-[var(--bg-overlay)] text-xs font-sans font-medium transition-colors duration-[var(--dur-fast)] cursor-pointer"
+                >
+                  <YouTubeIcon className="w-3.5 h-3.5 text-[var(--text-primary)]" />
+                  <span>YouTube</span>
+                </a>
+              )}
               <Button
                 variant="secondary"
                 size="sm"
@@ -449,6 +528,16 @@ export default function LoungeWorkspacePage() {
               >
                 {isCreator ? "Manage Access" : "View Members"}
               </Button>
+              {isCreator && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={<Settings className="w-3.5 h-3.5" />}
+                  onClick={() => setIsSettingsOpen(true)}
+                >
+                  Settings
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -521,9 +610,14 @@ export default function LoungeWorkspacePage() {
                       No Documents Uploaded Yet
                     </h4>
                     <p className="font-sans text-xs text-[var(--text-secondary)] max-w-sm mx-auto mb-4">
-                      Upload shared notes, reading lists, or PDFs using the upload area below.
+                      Upload shared notes, reading lists, or PDFs using the
+                      upload area below.
                     </p>
-                    <Button variant="primary" size="sm" onClick={() => setIsUploadOpen(true)}>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => setIsUploadOpen(true)}
+                    >
                       Upload First Document
                     </Button>
                   </div>
@@ -534,8 +628,8 @@ export default function LoungeWorkspacePage() {
                     const badgeText = isPdf
                       ? "PDF DOCUMENT"
                       : isMd
-                      ? "NOTES"
-                      : "SLIDE DECK";
+                        ? "NOTES"
+                        : "SLIDE DECK";
 
                     const isLocked = !asset.canAccess;
                     const isShaking = shakingAssetId === asset.id;
@@ -556,7 +650,8 @@ export default function LoungeWorkspacePage() {
                             <div className="flex items-center gap-2">
                               <Badge variant="neutral">{badgeText}</Badge>
                               <span className="font-mono text-xs text-[var(--text-secondary)]">
-                                {(asset.sizeBytes / 1024 / 1024).toFixed(2)} MB • Added{" "}
+                                {(asset.sizeBytes / 1024 / 1024).toFixed(2)} MB
+                                • Added{" "}
                                 {new Date(asset.createdAt).toLocaleDateString()}
                               </span>
                             </div>
@@ -601,7 +696,9 @@ export default function LoungeWorkspacePage() {
                                 Download
                               </Button>
                               {asset.canAccess ? (
-                                <Link href={`/lounges/${groupId}/folios/${asset.id}`}>
+                                <Link
+                                  href={`/lounges/${groupId}/folios/${asset.id}`}
+                                >
                                   <Button
                                     variant="primary"
                                     size="sm"
@@ -645,9 +742,14 @@ export default function LoungeWorkspacePage() {
                 Upload Study Materials
               </h4>
               <p className="font-sans text-xs text-[var(--text-secondary)] max-w-md mx-auto mb-4">
-                Upload PDF, Markdown notes, or slide decks to share with your group
+                Upload PDF, Markdown notes, or slide decks to share with your
+                group
               </p>
-              <Button variant="secondary" size="sm" onClick={() => setIsUploadOpen(true)}>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setIsUploadOpen(true)}
+              >
                 Select Files to Upload
               </Button>
             </div>
@@ -674,7 +776,9 @@ export default function LoungeWorkspacePage() {
                   <div className="p-3 bg-[var(--bg-inset)] rounded-[var(--radius-button)] border border-[var(--border-hairline)]">
                     <div className="flex items-center justify-between text-[var(--text-secondary)] font-mono text-[0.6875rem] mb-1">
                       <span>Previous Meeting</span>
-                      <span className="text-[var(--text-primary)]">Concluded</span>
+                      <span className="text-[var(--text-primary)]">
+                        Concluded
+                      </span>
                     </div>
                     <p className="font-medium text-[var(--text-primary)] mb-1">
                       {sessionsList[0]?.roomName}
@@ -712,7 +816,8 @@ export default function LoungeWorkspacePage() {
               <div className="p-4 space-y-3 max-h-80 overflow-y-auto font-sans text-xs">
                 {chatMessages.length === 0 ? (
                   <div className="py-12 text-center text-xs text-[var(--text-secondary)] font-mono">
-                    No messages in this study group yet. Say hello to your peers!
+                    No messages in this study group yet. Say hello to your
+                    peers!
                   </div>
                 ) : (
                   chatMessages.map((msg) => {
@@ -723,15 +828,20 @@ export default function LoungeWorkspacePage() {
                           m.userId === msg.senderId &&
                           m.email === user?.primaryEmailAddress?.emailAddress
                       );
-                    const time = new Date(msg.createdAt).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    });
+                    const time = new Date(msg.createdAt).toLocaleTimeString(
+                      [],
+                      {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      }
+                    );
                     return (
                       <motion.div
                         key={msg.id}
                         initial={
-                          shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }
+                          shouldReduceMotion
+                            ? { opacity: 0 }
+                            : { opacity: 0, y: 8 }
                         }
                         animate={{ opacity: 1, y: 0 }}
                         transition={{
@@ -766,19 +876,37 @@ export default function LoungeWorkspacePage() {
               {/* Chat Input */}
               <form
                 onSubmit={handleSendChatMessage}
-                className="p-3 border-t border-[var(--border-hairline)] bg-[var(--bg-inset)] flex gap-2"
+                className="p-3 border-t border-[var(--border-hairline)] bg-[var(--bg-inset)] flex items-center gap-2 relative"
               >
+                <EmojiPickerButton
+                  onEmojiSelect={handleEmojiSelect}
+                  align="left"
+                />
                 <input
+                  ref={chatInputRef}
                   type="text"
                   placeholder="Type a message..."
                   value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
+                  onChange={(e) => {
+                    setChatInput(e.target.value);
+                    chatCursorPosRef.current = e.target.selectionStart;
+                  }}
+                  onSelect={(e) => {
+                    chatCursorPosRef.current = e.currentTarget.selectionStart;
+                  }}
+                  onClick={(e) => {
+                    chatCursorPosRef.current = e.currentTarget.selectionStart;
+                  }}
+                  onKeyUp={(e) => {
+                    chatCursorPosRef.current = e.currentTarget.selectionStart;
+                  }}
                   className="flex-1 bg-[var(--bg-elevated)] border border-[var(--border-hairline)] rounded-[var(--radius-button)] text-xs px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-disabled)] outline-none focus:border-[var(--border-focus)] transition-colors duration-[var(--dur-fast)]"
                 />
                 <button
                   type="submit"
                   aria-label="Send message"
-                  className="p-2 bg-[var(--invert-bg)] hover:bg-white text-[var(--invert-text)] rounded-[var(--radius-button)] transition-colors duration-[var(--dur-fast)] shrink-0 cursor-pointer"
+                  disabled={isSendingMessage || !chatInput.trim()}
+                  className="p-2 bg-[var(--invert-bg)] hover:bg-white text-[var(--invert-text)] rounded-[var(--radius-button)] transition-colors duration-[var(--dur-fast)] shrink-0 cursor-pointer disabled:opacity-50"
                 >
                   <Send className="w-3.5 h-3.5" />
                 </button>
@@ -815,6 +943,22 @@ export default function LoungeWorkspacePage() {
         onClose={() => setIsInviteOpen(false)}
         onPostToChat={handlePostInviteToChat}
       />
+
+      {/* Lounge Settings Modal (Creator-Only) */}
+      {isCreator && (
+        <LoungeSettingsModal
+          groupId={groupId}
+          groupName={group.name}
+          initialYoutubeUrl={group.youtubeUrl}
+          isOpen={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+          onSaved={(newYoutubeUrl) => {
+            setGroup((prev) =>
+              prev ? { ...prev, youtubeUrl: newYoutubeUrl } : null
+            );
+          }}
+        />
+      )}
     </RouteTransition>
   );
 }

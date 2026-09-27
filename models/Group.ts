@@ -18,6 +18,7 @@ export const groups = pgTable(
     creatorId: uuid("creator_id")
       .references(() => users.id, { onDelete: "cascade" })
       .notNull(),
+    youtubeUrl: text("youtube_url"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),

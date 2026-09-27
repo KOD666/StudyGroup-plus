@@ -45,6 +45,7 @@ import type {
   SwitchBackgroundProcessorOptions,
 } from "@livekit/track-processors";
 import { Button } from "@/components/ui/Button";
+import { EmojiPickerButton } from "@/components/chat/EmojiPickerButton";
 
 interface BackgroundPreset {
   id: string;
@@ -338,8 +339,12 @@ export default function MeetingRoomPage() {
   }
   const [inCallMessages, setInCallMessages] = useState<InCallMessage[]>([]);
   const [inCallInput, setInCallInput] = useState("");
+  const inCallInputRef = useRef<HTMLInputElement>(null);
+  const inCallCursorPosRef = useRef<number | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
-  const [connectionTargetUrl, setConnectionTargetUrl] = useState<string | null>(null);
+  const [connectionTargetUrl, setConnectionTargetUrl] = useState<string | null>(
+    null
+  );
   const [connectionRetryCount, setConnectionRetryCount] = useState(0);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
 
@@ -355,7 +360,8 @@ export default function MeetingRoomPage() {
   const [transcriptLog, setTranscriptLog] = useState<TranscriptItem[]>([]);
   const [isPinFlashing, setIsPinFlashing] = useState(false);
   const [showTravelingPin, setShowTravelingPin] = useState(false);
-  const [hasDownloadedConversation, setHasDownloadedConversation] = useState(false);
+  const [hasDownloadedConversation, setHasDownloadedConversation] =
+    useState(false);
 
   // Virtual Photo Background & Blur state (Feature 1)
   const [activeBackgroundId, setActiveBackgroundId] = useState<string>("none");
@@ -449,7 +455,10 @@ export default function MeetingRoomPage() {
           }
         }
       } catch (mediaErr) {
-        console.warn("Could not acquire initial camera/mic permissions:", mediaErr);
+        console.warn(
+          "Could not acquire initial camera/mic permissions:",
+          mediaErr
+        );
       }
 
       if (isCancelled) return;
@@ -457,9 +466,12 @@ export default function MeetingRoomPage() {
       try {
         // Start or join the active session record in DB
         try {
-          const sessionRes = await fetch(`/api/groups/${groupId}/sessions/start`, {
-            method: "POST",
-          });
+          const sessionRes = await fetch(
+            `/api/groups/${groupId}/sessions/start`,
+            {
+              method: "POST",
+            }
+          );
           if (sessionRes.ok) {
             const sData = await sessionRes.json();
             if (sData.session?.id && !isCancelled) {
@@ -491,7 +503,9 @@ export default function MeetingRoomPage() {
         }
 
         if (!wsUrl || !token) {
-          throw new Error("LiveKit URL or token is missing from token response");
+          throw new Error(
+            "LiveKit URL or token is missing from token response"
+          );
         }
 
         if (isCancelled) return;
@@ -637,7 +651,9 @@ export default function MeetingRoomPage() {
         if (isCancelled) return;
         console.error("LiveKit connection failure:", err);
         const errMsg =
-          err instanceof Error ? err.message : "Failed to connect to LiveKit room";
+          err instanceof Error
+            ? err.message
+            : "Failed to connect to LiveKit room";
         setConnectionError(errMsg);
         setIsConnected(false);
       }
@@ -800,7 +816,11 @@ export default function MeetingRoomPage() {
       } catch {}
       bgProcessorRef.current = null;
     }
-    if (activeSessionId && roomRef.current && roomRef.current.remoteParticipants.size === 0) {
+    if (
+      activeSessionId &&
+      roomRef.current &&
+      roomRef.current.remoteParticipants.size === 0
+    ) {
       try {
         await fetch(`/api/groups/${groupId}/sessions/${activeSessionId}/end`, {
           method: "POST",
@@ -857,15 +877,16 @@ export default function MeetingRoomPage() {
         return;
       }
 
-      const { BackgroundProcessor, supportsBackgroundProcessors } = await import(
-        "@livekit/track-processors"
-      );
+      const { BackgroundProcessor, supportsBackgroundProcessors } =
+        await import("@livekit/track-processors");
 
       if (
         typeof supportsBackgroundProcessors === "function" &&
         !supportsBackgroundProcessors()
       ) {
-        setBgError("Virtual backgrounds are not supported in your current browser.");
+        setBgError(
+          "Virtual backgrounds are not supported in your current browser."
+        );
         setIsApplyingBg(false);
         return;
       }
@@ -1027,7 +1048,10 @@ export default function MeetingRoomPage() {
     if (!text || !roomRef.current) return;
 
     const now = new Date();
-    const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const timeStr = now.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
     const msgId = `incall-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
     const sender = user?.fullName || user?.firstName || "You";
 
@@ -1062,7 +1086,36 @@ export default function MeetingRoomPage() {
       },
     ]);
     setInCallInput("");
+    inCallCursorPosRef.current = null;
   }
+
+  const handleEmojiSelectInCall = (emoji: string) => {
+    const input = inCallInputRef.current;
+    const currentText = inCallInput;
+    const start =
+      inCallCursorPosRef.current !== null
+        ? inCallCursorPosRef.current
+        : input?.selectionStart !== null && input?.selectionStart !== undefined
+          ? input.selectionStart
+          : currentText.length;
+    const end =
+      input?.selectionEnd !== null && input?.selectionEnd !== undefined
+        ? input.selectionEnd
+        : start;
+
+    const newText =
+      currentText.slice(0, start) + emoji + currentText.slice(end);
+    setInCallInput(newText);
+    const newCursorPos = start + emoji.length;
+    inCallCursorPosRef.current = newCursorPos;
+
+    requestAnimationFrame(() => {
+      if (input) {
+        input.focus();
+        input.setSelectionRange(newCursorPos, newCursorPos);
+      }
+    });
+  };
 
   function handleCopyInviteLink() {
     const inviteUrl = `${window.location.origin}/join/${groupCode}`;
@@ -1181,7 +1234,9 @@ export default function MeetingRoomPage() {
           >
             {groupName}
           </Link>
-          <span className="text-[var(--text-disabled)] hidden sm:inline">/</span>
+          <span className="text-[var(--text-disabled)] hidden sm:inline">
+            /
+          </span>
 
           {/* Second Sanctioned Accent-Live Indicator (§6.3 REC • LIVE matching Reference Photo) */}
           <div
@@ -1341,7 +1396,9 @@ export default function MeetingRoomPage() {
                     <span className="px-2.5 py-1 rounded-[var(--radius-button)] bg-[var(--bg-inset)]/90 backdrop-blur-sm border border-[var(--border-hairline)] text-xs font-mono text-[var(--text-primary)] flex items-center gap-2">
                       <span
                         className={`w-2 h-2 rounded-full ${
-                          isVideoOff ? "bg-[var(--text-disabled)]" : "bg-[var(--text-primary)]"
+                          isVideoOff
+                            ? "bg-[var(--text-disabled)]"
+                            : "bg-[var(--text-primary)]"
                         }`}
                       />
                       {user?.fullName || "You"} (Stage)
@@ -1387,11 +1444,15 @@ export default function MeetingRoomPage() {
               {/* Live Transcript Panel (§6.3 word-by-word reveal, 4px rise, Pin-to-notes travel animation) */}
               {transcript && (
                 <motion.div
-                  initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 4 }}
+                  initial={
+                    shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 4 }
+                  }
                   animate={{
                     opacity: 1,
                     y: 0,
-                    backgroundColor: isPinFlashing ? "var(--bg-overlay)" : "rgba(10, 10, 10, 0.92)",
+                    backgroundColor: isPinFlashing
+                      ? "var(--bg-overlay)"
+                      : "rgba(10, 10, 10, 0.92)",
                   }}
                   transition={{ duration: shouldReduceMotion ? 0.1 : 0.2 }}
                   className="relative z-20 m-4 p-4 rounded-[var(--radius-card)] backdrop-blur-md border border-[var(--border-hairline)] max-w-2xl"
@@ -1422,7 +1483,10 @@ export default function MeetingRoomPage() {
                         <motion.div
                           initial={{ opacity: 1, x: 0, y: 0, scale: 1 }}
                           animate={{ opacity: 0, x: 180, y: -40, scale: 0.4 }}
-                          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+                          transition={{
+                            duration: 0.6,
+                            ease: [0.16, 1, 0.3, 1],
+                          }}
                           className="absolute -top-1 left-0 pointer-events-none text-[var(--text-primary)]"
                         >
                           <Pin className="w-4 h-4" />
@@ -1432,7 +1496,10 @@ export default function MeetingRoomPage() {
                   </div>
 
                   <p className="font-serif text-sm sm:text-base leading-relaxed text-[var(--text-primary)]">
-                    <WordByWordTranscript text={transcript} shouldReduceMotion={shouldReduceMotion} />
+                    <WordByWordTranscript
+                      text={transcript}
+                      shouldReduceMotion={shouldReduceMotion}
+                    />
                   </p>
                 </motion.div>
               )}
@@ -1542,7 +1609,11 @@ export default function MeetingRoomPage() {
                     transition={{ duration: 0.15 }}
                     className="flex items-center justify-center"
                   >
-                    {isMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                    {isMuted ? (
+                      <MicOff className="w-4 h-4" />
+                    ) : (
+                      <Mic className="w-4 h-4" />
+                    )}
                   </motion.span>
                 </AnimatePresence>
               </motion.button>
@@ -1608,10 +1679,12 @@ export default function MeetingRoomPage() {
                   {activeBackgroundId === "none"
                     ? "Background"
                     : activeBackgroundId === "blur"
-                    ? "Blur"
-                    : activeBackgroundId === "custom"
-                    ? "Custom Bg"
-                    : BACKGROUND_PRESETS.find((p) => p.id === activeBackgroundId)?.name || "Background"}
+                      ? "Blur"
+                      : activeBackgroundId === "custom"
+                        ? "Custom Bg"
+                        : BACKGROUND_PRESETS.find(
+                            (p) => p.id === activeBackgroundId
+                          )?.name || "Background"}
                 </span>
                 <span className="sm:hidden">Bg</span>
               </button>
@@ -1631,7 +1704,12 @@ export default function MeetingRoomPage() {
                 title="Toggle In-Call Chat Panel"
               >
                 <MessageSquare className="w-3.5 h-3.5" />
-                <span>Chat{inCallMessages.length > 0 ? ` (${inCallMessages.length})` : ""}</span>
+                <span>
+                  Chat
+                  {inCallMessages.length > 0
+                    ? ` (${inCallMessages.length})`
+                    : ""}
+                </span>
               </button>
 
               {/* Study Notes Toggle */}
@@ -1684,7 +1762,9 @@ export default function MeetingRoomPage() {
                 )}
                 <div>
                   <h3 className="font-serif text-base font-normal text-[var(--text-primary)]">
-                    {activeTab === "chat" ? "In-Call Group Chat" : "Study Notes & Documents"}
+                    {activeTab === "chat"
+                      ? "In-Call Group Chat"
+                      : "Study Notes & Documents"}
                   </h3>
                   <p className="font-mono text-[0.625rem] uppercase tracking-[0.08em] text-[var(--text-secondary)]">
                     {groupName} Materials
@@ -1751,7 +1831,9 @@ export default function MeetingRoomPage() {
                       {hasDownloadedConversation ? (
                         <>
                           <Check className="w-3 h-3 text-[var(--text-primary)]" />
-                          <span className="text-[var(--text-primary)]">Exported!</span>
+                          <span className="text-[var(--text-primary)]">
+                            Exported!
+                          </span>
                         </>
                       ) : (
                         <>
@@ -1766,16 +1848,23 @@ export default function MeetingRoomPage() {
                     {inCallMessages.length === 0 ? (
                       <div className="h-full min-h-[14rem] flex flex-col items-center justify-center text-center p-6 border border-dashed border-[var(--border-hairline)] rounded-[var(--radius-card)]">
                         <MessageSquare className="w-8 h-8 text-[var(--text-secondary)] opacity-40 mb-2" />
-                        <span className="font-serif text-sm text-[var(--text-primary)]">In-Call Room Chat</span>
+                        <span className="font-serif text-sm text-[var(--text-primary)]">
+                          In-Call Room Chat
+                        </span>
                         <p className="font-sans text-[0.6875rem] text-[var(--text-secondary)] mt-1 max-w-[200px] leading-relaxed">
-                          Messages sent here are broadcast over WebRTC data channels to all connected participants.
+                          Messages sent here are broadcast over WebRTC data
+                          channels to all connected participants.
                         </p>
                       </div>
                     ) : (
                       inCallMessages.map((msg) => (
                         <motion.div
                           key={msg.id}
-                          initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
+                          initial={
+                            shouldReduceMotion
+                              ? { opacity: 0 }
+                              : { opacity: 0, y: 8 }
+                          }
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ duration: 0.2 }}
                           className={`p-3 rounded-[var(--radius-card)] border text-xs ${
@@ -1800,12 +1889,35 @@ export default function MeetingRoomPage() {
                     )}
                   </div>
 
-                  <form onSubmit={handleSendInCallMessage} className="pt-3 border-t border-[var(--border-hairline)] mt-3">
-                    <div className="flex items-center gap-2">
+                  <form
+                    onSubmit={handleSendInCallMessage}
+                    className="pt-3 border-t border-[var(--border-hairline)] mt-3"
+                  >
+                    <div className="flex items-center gap-2 relative">
+                      <EmojiPickerButton
+                        onEmojiSelect={handleEmojiSelectInCall}
+                        align="left"
+                      />
                       <input
+                        ref={inCallInputRef}
                         type="text"
                         value={inCallInput}
-                        onChange={(e) => setInCallInput(e.target.value)}
+                        onChange={(e) => {
+                          setInCallInput(e.target.value);
+                          inCallCursorPosRef.current = e.target.selectionStart;
+                        }}
+                        onSelect={(e) => {
+                          inCallCursorPosRef.current =
+                            e.currentTarget.selectionStart;
+                        }}
+                        onClick={(e) => {
+                          inCallCursorPosRef.current =
+                            e.currentTarget.selectionStart;
+                        }}
+                        onKeyUp={(e) => {
+                          inCallCursorPosRef.current =
+                            e.currentTarget.selectionStart;
+                        }}
                         placeholder="Type in-call message..."
                         className="flex-1 bg-[var(--bg-inset)] border border-[var(--border-hairline)] rounded-[var(--radius-button)] px-3 py-2 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:outline-none focus:border-[var(--text-primary)] transition-colors"
                       />
@@ -1829,7 +1941,9 @@ export default function MeetingRoomPage() {
                       GROUP DOCUMENTS
                     </span>
                     <h4 className="font-serif text-lg font-normal text-[var(--text-primary)] mt-1">
-                      {selectedAsset ? selectedAsset.title : "No Document Selected"}
+                      {selectedAsset
+                        ? selectedAsset.title
+                        : "No Document Selected"}
                     </h4>
                   </div>
 
@@ -1877,7 +1991,8 @@ export default function MeetingRoomPage() {
                   </h4>
                   {pinnedNotes.length === 0 ? (
                     <div className="p-4 bg-[var(--bg-inset)] border border-dashed border-[var(--border-hairline)] rounded-[var(--radius-card)] text-center text-xs text-[var(--text-secondary)] font-mono">
-                      No notes pinned yet. Use &ldquo;Pin to Notes&rdquo; on transcripts or add below.
+                      No notes pinned yet. Use &ldquo;Pin to Notes&rdquo; on
+                      transcripts or add below.
                     </div>
                   ) : (
                     pinnedNotes.map((note, i) => (
@@ -1930,7 +2045,8 @@ export default function MeetingRoomPage() {
 
                   {assets.length === 0 ? (
                     <div className="p-4 bg-[var(--bg-inset)] border border-dashed border-[var(--border-hairline)] rounded-[var(--radius-card)] text-center text-xs text-[var(--text-secondary)] font-mono">
-                      Citations generate automatically when study documents are uploaded.
+                      Citations generate automatically when study documents are
+                      uploaded.
                     </div>
                   ) : (
                     assets.map((a) => (
@@ -1987,9 +2103,17 @@ export default function MeetingRoomPage() {
 
             {/* Modal Box (§5: scale 0.96 -> 1 + fade, ease-out-expo) */}
             <motion.div
-              initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
+              initial={
+                shouldReduceMotion
+                  ? { opacity: 0 }
+                  : { opacity: 0, scale: 0.96 }
+              }
               animate={{ opacity: 1, scale: 1 }}
-              exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
+              exit={
+                shouldReduceMotion
+                  ? { opacity: 0 }
+                  : { opacity: 0, scale: 0.96 }
+              }
               transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
               className="relative z-10 w-full max-w-2xl bg-[var(--bg-elevated)] border border-[var(--border-hairline)] rounded-[var(--radius-card)] shadow-2xl p-6 overflow-hidden flex flex-col max-h-[90vh] font-sans"
             >
@@ -2003,7 +2127,8 @@ export default function MeetingRoomPage() {
                     </h3>
                   </div>
                   <p className="font-sans text-xs text-[var(--text-secondary)] mt-1">
-                    Select a background effect or upload a photo. Changes apply immediately to your video feed.
+                    Select a background effect or upload a photo. Changes apply
+                    immediately to your video feed.
                   </p>
                 </div>
                 <button
@@ -2027,7 +2152,10 @@ export default function MeetingRoomPage() {
               {/* Camera Off Notice */}
               {isVideoOff && (
                 <div className="mt-4 p-3 rounded-[var(--radius-card)] bg-[var(--bg-inset)] border border-[var(--border-hairline)] text-xs text-[var(--text-secondary)] flex items-center justify-between font-sans">
-                  <span>Your camera is currently off. The selected background will activate when camera is turned on.</span>
+                  <span>
+                    Your camera is currently off. The selected background will
+                    activate when camera is turned on.
+                  </span>
                 </div>
               )}
 
@@ -2051,7 +2179,9 @@ export default function MeetingRoomPage() {
                         {preset.type === "none" && (
                           <div className="flex flex-col items-center justify-center">
                             <Ban className="w-6 h-6 text-[var(--text-secondary)] opacity-50 mb-1" />
-                            <span className="font-mono text-[0.625rem] text-[var(--text-secondary)]">No Effect</span>
+                            <span className="font-mono text-[0.625rem] text-[var(--text-secondary)]">
+                              No Effect
+                            </span>
                           </div>
                         )}
 
@@ -2133,11 +2263,17 @@ export default function MeetingRoomPage() {
 
                   <div className="p-2.5 bg-[var(--bg-elevated)] border-t border-[var(--border-hairline)] flex-1 flex flex-col justify-between">
                     <div className="font-sans text-xs font-medium text-[var(--text-primary)] flex items-center justify-between">
-                      <span>{customBgUrl ? "Custom Photo" : "Upload Custom"}</span>
-                      <span className="font-mono text-[0.5625rem] text-[var(--text-secondary)]">PNG/JPG</span>
+                      <span>
+                        {customBgUrl ? "Custom Photo" : "Upload Custom"}
+                      </span>
+                      <span className="font-mono text-[0.5625rem] text-[var(--text-secondary)]">
+                        PNG/JPG
+                      </span>
                     </div>
                     <div className="font-mono text-[0.625rem] text-[var(--text-secondary)] truncate mt-0.5">
-                      {customBgUrl ? "Click to change photo" : "Choose your own file"}
+                      {customBgUrl
+                        ? "Click to change photo"
+                        : "Choose your own file"}
                     </div>
                   </div>
                 </div>
@@ -2156,10 +2292,12 @@ export default function MeetingRoomPage() {
                       activeBackgroundId === "none"
                         ? "Standard Camera"
                         : activeBackgroundId === "blur"
-                        ? "Background Blur"
-                        : activeBackgroundId === "custom"
-                        ? "Custom Photo"
-                        : BACKGROUND_PRESETS.find((p) => p.id === activeBackgroundId)?.name || "Preset"
+                          ? "Background Blur"
+                          : activeBackgroundId === "custom"
+                            ? "Custom Photo"
+                            : BACKGROUND_PRESETS.find(
+                                (p) => p.id === activeBackgroundId
+                              )?.name || "Preset"
                     }`
                   )}
                 </span>

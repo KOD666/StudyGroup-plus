@@ -7,6 +7,11 @@ export default defineConfig({
     globals: true,
     passWithNoTests: true,
     exclude: ["**/node_modules/**", "**/study-group-plus/**", "**/.next/**"],
+    env: {
+      GEMINI_API_KEY: "",
+      LLM_API_KEY: "",
+      GROQ_API_KEY: "",
+    },
   },
   resolve: {
     alias: {
