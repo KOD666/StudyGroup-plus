@@ -21,6 +21,7 @@
     "@aws-sdk/client-s3": "^3.1134.0",
     "@aws-sdk/s3-request-presigner": "^3.1134.0",
     "@clerk/nextjs": "^7.9.4",
+    "@livekit/track-processors": "^0.8.1",
     "@neondatabase/serverless": "^0.10.4",
     "drizzle-orm": "^0.39.3",
     "framer-motion": "^13.4.0",

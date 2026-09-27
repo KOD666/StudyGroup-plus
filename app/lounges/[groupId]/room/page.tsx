@@ -26,6 +26,10 @@ import {
   MessageSquare,
   Send,
   AlertCircle,
+  Download,
+  Image as ImageIcon,
+  Upload,
+  Ban,
 } from "lucide-react";
 import {
   Room,
@@ -34,8 +38,64 @@ import {
   RemoteParticipant,
   RemoteTrackPublication,
   ParticipantEvent,
+  LocalVideoTrack,
 } from "livekit-client";
+import type {
+  BackgroundProcessorWrapper,
+  SwitchBackgroundProcessorOptions,
+} from "@livekit/track-processors";
 import { Button } from "@/components/ui/Button";
+
+interface BackgroundPreset {
+  id: string;
+  name: string;
+  description: string;
+  type: "none" | "blur" | "image";
+  src?: string;
+}
+
+const BACKGROUND_PRESETS: BackgroundPreset[] = [
+  {
+    id: "none",
+    name: "None",
+    description: "Standard camera video feed",
+    type: "none",
+  },
+  {
+    id: "blur",
+    name: "Blur",
+    description: "Subtle depth-of-field background blur",
+    type: "blur",
+  },
+  {
+    id: "library",
+    name: "The Grand Library",
+    description: "Classical reading room with cathedral stacks",
+    type: "image",
+    src: "/backgrounds/library.jpg",
+  },
+  {
+    id: "loft",
+    name: "Minimalist Loft",
+    description: "Clean study space with soft natural daylight",
+    type: "image",
+    src: "/backgrounds/loft.jpg",
+  },
+  {
+    id: "archive",
+    name: "Rare Archive",
+    description: "Historic manuscripts & scholar study desk",
+    type: "image",
+    src: "/backgrounds/archive.jpg",
+  },
+  {
+    id: "studio",
+    name: "Academic Studio",
+    description: "Modern architectural drafting studio",
+    type: "image",
+    src: "/backgrounds/studio.jpg",
+  },
+];
 
 interface Asset {
   id: string;
@@ -284,10 +344,27 @@ export default function MeetingRoomPage() {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
 
   // Live transcript & Pin Animation state (§6.3)
+  interface TranscriptItem {
+    id: string;
+    time: string;
+    speaker: string;
+    text: string;
+  }
   const [transcript, setTranscript] = useState<string | null>(null);
   const [transcriptTime, setTranscriptTime] = useState<string>("");
+  const [transcriptLog, setTranscriptLog] = useState<TranscriptItem[]>([]);
   const [isPinFlashing, setIsPinFlashing] = useState(false);
   const [showTravelingPin, setShowTravelingPin] = useState(false);
+  const [hasDownloadedConversation, setHasDownloadedConversation] = useState(false);
+
+  // Virtual Photo Background & Blur state (Feature 1)
+  const [activeBackgroundId, setActiveBackgroundId] = useState<string>("none");
+  const [customBgUrl, setCustomBgUrl] = useState<string | null>(null);
+  const [isBgPickerOpen, setIsBgPickerOpen] = useState(false);
+  const [isApplyingBg, setIsApplyingBg] = useState(false);
+  const [bgError, setBgError] = useState<string | null>(null);
+  const bgProcessorRef = useRef<BackgroundProcessorWrapper | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // LiveKit Room reference & Participants
   const roomRef = useRef<Room | null>(null);
@@ -328,6 +405,17 @@ export default function MeetingRoomPage() {
     }
     loadLoungeDetails();
   }, [groupId]);
+
+  // Close Virtual Background picker on Escape key press
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape" && isBgPickerOpen) {
+        setIsBgPickerOpen(false);
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isBgPickerOpen]);
 
   // Connect to LiveKit Room and initialize local media with cancellation protection
   useEffect(() => {
@@ -466,13 +554,25 @@ export default function MeetingRoomPage() {
               if (data.type === "transcript") {
                 setTranscript(data.text);
                 const now = new Date();
-                setTranscriptTime(
+                const timeStr =
+                  data.time ||
                   now.toLocaleTimeString([], {
                     hour: "2-digit",
                     minute: "2-digit",
                     second: "2-digit",
-                  })
-                );
+                  });
+                setTranscriptTime(timeStr);
+                setTranscriptLog((prev) => [
+                  ...prev,
+                  {
+                    id:
+                      data.id ||
+                      `transcript-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+                    time: timeStr,
+                    speaker: data.speaker || "AI Transcript",
+                    text: data.text,
+                  },
+                ]);
               } else if (data.type === "chat" && data.text) {
                 const now = new Date();
                 const timeStr =
@@ -547,6 +647,12 @@ export default function MeetingRoomPage() {
 
     return () => {
       isCancelled = true;
+      if (bgProcessorRef.current) {
+        try {
+          bgProcessorRef.current.destroy?.();
+        } catch {}
+        bgProcessorRef.current = null;
+      }
       if (localRoom) {
         localRoom.disconnect();
       } else if (roomRef.current) {
@@ -658,6 +764,11 @@ export default function MeetingRoomPage() {
             if (stageVideoRef.current) {
               camTrack.track.attach(stageVideoRef.current);
             }
+            if (activeBackgroundId !== "none") {
+              setTimeout(() => {
+                applyBackground(activeBackgroundId);
+              }, 100);
+            }
           }
         }
       } catch (err) {
@@ -683,6 +794,12 @@ export default function MeetingRoomPage() {
   // Leave Call (§6.3 - deliberate 250ms closing fade to --bg-primary before route transition)
   async function handleLeave() {
     setIsLeaving(true);
+    if (bgProcessorRef.current) {
+      try {
+        bgProcessorRef.current.destroy?.();
+      } catch {}
+      bgProcessorRef.current = null;
+    }
     if (activeSessionId && roomRef.current && roomRef.current.remoteParticipants.size === 0) {
       try {
         await fetch(`/api/groups/${groupId}/sessions/${activeSessionId}/end`, {
@@ -698,6 +815,210 @@ export default function MeetingRoomPage() {
       }
       router.push(`/lounges/${groupId}`);
     }, 250);
+  }
+
+  // Virtual Photo Background & Blur Logic (Feature 1)
+  async function applyBackground(
+    bgId: string,
+    customUrlOverride?: string | null
+  ) {
+    setIsApplyingBg(true);
+    setBgError(null);
+    setActiveBackgroundId(bgId);
+
+    const customUrlToUse =
+      customUrlOverride !== undefined ? customUrlOverride : customBgUrl;
+
+    try {
+      const camPub = roomRef.current?.localParticipant?.getTrackPublication(
+        Track.Source.Camera
+      );
+      const camTrack = camPub?.track as LocalVideoTrack | undefined;
+
+      if (!camTrack) {
+        // Camera is not currently on; state is recorded and will apply when enabled
+        setIsApplyingBg(false);
+        return;
+      }
+
+      if (bgId === "none") {
+        if (bgProcessorRef.current) {
+          try {
+            await bgProcessorRef.current.switchTo({ mode: "disabled" });
+          } catch {
+            await camTrack.stopProcessor().catch(() => {});
+          }
+          await camTrack.stopProcessor().catch(() => {});
+          bgProcessorRef.current = null;
+        } else {
+          await camTrack.stopProcessor().catch(() => {});
+        }
+        setIsApplyingBg(false);
+        return;
+      }
+
+      const { BackgroundProcessor, supportsBackgroundProcessors } = await import(
+        "@livekit/track-processors"
+      );
+
+      if (
+        typeof supportsBackgroundProcessors === "function" &&
+        !supportsBackgroundProcessors()
+      ) {
+        setBgError("Virtual backgrounds are not supported in your current browser.");
+        setIsApplyingBg(false);
+        return;
+      }
+
+      let modeOptions: SwitchBackgroundProcessorOptions;
+      if (bgId === "blur") {
+        modeOptions = { mode: "background-blur", blurRadius: 10 };
+      } else {
+        let imagePath = "";
+        if (bgId === "custom") {
+          if (!customUrlToUse) {
+            setBgError("Please upload an image first.");
+            setIsApplyingBg(false);
+            return;
+          }
+          imagePath = customUrlToUse;
+        } else {
+          const preset = BACKGROUND_PRESETS.find((p) => p.id === bgId);
+          if (!preset?.src) {
+            setIsApplyingBg(false);
+            return;
+          }
+          imagePath = preset.src;
+        }
+        modeOptions = { mode: "virtual-background", imagePath };
+      }
+
+      if (bgProcessorRef.current) {
+        await bgProcessorRef.current.switchTo(modeOptions);
+      } else {
+        const processor = BackgroundProcessor(modeOptions);
+        await camTrack.setProcessor(processor);
+        bgProcessorRef.current = processor;
+      }
+    } catch (err: unknown) {
+      console.error("Failed to apply background processor:", err);
+      setBgError(
+        err instanceof Error ? err.message : "Failed to apply background effect"
+      );
+    } finally {
+      setIsApplyingBg(false);
+    }
+  }
+
+  function handleCustomFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setBgError("Please select a valid image file (JPEG, PNG, WebP).");
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setBgError("Image file size exceeds the 10MB limit.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      if (dataUrl) {
+        setCustomBgUrl(dataUrl);
+        applyBackground("custom", dataUrl);
+      }
+    };
+    reader.onerror = () => {
+      setBgError("Failed to read the selected image file.");
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // Download Conversation as Markdown (Feature 2)
+  function handleDownloadConversation() {
+    const now = new Date();
+    const dateFormatted = now.toLocaleDateString(undefined, {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+    const timeFormatted = now.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    const participantsList = [
+      user?.fullName || "You",
+      ...remoteParticipants.map((p) => p.name || p.identity || "Study Member"),
+    ].filter(Boolean);
+
+    let md = `# Meeting Conversation — ${groupName || "Study Group"}\n\n`;
+    md += `**Date:** ${dateFormatted} at ${timeFormatted}  \n`;
+    md += `**Call Duration:** ${callDuration}  \n`;
+    md += `**Participants:** ${participantsList.join(", ")}  \n`;
+    md += `**Room Mode:** ${roomMode === "quiet" ? "Silent Study" : "Active Discussion"}  \n\n`;
+    md += `---\n\n`;
+
+    // 1. In-Call Chat Section
+    md += `## In-Call Chat\n\n`;
+    if (inCallMessages.length === 0) {
+      md += `*No in-call chat messages were recorded in this session.*\n\n`;
+    } else {
+      inCallMessages.forEach((msg) => {
+        md += `### ${msg.senderName} — ${msg.time}\n\n`;
+        md += `${msg.text}\n\n`;
+      });
+    }
+
+    // 2. Transcript Section (if transcripts exist)
+    if (transcriptLog.length > 0 || transcript) {
+      md += `---\n\n`;
+      md += `## Session Transcript\n\n`;
+      if (transcriptLog.length > 0) {
+        transcriptLog.forEach((t) => {
+          md += `> **[${t.time}] ${t.speaker}:**\n> ${t.text}\n\n`;
+        });
+      } else if (transcript) {
+        md += `> **[${transcriptTime}] AI Transcript:**\n> ${transcript}\n\n`;
+      }
+    }
+
+    // 3. Pinned Notes Section (if any exist)
+    if (pinnedNotes.length > 0) {
+      md += `---\n\n`;
+      md += `## Pinned Notes\n\n`;
+      pinnedNotes.forEach((note) => {
+        md += `- ${note}\n`;
+      });
+      md += `\n`;
+    }
+
+    md += `---\n`;
+    md += `*Exported from StudyGroup+ Lounge on ${new Date().toISOString()}*\n`;
+
+    const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const dateStamp = now.toISOString().slice(0, 10).replace(/-/g, "");
+    const timeStamp = now.toTimeString().slice(0, 8).replace(/:/g, "");
+    const safeGroupName = (groupName || "studygroup")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "");
+    a.download = `${safeGroupName}_conversation_${dateStamp}_${timeStamp}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    setHasDownloadedConversation(true);
+    setTimeout(() => setHasDownloadedConversation(false), 2500);
   }
 
   async function handleSendInCallMessage(e: React.FormEvent) {
@@ -926,7 +1247,25 @@ export default function MeetingRoomPage() {
         </div>
 
         {/* Right Actions */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Download Conversation Button */}
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={
+              hasDownloadedConversation ? (
+                <Check className="w-3.5 h-3.5" />
+              ) : (
+                <Download className="w-3.5 h-3.5" />
+              )
+            }
+            onClick={handleDownloadConversation}
+            className="text-xs hidden sm:flex"
+            title="Export in-call chat & transcripts as Markdown (.md)"
+          >
+            {hasDownloadedConversation ? "Exported" : "Download Chat (.md)"}
+          </Button>
+
           <Button
             variant={isReferenceDeskOpen ? "primary" : "secondary"}
             size="sm"
@@ -1253,6 +1592,30 @@ export default function MeetingRoomPage() {
                 <span>{isScreenSharing ? "Stop Sharing" : "Screen Share"}</span>
               </button>
 
+              {/* Virtual Background Picker Toggle */}
+              <button
+                type="button"
+                onClick={() => setIsBgPickerOpen(true)}
+                className={`px-3.5 py-2 rounded-[var(--radius-button)] border text-xs font-mono flex items-center gap-2 transition-colors duration-[var(--dur-fast)] cursor-pointer ${
+                  activeBackgroundId !== "none"
+                    ? "bg-[var(--invert-bg)] text-[var(--invert-text)] border-[var(--invert-bg)]"
+                    : "bg-[var(--bg-overlay)] text-[var(--text-primary)] border-[var(--border-hairline)] hover:border-[var(--border-hover)]"
+                }`}
+                title="Virtual Video Background & Blur"
+              >
+                <ImageIcon className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">
+                  {activeBackgroundId === "none"
+                    ? "Background"
+                    : activeBackgroundId === "blur"
+                    ? "Blur"
+                    : activeBackgroundId === "custom"
+                    ? "Custom Bg"
+                    : BACKGROUND_PRESETS.find((p) => p.id === activeBackgroundId)?.name || "Background"}
+                </span>
+                <span className="sm:hidden">Bg</span>
+              </button>
+
               {/* In-Call Chat Toggle */}
               <button
                 type="button"
@@ -1374,6 +1737,31 @@ export default function MeetingRoomPage() {
             <div className="flex-1 p-5 overflow-y-auto space-y-6">
               {activeTab === "chat" && (
                 <div className="flex flex-col h-[calc(100vh-17rem)]">
+                  {/* Chat Tab Header Bar with Export Button */}
+                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-[var(--border-hairline)] text-xs">
+                    <span className="font-mono text-[0.625rem] uppercase tracking-wider text-[var(--text-secondary)]">
+                      Live WebRTC Data Channel
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleDownloadConversation}
+                      className="font-mono text-[0.6875rem] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center gap-1.5 transition-colors cursor-pointer"
+                      title="Download in-call chat and session transcripts as Markdown (.md)"
+                    >
+                      {hasDownloadedConversation ? (
+                        <>
+                          <Check className="w-3 h-3 text-[var(--text-primary)]" />
+                          <span className="text-[var(--text-primary)]">Exported!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Download className="w-3 h-3" />
+                          <span>Export .md</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
                   <div className="flex-1 overflow-y-auto space-y-3 pr-1">
                     {inCallMessages.length === 0 ? (
                       <div className="h-full min-h-[14rem] flex flex-col items-center justify-center text-center p-6 border border-dashed border-[var(--border-hairline)] rounded-[var(--radius-card)]">
@@ -1583,6 +1971,212 @@ export default function MeetingRoomPage() {
           </aside>
         )}
       </div>
+      {/* Virtual Photo Background Modal Dialog (Feature 1) */}
+      <AnimatePresence>
+        {isBgPickerOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Backdrop (§5: fades to --bg-primary at 60% opacity) */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.6 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={() => setIsBgPickerOpen(false)}
+              className="absolute inset-0 bg-[var(--bg-primary)] backdrop-blur-sm cursor-pointer"
+            />
+
+            {/* Modal Box (§5: scale 0.96 -> 1 + fade, ease-out-expo) */}
+            <motion.div
+              initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
+              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+              className="relative z-10 w-full max-w-2xl bg-[var(--bg-elevated)] border border-[var(--border-hairline)] rounded-[var(--radius-card)] shadow-2xl p-6 overflow-hidden flex flex-col max-h-[90vh] font-sans"
+            >
+              {/* Header */}
+              <div className="flex items-start justify-between pb-4 border-b border-[var(--border-hairline)]">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-[var(--text-primary)]" />
+                    <h3 className="font-serif text-lg font-normal text-[var(--text-primary)]">
+                      Virtual Video Background
+                    </h3>
+                  </div>
+                  <p className="font-sans text-xs text-[var(--text-secondary)] mt-1">
+                    Select a background effect or upload a photo. Changes apply immediately to your video feed.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsBgPickerOpen(false)}
+                  className="p-1.5 rounded-[var(--radius-button)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-inset)] transition-colors cursor-pointer"
+                  title="Close Background Picker"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Error Alert */}
+              {bgError && (
+                <div className="mt-4 p-3 rounded-[var(--radius-card)] bg-[var(--bg-inset)] border border-[var(--border-hairline)] text-xs text-[var(--text-secondary)] flex items-center gap-2 font-mono">
+                  <AlertCircle className="w-4 h-4 text-[var(--text-primary)] shrink-0" />
+                  <span>{bgError}</span>
+                </div>
+              )}
+
+              {/* Camera Off Notice */}
+              {isVideoOff && (
+                <div className="mt-4 p-3 rounded-[var(--radius-card)] bg-[var(--bg-inset)] border border-[var(--border-hairline)] text-xs text-[var(--text-secondary)] flex items-center justify-between font-sans">
+                  <span>Your camera is currently off. The selected background will activate when camera is turned on.</span>
+                </div>
+              )}
+
+              {/* Options Grid */}
+              <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3 overflow-y-auto max-h-[50vh] pr-1 py-1">
+                {/* Built-in Presets */}
+                {BACKGROUND_PRESETS.map((preset) => {
+                  const isSelected = activeBackgroundId === preset.id;
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => applyBackground(preset.id)}
+                      className={`relative group flex flex-col rounded-[var(--radius-card)] border overflow-hidden text-left transition-all duration-[var(--dur-fast)] cursor-pointer ${
+                        isSelected
+                          ? "border-[var(--text-primary)] ring-2 ring-[var(--text-primary)]/20"
+                          : "border-[var(--border-hairline)] hover:border-[var(--border-hover)] hover:-translate-y-0.5"
+                      }`}
+                    >
+                      <div className="w-full aspect-video bg-[var(--bg-inset)] relative flex items-center justify-center overflow-hidden">
+                        {preset.type === "none" && (
+                          <div className="flex flex-col items-center justify-center">
+                            <Ban className="w-6 h-6 text-[var(--text-secondary)] opacity-50 mb-1" />
+                            <span className="font-mono text-[0.625rem] text-[var(--text-secondary)]">No Effect</span>
+                          </div>
+                        )}
+
+                        {preset.type === "blur" && (
+                          <div className="w-full h-full bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center relative">
+                            <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md border border-white/20 flex items-center justify-center">
+                              <Sparkles className="w-4 h-4 text-white/90" />
+                            </div>
+                          </div>
+                        )}
+
+                        {preset.type === "image" && preset.src && (
+                          /* eslint-disable-next-line @next/next/no-img-element */
+                          <img
+                            src={preset.src}
+                            alt={preset.name}
+                            className="w-full h-full object-cover"
+                          />
+                        )}
+
+                        {isSelected && (
+                          <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[var(--invert-bg)] text-[var(--invert-text)] flex items-center justify-center shadow-md">
+                            <Check className="w-3 h-3 stroke-[2.5]" />
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="p-2.5 bg-[var(--bg-elevated)] border-t border-[var(--border-hairline)] flex-1 flex flex-col justify-between">
+                        <div className="font-sans text-xs font-medium text-[var(--text-primary)]">
+                          {preset.name}
+                        </div>
+                        <div className="font-mono text-[0.625rem] text-[var(--text-secondary)] truncate mt-0.5">
+                          {preset.description}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+
+                {/* Custom Photo Upload Card */}
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`relative group flex flex-col rounded-[var(--radius-card)] border overflow-hidden text-left transition-all duration-[var(--dur-fast)] cursor-pointer ${
+                    activeBackgroundId === "custom"
+                      ? "border-[var(--text-primary)] ring-2 ring-[var(--text-primary)]/20"
+                      : "border-[var(--border-hairline)] hover:border-[var(--border-hover)] hover:-translate-y-0.5"
+                  }`}
+                >
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleCustomFileUpload}
+                    accept="image/*"
+                    className="hidden"
+                  />
+                  <div className="w-full aspect-video bg-[var(--bg-inset)] relative flex items-center justify-center overflow-hidden">
+                    {customBgUrl ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
+                        src={customBgUrl}
+                        alt="Custom Background"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center p-3 text-center">
+                        <Upload className="w-5 h-5 text-[var(--text-secondary)] opacity-60 mb-1" />
+                        <span className="font-mono text-[0.625rem] text-[var(--text-secondary)]">
+                          Upload Photo
+                        </span>
+                      </div>
+                    )}
+
+                    {activeBackgroundId === "custom" && (
+                      <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[var(--invert-bg)] text-[var(--invert-text)] flex items-center justify-center shadow-md">
+                        <Check className="w-3 h-3 stroke-[2.5]" />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="p-2.5 bg-[var(--bg-elevated)] border-t border-[var(--border-hairline)] flex-1 flex flex-col justify-between">
+                    <div className="font-sans text-xs font-medium text-[var(--text-primary)] flex items-center justify-between">
+                      <span>{customBgUrl ? "Custom Photo" : "Upload Custom"}</span>
+                      <span className="font-mono text-[0.5625rem] text-[var(--text-secondary)]">PNG/JPG</span>
+                    </div>
+                    <div className="font-mono text-[0.625rem] text-[var(--text-secondary)] truncate mt-0.5">
+                      {customBgUrl ? "Click to change photo" : "Choose your own file"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="mt-4 pt-4 border-t border-[var(--border-hairline)] flex items-center justify-between">
+                <span className="font-mono text-[0.6875rem] text-[var(--text-secondary)]">
+                  {isApplyingBg ? (
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-primary)] animate-ping" />
+                      Applying background effect...
+                    </span>
+                  ) : (
+                    `Active: ${
+                      activeBackgroundId === "none"
+                        ? "Standard Camera"
+                        : activeBackgroundId === "blur"
+                        ? "Background Blur"
+                        : activeBackgroundId === "custom"
+                        ? "Custom Photo"
+                        : BACKGROUND_PRESETS.find((p) => p.id === activeBackgroundId)?.name || "Preset"
+                    }`
+                  )}
+                </span>
+
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setIsBgPickerOpen(false)}
+                  className="text-xs"
+                >
+                  Done
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
