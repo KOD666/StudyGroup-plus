@@ -6,6 +6,7 @@ import { Search, Bell, BookOpen, ArrowRight } from "lucide-react";
 import { useAuth } from "@clerk/nextjs";
 import { Button } from "@/components/ui/Button";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { StudyGroupLogo } from "@/components/icons/StudyGroupLogo";
 
 export function LandingHeader() {
   const { isSignedIn } = useAuth();
@@ -17,7 +18,8 @@ export function LandingHeader() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Logo & Term Tag */}
         <div className="flex items-center gap-3">
-          <Link href="/" className="flex items-baseline gap-1 group">
+          <Link href="/" className="flex items-center gap-2 group">
+            <StudyGroupLogo size={24} className="text-[var(--text-primary)] group-hover:opacity-80 transition-opacity" />
             <span className="font-serif text-2xl font-normal tracking-tight text-[var(--text-primary)] group-hover:opacity-80 transition-opacity">
               StudyGroup<span className="font-normal opacity-60">+</span>
             </span>

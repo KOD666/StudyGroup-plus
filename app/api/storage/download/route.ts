@@ -63,6 +63,7 @@ export async function GET(req: NextRequest) {
         "Content-Disposition": disposition,
         "Content-Length": fileBuffer.length.toString(),
         "Cache-Control": "private, max-age=3600",
+        "X-Content-Type-Options": "nosniff",
       },
     });
   } catch (err: unknown) {

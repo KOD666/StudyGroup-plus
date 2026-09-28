@@ -29,6 +29,16 @@ export const metadata: Metadata = {
   title: "StudyGroup+ — Editorial Academic Studio",
   description:
     "Near-monochrome, high-contrast, editorial collaborative study workspace.",
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+  },
 };
 
 const themeInitScript = `
@@ -59,12 +69,12 @@ export default function RootLayout({
       <html
         lang="en"
         suppressHydrationWarning
-        className={`${newsreader.variable} ${inter.variable} ${jetbrainsMono.variable} dark`}
+        className={`${newsreader.variable} ${inter.variable} ${jetbrainsMono.variable}`}
       >
         <head>
           <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         </head>
-        <body className="bg-[#0a0a0a] text-[#ededed] font-sans antialiased selection:bg-[#ededed] selection:text-[#0a0a0a] overflow-x-hidden">
+        <body className="bg-[var(--bg-primary)] text-[var(--text-primary)] font-sans antialiased selection:bg-[var(--invert-bg)] selection:text-[var(--invert-text)] overflow-x-hidden">
           <ThemeProvider>
             <SmoothScrollProvider>
               <CustomCursor />

@@ -40,6 +40,7 @@ import {
   CheckSquare,
 } from "lucide-react";
 import { AppHeader } from "@/components/layout/AppHeader";
+import { AnalogStopwatch } from "@/components/study/AnalogStopwatch";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -1335,6 +1336,13 @@ export default function FolioReaderPage() {
                   >
                     Take 5m Break
                   </button>
+                </div>
+              )}
+
+              {/* Analog Stopwatch Face (Item 11: SVG dial, hairline ticks, sweeping ochre hand, minute sub-dial) */}
+              {timerMode === "stopwatch" && (
+                <div className="py-4 border-t border-[var(--border-hairline)] bg-[var(--bg-inset)] flex flex-col items-center">
+                  <AnalogStopwatch size={200} />
                 </div>
               )}
 

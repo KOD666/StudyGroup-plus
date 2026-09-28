@@ -67,7 +67,12 @@ export async function GET(
         sizeBytes: asset.sizeBytes,
         expiresIn: 3600,
       },
-      { status: 200 }
+      {
+        status: 200,
+        headers: {
+          "X-Content-Type-Options": "nosniff",
+        },
+      }
     );
   } catch (error) {
     console.error("Failed to generate asset download URL:", error);

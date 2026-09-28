@@ -4,6 +4,7 @@ import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { sessions, groups } from "@/models";
 import { isGroupMember } from "@/lib/permissions";
+import { notifySessionStarted } from "@/lib/notifications";
 
 // POST /api/groups/[groupId]/sessions/start - Idempotently start or join an active live meeting session
 export async function POST(
@@ -78,6 +79,20 @@ export async function POST(
         endedAt: null,
       })
       .returning();
+
+    if (!newSession) {
+      return NextResponse.json(
+        { error: "Internal Server Error: Failed to create session record" },
+        { status: 500 }
+      );
+    }
+
+    // Trigger notification to group members
+    await notifySessionStarted({
+      groupId,
+      sessionId: newSession.id,
+      starterUserId: currentUserId,
+    });
 
     return NextResponse.json(
       {

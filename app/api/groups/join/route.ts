@@ -4,12 +4,24 @@ import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { groups, memberships } from "@/models";
 import { getGroupMembership } from "@/lib/permissions";
+import { checkRateLimit, rateLimitExceededResponse } from "@/lib/ratelimit";
 
 // POST /api/groups/join - Join a group via group code
 export async function POST(req: NextRequest) {
   const authResult = await requireAuth();
   if (!authResult.success) {
     return authResult.response;
+  }
+
+  const currentUserId = authResult.context.userId;
+
+  // Rate limiting check: max 10 join attempts per minute per user to prevent brute-forcing codes
+  const rateLimitResult = checkRateLimit(`join_group:${currentUserId}`, {
+    windowMs: 60 * 1000,
+    maxRequests: 10,
+  });
+  if (!rateLimitResult.success) {
+    return rateLimitExceededResponse(rateLimitResult);
   }
 
   let body: { code?: string };
@@ -31,7 +43,6 @@ export async function POST(req: NextRequest) {
   }
 
   const formattedCode = code.trim().toUpperCase();
-  const currentUserId = authResult.context.userId;
 
   try {
     // 1. Find group by code

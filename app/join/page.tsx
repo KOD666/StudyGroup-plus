@@ -8,6 +8,7 @@ import { AppHeader } from "@/components/layout/AppHeader";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/Card";
 import { RouteTransition } from "@/components/motion/RouteTransition";
+import { StudyGroupLogo } from "@/components/icons/StudyGroupLogo";
 
 export default function EnterInviteCodePage() {
   const router = useRouter();
@@ -88,7 +89,10 @@ export default function EnterInviteCodePage() {
             <Link href="/lounges" className="hover:text-[var(--text-primary)] transition-colors">
               ← Dashboard
             </Link>
-            <span>StudyGroup+</span>
+            <span className="inline-flex items-center gap-1.5">
+              <StudyGroupLogo size={14} className="text-[var(--text-secondary)]" />
+              <span>StudyGroup+</span>
+            </span>
           </CardFooter>
         </Card>
       </main>

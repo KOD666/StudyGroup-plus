@@ -30,6 +30,7 @@ import {
   Image as ImageIcon,
   Upload,
   Ban,
+  FlipHorizontal,
 } from "lucide-react";
 import {
   Room,
@@ -46,6 +47,13 @@ import type {
 } from "@livekit/track-processors";
 import { Button } from "@/components/ui/Button";
 import { EmojiPickerButton } from "@/components/chat/EmojiPickerButton";
+import { StudyGroupLogo } from "@/components/icons/StudyGroupLogo";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import {
+  MeetingDocViewer,
+  type ActiveMeetingDoc,
+} from "@/components/room/MeetingDocViewer";
+import { FloatingCameraWindow } from "@/components/room/FloatingCameraWindow";
 
 interface BackgroundPreset {
   id: string;
@@ -362,6 +370,28 @@ export default function MeetingRoomPage() {
   const [showTravelingPin, setShowTravelingPin] = useState(false);
   const [hasDownloadedConversation, setHasDownloadedConversation] =
     useState(false);
+
+  // In-meeting shared note/doc viewer state (§Feature 3)
+  const [activeMeetingDoc, setActiveMeetingDoc] = useState<ActiveMeetingDoc | null>(null);
+  const [isLoadingDoc, setIsLoadingDoc] = useState(false);
+
+  // Camera Mirroring state (§Feature 4: defaults to un-mirrored per spec)
+  const [isSelfViewMirrored, setIsSelfViewMirrored] = useState(false);
+
+  // Chat Panel Width (§Feature 5: persisted, default 384, min 280, max 640)
+  const [chatPanelWidth, setChatPanelWidth] = useState<number>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("sg_chat_panel_width");
+        if (saved) {
+          const parsed = parseInt(saved, 10);
+          if (!isNaN(parsed) && parsed >= 280 && parsed <= 640) return parsed;
+        }
+      } catch {}
+    }
+    return 384;
+  });
+  const [hasCopiedChat, setHasCopiedChat] = useState(false);
 
   // Virtual Photo Background & Blur state (Feature 1)
   const [activeBackgroundId, setActiveBackgroundId] = useState<string>("none");
@@ -1160,6 +1190,227 @@ export default function MeetingRoomPage() {
     setTimeout(() => setCopiedCitations(false), 2000);
   }
 
+  // Feature 3: Open documents, notes, citations in meeting workspace
+  async function handleOpenDoc(asset: Asset) {
+    try {
+      setIsLoadingDoc(true);
+      const res = await fetch(`/api/assets/${asset.id}/download`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to load document");
+      }
+      const data = await res.json();
+      let content = "";
+      const isTextFile =
+        data.fileType === "md" ||
+        data.fileType === "txt" ||
+        data.mimeType?.includes("text") ||
+        data.mimeType?.includes("markdown");
+
+      if (isTextFile && data.downloadUrl) {
+        try {
+          const textRes = await fetch(data.downloadUrl);
+          if (textRes.ok) {
+            content = await textRes.text();
+          }
+        } catch (err) {
+          console.warn("Could not fetch raw text for doc:", err);
+        }
+      }
+
+      setActiveMeetingDoc({
+        type: "doc",
+        id: asset.id,
+        title: data.filename || asset.title,
+        fileType: data.fileType,
+        downloadUrl: data.downloadUrl,
+        content: content || undefined,
+      });
+    } catch (err) {
+      console.error("Error opening doc in meeting:", err);
+      alert(err instanceof Error ? err.message : "Failed to open document");
+    } finally {
+      setIsLoadingDoc(false);
+    }
+  }
+
+  function handleOpenNote(note: string, index: number) {
+    setActiveMeetingDoc({
+      type: "note",
+      id: `note-${index}`,
+      title: `Session Note #${index + 1}`,
+      content: note,
+    });
+  }
+
+  function handleOpenCitation(asset: Asset) {
+    const citationText = `"${asset.title}." StudyGroup+ Repository, ${groupName}.`;
+    setActiveMeetingDoc({
+      type: "citation",
+      id: asset.id,
+      title: asset.title,
+      citationText,
+      fileType: asset.fileType,
+    });
+  }
+
+  function handleUpdatePinnedNote(noteId: string, newText: string) {
+    if (noteId.startsWith("note-")) {
+      const idx = parseInt(noteId.replace("note-", ""), 10);
+      if (!isNaN(idx) && idx >= 0 && idx < pinnedNotes.length) {
+        setPinnedNotes((prev) => {
+          const copy = [...prev];
+          copy[idx] = newText;
+          return copy;
+        });
+      }
+    }
+  }
+
+  // Feature 3: Document Picture-in-Picture API popout for floating video window
+  async function handlePopOutVideo() {
+    if (typeof window === "undefined" || !("documentPictureInPicture" in window)) {
+      return;
+    }
+    try {
+      type DocPiP = {
+        requestWindow: (options?: { width?: number; height?: number }) => Promise<Window>;
+      };
+      const docPiP = (window as unknown as { documentPictureInPicture?: DocPiP })
+        .documentPictureInPicture;
+      if (!docPiP) return;
+      const pipWindow = await docPiP.requestWindow({
+        width: 360,
+        height: 270,
+      });
+
+      document.querySelectorAll('link[rel="stylesheet"], style').forEach((node) => {
+        pipWindow.document.head.appendChild(node.cloneNode(true));
+      });
+
+      pipWindow.document.body.style.margin = "0";
+      pipWindow.document.body.style.background = "#0a0a0a";
+      pipWindow.document.body.style.display = "flex";
+      pipWindow.document.body.style.flexDirection = "column";
+      pipWindow.document.body.style.height = "100vh";
+      pipWindow.document.body.style.overflow = "hidden";
+
+      const container = pipWindow.document.createElement("div");
+      container.style.position = "relative";
+      container.style.width = "100%";
+      container.style.height = "100%";
+      container.style.display = "flex";
+      container.style.alignItems = "center";
+      container.style.justifyContent = "center";
+      container.style.background = "#050505";
+
+      const pipVideo = pipWindow.document.createElement("video");
+      pipVideo.autoplay = true;
+      pipVideo.playsInline = true;
+      pipVideo.muted = true;
+      pipVideo.style.width = "100%";
+      pipVideo.style.height = "100%";
+      pipVideo.style.objectFit = "cover";
+
+      if (remoteParticipants.length > 0 && remoteParticipants[0]) {
+        const firstRemote = remoteParticipants[0];
+        const pub =
+          firstRemote.getTrackPublication(Track.Source.Camera) ||
+          firstRemote.getTrackPublication(Track.Source.ScreenShare);
+        if (pub?.track) {
+          pub.track.attach(pipVideo);
+        }
+      } else if (localStreamRef.current) {
+        pipVideo.srcObject = localStreamRef.current;
+        pipVideo.style.transform = isSelfViewMirrored ? "scaleX(-1)" : "none";
+      }
+
+      container.appendChild(pipVideo);
+      pipWindow.document.body.appendChild(container);
+
+      pipWindow.addEventListener("pagehide", () => {
+        if (localVideoRef.current && localStreamRef.current) {
+          localVideoRef.current.srcObject = localStreamRef.current;
+        }
+      });
+    } catch (err) {
+      console.warn("Document Picture-in-Picture request failed:", err);
+    }
+  }
+
+  // Feature 5: Copy in-call chat conversation to clipboard as plain text
+  async function handleCopyChatToClipboard() {
+    if (inCallMessages.length === 0) return;
+    const plainText = inCallMessages
+      .map(
+        (m) =>
+          `${m.isSelf ? (user?.fullName || "You") : m.senderName} [${m.time}]: ${m.text}`
+      )
+      .join("\n");
+
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(plainText);
+      } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = plainText;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-999999px";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand("copy");
+        textArea.remove();
+      }
+      setHasCopiedChat(true);
+      setTimeout(() => setHasCopiedChat(false), 2000);
+    } catch (err) {
+      console.warn("Failed to copy chat to clipboard:", err);
+    }
+  }
+
+  // Feature 5: Horizontal resize handle on chat panel left edge
+  const handleStartChatResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = chatPanelWidth;
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const delta = startX - moveEvent.clientX;
+      const nextW = Math.max(280, Math.min(640, startW + delta));
+      setChatPanelWidth(nextW);
+    };
+
+    const onMouseUp = () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+      try {
+        localStorage.setItem("sg_chat_panel_width", String(chatPanelWidth));
+      } catch {}
+    };
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+  };
+
+  const handleKeyDownChatResize = (e: React.KeyboardEvent) => {
+    if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      const nextW = Math.min(640, chatPanelWidth + 20);
+      setChatPanelWidth(nextW);
+      try {
+        localStorage.setItem("sg_chat_panel_width", String(nextW));
+      } catch {}
+    } else if (e.key === "ArrowRight") {
+      e.preventDefault();
+      const nextW = Math.max(280, chatPanelWidth - 20);
+      setChatPanelWidth(nextW);
+      try {
+        localStorage.setItem("sg_chat_panel_width", String(nextW));
+      } catch {}
+    }
+  };
+
   const scholarInitials = user?.firstName
     ? user.firstName.substring(0, 2).toUpperCase()
     : "ME";
@@ -1223,9 +1474,10 @@ export default function MeetingRoomPage() {
         <div className="flex items-center gap-3">
           <Link
             href="/lounges"
-            className="font-serif text-lg font-normal text-[var(--text-primary)] flex items-baseline hover:opacity-80 transition-opacity"
+            className="font-serif text-lg font-normal text-[var(--text-primary)] flex items-center gap-1.5 hover:opacity-80 transition-opacity"
           >
-            StudyGroup<span className="italic font-normal">+</span>
+            <StudyGroupLogo size={18} className="text-[var(--text-primary)]" />
+            <span>StudyGroup<span className="italic font-normal">+</span></span>
           </Link>
           <span className="text-[var(--text-disabled)]">/</span>
           <Link
@@ -1334,6 +1586,8 @@ export default function MeetingRoomPage() {
             </span>
           </Button>
 
+          <ThemeToggle size="sm" />
+
           <div className="w-8 h-8 rounded-full bg-[var(--bg-inset)] border border-[var(--border-hairline)] flex items-center justify-center font-mono text-xs font-semibold text-[var(--text-primary)]">
             {scholarInitials}
           </div>
@@ -1342,33 +1596,67 @@ export default function MeetingRoomPage() {
 
       {/* Main Content Area: Stage + Side Panel */}
       <div className="flex-1 flex overflow-hidden relative">
-        {/* Stage Grid with FLIP layout transitions (§6.3) */}
+        {/* Main View Area */}
         <main className="flex-1 p-4 lg:p-6 flex flex-col justify-between overflow-hidden relative">
-          <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch overflow-hidden">
-            {/* Left Large Speaker / Stage Tile */}
-            <motion.div
-              layout={!shouldReduceMotion}
-              className="lg:col-span-8 bg-[var(--bg-elevated)] rounded-[var(--radius-card)] border border-[var(--border-hairline)] relative overflow-hidden flex flex-col justify-between"
-            >
-              {remoteParticipants.length > 0 && remoteParticipants[0] ? (
-                /* Primary Remote Participant on Stage */
-                <RemoteParticipantTile
-                  participant={remoteParticipants[0]}
-                  isMainSpeaker={true}
-                  shouldReduceMotion={shouldReduceMotion}
-                />
-              ) : (
-                /* Single User / Stage View */
-                <div className="absolute inset-0 bg-[var(--bg-inset)] flex flex-col items-center justify-center overflow-hidden">
-                  <video
-                    ref={stageVideoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className={`absolute inset-0 w-full h-full object-cover ${
-                      isVideoOff ? "hidden" : "block"
-                    }`}
+          {activeMeetingDoc ? (
+            /* Meeting Shared Note/Doc Viewer with Floating Video Tile (§Feature 3) */
+            <div className="flex-1 flex flex-col overflow-hidden relative">
+              <MeetingDocViewer
+                doc={activeMeetingDoc}
+                onClose={() => setActiveMeetingDoc(null)}
+                onUpdateNote={handleUpdatePinnedNote}
+                onPopOutVideo={handlePopOutVideo}
+                hasDocPiPSupport={
+                  typeof window !== "undefined" &&
+                  "documentPictureInPicture" in window
+                }
+              />
+              <FloatingCameraWindow
+                localStream={localStreamRef.current}
+                remoteParticipants={remoteParticipants}
+                isVideoOff={isVideoOff}
+                isMuted={isMuted}
+                isSelfViewMirrored={isSelfViewMirrored}
+                onToggleMirror={() => setIsSelfViewMirrored((prev) => !prev)}
+                userName={user?.fullName || "You"}
+                scholarInitials={scholarInitials}
+                onPopOutVideo={handlePopOutVideo}
+                hasDocPiPSupport={
+                  typeof window !== "undefined" &&
+                  "documentPictureInPicture" in window
+                }
+              />
+            </div>
+          ) : (
+            /* Stage Grid with FLIP layout transitions (§6.3) */
+            <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch overflow-hidden">
+              {/* Left Large Speaker / Stage Tile */}
+              <motion.div
+                layout={!shouldReduceMotion}
+                className="lg:col-span-8 bg-[var(--bg-elevated)] rounded-[var(--radius-card)] border border-[var(--border-hairline)] relative overflow-hidden flex flex-col justify-between"
+              >
+                {remoteParticipants.length > 0 && remoteParticipants[0] ? (
+                  /* Primary Remote Participant on Stage */
+                  <RemoteParticipantTile
+                    participant={remoteParticipants[0]}
+                    isMainSpeaker={true}
+                    shouldReduceMotion={shouldReduceMotion}
                   />
+                ) : (
+                  /* Single User / Stage View */
+                  <div className="absolute inset-0 bg-[var(--bg-inset)] flex flex-col items-center justify-center overflow-hidden">
+                    <video
+                      ref={stageVideoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      style={{
+                        transform: isSelfViewMirrored ? "scaleX(-1)" : "none",
+                      }}
+                      className={`absolute inset-0 w-full h-full object-cover ${
+                        isVideoOff ? "hidden" : "block"
+                      }`}
+                    />
 
                   {/* Fallback Display when Camera Off */}
                   {isVideoOff && (
@@ -1517,6 +1805,9 @@ export default function MeetingRoomPage() {
                   autoPlay
                   playsInline
                   muted
+                  style={{
+                    transform: isSelfViewMirrored ? "scaleX(-1)" : "none",
+                  }}
                   className={`absolute inset-0 w-full h-full object-cover ${
                     isVideoOff ? "hidden" : "block"
                   }`}
@@ -1584,8 +1875,9 @@ export default function MeetingRoomPage() {
               )}
             </div>
           </div>
+        )}
 
-          {/* Floating Bottom Media Control Bar (§6.3 mic/cam cross-fade glyph swaps) */}
+        {/* Floating Bottom Media Control Bar (§6.3 mic/cam cross-fade glyph swaps) */}
           <div className="pt-4 flex justify-center z-30">
             <div className="px-5 py-2.5 rounded-[var(--radius-card)] bg-[var(--bg-elevated)] border border-[var(--border-hairline)] flex items-center gap-3 font-sans">
               {/* Mic Toggle with 150ms Icon Cross-fade */}
@@ -1689,6 +1981,28 @@ export default function MeetingRoomPage() {
                 <span className="sm:hidden">Bg</span>
               </button>
 
+              {/* Mirror Self-View Toggle (§Feature 4) */}
+              <button
+                type="button"
+                onClick={() => setIsSelfViewMirrored((prev) => !prev)}
+                className={`px-3.5 py-2 rounded-[var(--radius-button)] border text-xs font-mono flex items-center gap-2 transition-colors duration-[var(--dur-fast)] cursor-pointer ${
+                  isSelfViewMirrored
+                    ? "bg-[var(--invert-bg)] text-[var(--invert-text)] border-[var(--invert-bg)]"
+                    : "bg-[var(--bg-overlay)] text-[var(--text-primary)] border-[var(--border-hairline)] hover:border-[var(--border-hover)]"
+                }`}
+                title={
+                  isSelfViewMirrored
+                    ? "Self-view: Mirrored (Click for un-mirrored)"
+                    : "Self-view: Un-mirrored (Click to mirror)"
+                }
+              >
+                <FlipHorizontal className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">
+                  {isSelfViewMirrored ? "Mirrored" : "Mirror Off"}
+                </span>
+                <span className="sm:hidden">Flip</span>
+              </button>
+
               {/* In-Call Chat Toggle */}
               <button
                 type="button"
@@ -1751,7 +2065,26 @@ export default function MeetingRoomPage() {
 
         {/* Collapsible Reference Desk Side Panel (§6.3 Monochrome restyle) */}
         {isReferenceDeskOpen && (
-          <aside className="w-96 md:w-[26rem] bg-[var(--bg-elevated)] text-[var(--text-primary)] border-l border-[var(--border-hairline)] flex flex-col shrink-0 z-30 font-sans">
+          <aside
+            style={{ width: `${chatPanelWidth}px` }}
+            className="relative bg-[var(--bg-elevated)] text-[var(--text-primary)] border-l border-[var(--border-hairline)] flex flex-col shrink-0 z-30 font-sans"
+          >
+            {/* Left-edge draggable horizontal resize handle (§Feature 5) */}
+            <div
+              tabIndex={0}
+              role="separator"
+              aria-label="Resize in-call chat panel"
+              aria-valuenow={chatPanelWidth}
+              aria-valuemin={280}
+              aria-valuemax={640}
+              onMouseDown={handleStartChatResize}
+              onKeyDown={handleKeyDownChatResize}
+              className="absolute top-0 bottom-0 left-0 w-2 -ml-1 cursor-col-resize hover:bg-[var(--border-focus)] active:bg-[var(--text-primary)] transition-colors z-40 group flex items-center justify-center outline-none"
+              title="Drag or use Left/Right arrow keys to resize panel"
+            >
+              <div className="w-0.5 h-8 bg-[var(--border-hairline)] group-hover:bg-[var(--text-primary)] rounded-full transition-colors" />
+            </div>
+
             {/* Panel Header */}
             <div className="p-4 border-b border-[var(--border-hairline)] flex items-center justify-between">
               <div className="flex items-center gap-2.5">
@@ -1817,28 +2150,28 @@ export default function MeetingRoomPage() {
             <div className="flex-1 p-5 overflow-y-auto space-y-6">
               {activeTab === "chat" && (
                 <div className="flex flex-col h-[calc(100vh-17rem)]">
-                  {/* Chat Tab Header Bar with Export Button */}
+                  {/* Chat Tab Header Bar with Copy to Clipboard Button (§Feature 5) */}
                   <div className="flex items-center justify-between pb-2 mb-2 border-b border-[var(--border-hairline)] text-xs">
                     <span className="font-mono text-[0.625rem] uppercase tracking-wider text-[var(--text-secondary)]">
                       Live WebRTC Data Channel
                     </span>
                     <button
                       type="button"
-                      onClick={handleDownloadConversation}
+                      onClick={handleCopyChatToClipboard}
                       className="font-mono text-[0.6875rem] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center gap-1.5 transition-colors cursor-pointer"
-                      title="Download in-call chat and session transcripts as Markdown (.md)"
+                      title="Copy in-call conversation as plain text (name, time, message)"
                     >
-                      {hasDownloadedConversation ? (
+                      {hasCopiedChat ? (
                         <>
                           <Check className="w-3 h-3 text-[var(--text-primary)]" />
                           <span className="text-[var(--text-primary)]">
-                            Exported!
+                            Copied!
                           </span>
                         </>
                       ) : (
                         <>
-                          <Download className="w-3 h-3" />
-                          <span>Export .md</span>
+                          <Copy className="w-3 h-3" />
+                          <span>Copy to clipboard</span>
                         </>
                       )}
                     </button>
@@ -1959,15 +2292,24 @@ export default function MeetingRoomPage() {
                     </div>
                   ) : (
                     <div className="space-y-2">
+                      {isLoadingDoc && (
+                        <div className="p-2 text-center text-xs font-mono text-[var(--text-secondary)] border border-[var(--border-hairline)] rounded-[var(--radius-button)] bg-[var(--bg-inset)]">
+                          Loading document...
+                        </div>
+                      )}
                       {assets.map((a) => (
                         <div
                           key={a.id}
-                          onClick={() => setSelectedAsset(a)}
+                          onClick={() => {
+                            setSelectedAsset(a);
+                            handleOpenDoc(a);
+                          }}
                           className={`p-3 rounded-[var(--radius-button)] border cursor-pointer transition-all ${
-                            selectedAsset?.id === a.id
+                            activeMeetingDoc?.id === a.id
                               ? "bg-[var(--bg-overlay)] border-[var(--border-hover)]"
                               : "bg-[var(--bg-inset)] border-[var(--border-hairline)] hover:border-[var(--border-hover)]"
                           }`}
+                          title="Click to open document in meeting workspace"
                         >
                           <div className="flex items-center justify-between text-xs">
                             <span className="font-sans font-medium text-[var(--text-primary)] truncate max-w-[14rem]">
@@ -1998,7 +2340,13 @@ export default function MeetingRoomPage() {
                     pinnedNotes.map((note, i) => (
                       <div
                         key={i}
-                        className="p-3 bg-[var(--bg-inset)] border border-[var(--border-hairline)] rounded-[var(--radius-button)] text-xs font-serif italic text-[var(--text-primary)] leading-relaxed"
+                        onClick={() => handleOpenNote(note, i)}
+                        className={`p-3 border rounded-[var(--radius-button)] text-xs font-serif italic text-[var(--text-primary)] leading-relaxed cursor-pointer transition-all ${
+                          activeMeetingDoc?.id === `note-${i}`
+                            ? "bg-[var(--bg-overlay)] border-[var(--border-hover)]"
+                            : "bg-[var(--bg-inset)] border-[var(--border-hairline)] hover:border-[var(--border-hover)]"
+                        }`}
+                        title="Click to open note in meeting workspace"
                       >
                         &ldquo;{note}&rdquo;
                       </div>
@@ -2052,7 +2400,13 @@ export default function MeetingRoomPage() {
                     assets.map((a) => (
                       <div
                         key={a.id}
-                        className="p-3 bg-[var(--bg-inset)] border border-[var(--border-hairline)] rounded-[var(--radius-button)] text-xs"
+                        onClick={() => handleOpenCitation(a)}
+                        className={`p-3 border rounded-[var(--radius-button)] text-xs cursor-pointer transition-all ${
+                          activeMeetingDoc?.id === a.id
+                            ? "bg-[var(--bg-overlay)] border-[var(--border-hover)]"
+                            : "bg-[var(--bg-inset)] border-[var(--border-hairline)] hover:border-[var(--border-hover)]"
+                        }`}
+                        title="Click to view citation details in meeting workspace"
                       >
                         <p className="font-serif italic text-[var(--text-primary)]">
                           &ldquo;{a.title}&rdquo;

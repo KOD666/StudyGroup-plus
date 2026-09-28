@@ -4,7 +4,7 @@ import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { groups, memberships, users } from "@/models";
 import { getGroupMembership, isGroupCreator } from "@/lib/permissions";
-import { isValidYouTubeUrl } from "@/lib/utils";
+import { isValidYouTubeUrl, generateGroupCode } from "@/lib/utils";
 
 // GET /api/groups/[groupId] - Get details and member roster of a group
 export async function GET(
@@ -162,9 +162,14 @@ export async function PATCH(
     const updateData: {
       updatedAt: Date;
       youtubeUrl?: string | null;
+      code?: string;
     } = {
       updatedAt: new Date(),
     };
+
+    if (body.regenerateCode === true) {
+      updateData.code = generateGroupCode(6);
+    }
 
     if ("youtubeUrl" in body) {
       const rawUrl = body.youtubeUrl;

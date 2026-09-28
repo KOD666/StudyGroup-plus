@@ -2,6 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
+import { StudyGroupLogo } from "@/components/icons/StudyGroupLogo";
 
 export function LandingFooter() {
   return (
@@ -10,8 +11,9 @@ export function LandingFooter() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-10 pb-12 border-b border-[var(--border-hairline)]">
           {/* Brand Atelier Column */}
           <div className="lg:col-span-6 space-y-3">
-            <Link href="/" className="inline-block font-serif text-2xl font-normal tracking-tight text-[var(--text-primary)] hover:opacity-80 transition-opacity">
-              StudyGroup<span className="font-normal opacity-60">+</span>
+            <Link href="/" className="inline-flex items-center gap-2 font-serif text-2xl font-normal tracking-tight text-[var(--text-primary)] hover:opacity-80 transition-opacity">
+              <StudyGroupLogo size={24} className="text-[var(--text-primary)]" />
+              <span>StudyGroup<span className="font-normal opacity-60">+</span></span>
             </Link>
             <p className="font-sans text-sm text-[var(--text-secondary)] leading-relaxed max-w-md">
               A collaborative study workspace where video meetings live directly inside your shared

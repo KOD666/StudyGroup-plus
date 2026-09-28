@@ -5,6 +5,8 @@ import { memberships } from "./Membership";
 import { assets } from "./Asset";
 import { sessions } from "./Session";
 import { groupMessages } from "./GroupMessage";
+import { notifications } from "./Notification";
+import { scheduledSessions } from "./ScheduledSession";
 
 export * from "./User";
 export * from "./Group";
@@ -12,12 +14,16 @@ export * from "./Membership";
 export * from "./Asset";
 export * from "./Session";
 export * from "./GroupMessage";
+export * from "./Notification";
+export * from "./ScheduledSession";
 
 export const usersRelations = relations(users, ({ many }) => ({
   memberships: many(memberships),
   createdGroups: many(groups),
   uploadedAssets: many(assets),
   sentMessages: many(groupMessages),
+  notifications: many(notifications),
+  createdScheduledSessions: many(scheduledSessions),
 }));
 
 export const groupsRelations = relations(groups, ({ one, many }) => ({
@@ -29,6 +35,8 @@ export const groupsRelations = relations(groups, ({ one, many }) => ({
   assets: many(assets),
   sessions: many(sessions),
   messages: many(groupMessages),
+  notifications: many(notifications),
+  scheduledSessions: many(scheduledSessions),
 }));
 
 export const membershipsRelations = relations(memberships, ({ one }) => ({
@@ -76,3 +84,24 @@ export const groupMessagesRelations = relations(groupMessages, ({ one }) => ({
   }),
 }));
 
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  recipient: one(users, {
+    fields: [notifications.recipientId],
+    references: [users.id],
+  }),
+  group: one(groups, {
+    fields: [notifications.groupId],
+    references: [groups.id],
+  }),
+}));
+
+export const scheduledSessionsRelations = relations(scheduledSessions, ({ one }) => ({
+  group: one(groups, {
+    fields: [scheduledSessions.groupId],
+    references: [groups.id],
+  }),
+  creator: one(users, {
+    fields: [scheduledSessions.creatorId],
+    references: [users.id],
+  }),
+}));

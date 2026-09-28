@@ -4,6 +4,7 @@ import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { assets, groups, memberships, SupportedFileType } from "@/models";
 import { getGroupMembership, isGroupMember } from "@/lib/permissions";
+import { notifyAssetUploaded } from "@/lib/notifications";
 
 const VALID_FILE_TYPES: readonly SupportedFileType[] = [
   "pdf",
@@ -249,6 +250,21 @@ export async function POST(req: NextRequest) {
         mimeType: mimeType || null,
       })
       .returning();
+
+    if (!newAsset) {
+      return NextResponse.json(
+        { error: "Internal Server Error: Failed to create asset record" },
+        { status: 500 }
+      );
+    }
+
+    // Trigger notification to eligible group members
+    await notifyAssetUploaded({
+      groupId,
+      assetId: newAsset.id,
+      assetTitle: newAsset.title,
+      uploaderUserId: currentUserId,
+    });
 
     return NextResponse.json({ asset: newAsset }, { status: 201 });
   } catch (error) {

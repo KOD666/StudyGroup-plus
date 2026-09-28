@@ -14,8 +14,6 @@ import {
   CheckCircle2,
   LayoutGrid,
   Radio,
-  FolderArchive,
-  MessageSquare,
   Settings,
   HelpCircle,
   KeyRound,
@@ -60,6 +58,18 @@ export default function LoungesDashboardPage() {
 
   const [groups, setGroups] = useState<GroupItem[]>([]);
   const [recentAssets, setRecentAssets] = useState<RecentAsset[]>([]);
+  const [upcomingSessions, setUpcomingSessions] = useState<
+    Array<{
+      id: string;
+      groupId: string;
+      groupName: string;
+      groupCode: string;
+      title: string;
+      description: string | null;
+      scheduledAt: string;
+      status: string;
+    }>
+  >([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -116,14 +126,27 @@ export default function LoungesDashboardPage() {
     }
   }, []);
 
+  const fetchUpcomingSessions = useCallback(async () => {
+    try {
+      const res = await fetch("/api/sessions/upcoming");
+      if (res.ok) {
+        const data = await res.json();
+        setUpcomingSessions(data.sessions || []);
+      }
+    } catch (err: unknown) {
+      console.error("Error fetching upcoming sessions:", err);
+    }
+  }, []);
+
   useEffect(() => {
     if (isUserLoaded && user) {
       fetchGroups();
       fetchRecentAssets();
+      fetchUpcomingSessions();
     } else if (isUserLoaded && !user) {
       setIsLoading(false);
     }
-  }, [isUserLoaded, user, fetchGroups, fetchRecentAssets]);
+  }, [isUserLoaded, user, fetchGroups, fetchRecentAssets, fetchUpcomingSessions]);
 
   const scholarName = user?.firstName || user?.username || "Member";
   const activeLounge = activeLiveGroup;
@@ -139,6 +162,29 @@ export default function LoungesDashboardPage() {
     setTimeout(() => {
       router.push(`/lounges/${groupId}`);
     }, shouldReduceMotion ? 0 : 80);
+  };
+
+  const handleDownloadAsset = async (assetId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      const res = await fetch(`/api/assets/${assetId}/download`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to get download link");
+      }
+      const data = await res.json();
+      const a = document.createElement("a");
+      a.href = data.downloadUrl;
+      if (data.filename) {
+        a.download = data.filename;
+      }
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (err: unknown) {
+      console.error("Download error:", err);
+    }
   };
 
   return (
@@ -199,74 +245,30 @@ export default function LoungesDashboardPage() {
               <span>Overview</span>
             </Link>
 
-            <Link
-              href={
-                activeLounge
-                  ? `/lounges/${activeLounge.id}/room`
-                  : "/lounges"
-              }
-              onClick={(e) => {
-                if (!activeLounge) {
-                  e.preventDefault();
-                  setModalTab("create");
-                  setIsModalOpen(true);
-                }
-              }}
-              className="flex items-center justify-between px-3 py-2 rounded-[var(--radius-button)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors group"
-            >
-              <div className="flex items-center gap-3">
-                <Radio className="w-3.5 h-3.5 group-hover:text-[var(--text-primary)] text-[var(--text-secondary)]" />
-                <span>Live Sessions</span>
-              </div>
-              {activeLounge && (
+            {activeLounge ? (
+              <Link
+                href={`/lounges/${activeLounge.id}/room`}
+                className="flex items-center justify-between px-3 py-2 rounded-[var(--radius-button)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors group"
+                title={`Join live meeting in ${activeLounge.name}`}
+              >
+                <div className="flex items-center gap-3">
+                  <Radio className="w-3.5 h-3.5 text-[#e5484d] animate-pulse" />
+                  <span className="text-[var(--text-primary)] font-medium">Live Session</span>
+                </div>
                 <span className="w-2 h-2 rounded-full bg-[#e5484d] animate-live-breathe" />
-              )}
-            </Link>
-
-            <Link
-              href={activeLounge ? `/lounges/${activeLounge.id}` : "/lounges"}
-              onClick={(e) => {
-                if (!activeLounge) {
-                  e.preventDefault();
-                  setModalTab("create");
-                  setIsModalOpen(true);
-                }
-              }}
-              className="flex items-center gap-3 px-3 py-2 rounded-[var(--radius-button)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors"
-            >
-              <FileText className="w-3.5 h-3.5" />
-              <span>Shared Notes</span>
-            </Link>
-
-            <Link
-              href={activeLounge ? `/lounges/${activeLounge.id}` : "/lounges"}
-              onClick={(e) => {
-                if (!activeLounge) {
-                  e.preventDefault();
-                  setModalTab("create");
-                  setIsModalOpen(true);
-                }
-              }}
-              className="flex items-center gap-3 px-3 py-2 rounded-[var(--radius-button)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors"
-            >
-              <FolderArchive className="w-3.5 h-3.5" />
-              <span>Asset Library</span>
-            </Link>
-
-            <Link
-              href={activeLounge ? `/lounges/${activeLounge.id}` : "/lounges"}
-              onClick={(e) => {
-                if (!activeLounge) {
-                  e.preventDefault();
-                  setModalTab("create");
-                  setIsModalOpen(true);
-                }
-              }}
-              className="flex items-center gap-3 px-3 py-2 rounded-[var(--radius-button)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors"
-            >
-              <MessageSquare className="w-3.5 h-3.5" />
-              <span>Discussion Board</span>
-            </Link>
+              </Link>
+            ) : (
+              <div
+                className="flex items-center justify-between px-3 py-2 rounded-[var(--radius-button)] text-[var(--text-disabled)] cursor-default select-none"
+                title="No live sessions currently in progress"
+              >
+                <div className="flex items-center gap-3">
+                  <Radio className="w-3.5 h-3.5 text-[var(--text-disabled)]" />
+                  <span>Live Sessions</span>
+                </div>
+                <span className="font-mono text-[0.625rem] text-[var(--text-disabled)]">Idle</span>
+              </div>
+            )}
           </nav>
 
           {/* Bottom Settings & Docs */}
@@ -558,26 +560,56 @@ export default function LoungesDashboardPage() {
               }}
               className="lg:col-span-4 space-y-6"
             >
-              {/* Upcoming Sessions Card (Clean, Authentic State) */}
+              {/* Upcoming Sessions Card (Fed by real scheduled sessions) */}
               <div className="p-5 rounded-[var(--radius-card)] border border-[var(--border-hairline)] bg-[var(--bg-elevated)]">
                 <div className="flex items-center justify-between pb-3 border-b border-[var(--border-hairline)] mb-4">
                   <div className="flex items-center gap-2">
-                    <Calendar className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
+                    <Calendar className="w-3.5 h-3.5 text-[#d97706]" />
                     <span className="font-sans text-sm font-semibold text-[var(--text-primary)]">
                       Upcoming Sessions
                     </span>
                   </div>
-                  <span className="font-mono text-[0.6875rem] text-[var(--text-secondary)] uppercase">
-                    Schedule
+                  <span className="font-mono text-[0.6875rem] text-[var(--text-secondary)]">
+                    {upcomingSessions.length} Scheduled
                   </span>
                 </div>
 
-                <div className="py-6 text-center text-xs text-[var(--text-secondary)]">
-                  <p className="font-sans">No upcoming sessions scheduled</p>
-                  <p className="font-mono text-[0.625rem] text-[var(--text-disabled)] mt-1">
-                    Start a live video room anytime from your workspace
-                  </p>
-                </div>
+                {upcomingSessions.length > 0 ? (
+                  <div className="space-y-2.5">
+                    {upcomingSessions.slice(0, 5).map((session) => (
+                      <Link
+                        key={session.id}
+                        href={`/lounges/${session.groupId}`}
+                        className="p-2.5 rounded-[var(--radius-button)] border border-[var(--border-hairline)] bg-[var(--bg-inset)] flex items-center justify-between gap-3 group hover:border-[var(--border-hover)] transition-colors cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <Calendar className="w-4 h-4 text-[#d97706] shrink-0" />
+                          <div className="min-w-0">
+                            <div className="font-mono text-xs text-[var(--text-primary)] truncate group-hover:underline">
+                              {session.title}
+                            </div>
+                            <div className="font-mono text-[0.625rem] text-[var(--text-secondary)] truncate">
+                              {session.groupName} • {new Date(session.scheduledAt).toLocaleString([], {
+                                month: "short",
+                                day: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                        <ArrowRight className="w-3.5 h-3.5 text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] shrink-0 transition-colors" />
+                      </Link>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="py-6 text-center text-xs text-[var(--text-secondary)]">
+                    <p className="font-sans">No upcoming sessions scheduled</p>
+                    <p className="font-mono text-[0.625rem] text-[var(--text-disabled)] mt-1">
+                      Start a live video room anytime from your workspace
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Recent Notes & Transcripts (Wired to Real Assets) */}
@@ -613,7 +645,14 @@ export default function LoungesDashboardPage() {
                             </div>
                           </div>
                         </div>
-                        <Download className="w-3.5 h-3.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] shrink-0" />
+                        <button
+                          type="button"
+                          onClick={(e) => handleDownloadAsset(asset.id, e)}
+                          className="p-1 rounded-[var(--radius-button)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors cursor-pointer shrink-0"
+                          title="Download document"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                        </button>
                       </Link>
                     ))}
                   </div>

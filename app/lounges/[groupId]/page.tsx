@@ -19,12 +19,16 @@ import {
   Send,
   Share2,
   Settings,
+  Calendar,
+  Edit2,
+  Trash2,
 } from "lucide-react";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { UploadAssetModal } from "@/components/lounges/UploadAssetModal";
 import { MemberAccessModal } from "@/components/lounges/MemberAccessModal";
 import { InviteModal } from "@/components/lounges/InviteModal";
 import { LoungeSettingsModal } from "@/components/lounges/LoungeSettingsModal";
+import { ScheduleMeetingModal } from "@/components/lounge/ScheduleMeetingModal";
 import { EmojiPickerButton } from "@/components/chat/EmojiPickerButton";
 import { YouTubeIcon } from "@/components/icons/YouTubeIcon";
 import { Button } from "@/components/ui/Button";
@@ -125,6 +129,23 @@ export default function LoungeWorkspacePage() {
     null
   );
 
+  const [scheduledSessionsList, setScheduledSessionsList] = useState<
+    Array<{
+      id: string;
+      title: string;
+      description?: string | null;
+      scheduledAt: string;
+      status: string;
+    }>
+  >([]);
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+  const [editingScheduledSession, setEditingScheduledSession] = useState<{
+    id: string;
+    title: string;
+    description?: string | null;
+    scheduledAt: string;
+  } | null>(null);
+
   const fetchWorkspaceData = useCallback(async () => {
     if (!groupId) return;
     setIsLoading(true);
@@ -152,12 +173,35 @@ export default function LoungeWorkspacePage() {
         const sessionsData = await sessionsRes.json();
         setSessionsList(sessionsData.sessions || []);
       }
+
+      const scheduleRes = await fetch(`/api/groups/${groupId}/schedule`);
+      if (scheduleRes.ok) {
+        const scheduleData = await scheduleRes.json();
+        setScheduledSessionsList(scheduleData.sessions || []);
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load workspace");
     } finally {
       setIsLoading(false);
     }
   }, [groupId]);
+
+  async function handleCancelScheduledSession(sessionId: string) {
+    if (!confirm("Are you sure you want to cancel this scheduled meeting?")) return;
+    try {
+      const res = await fetch(`/api/groups/${groupId}/schedule/${sessionId}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        fetchWorkspaceData();
+      } else {
+        const data = await res.json();
+        alert(data.error || "Failed to cancel session");
+      }
+    } catch {
+      alert("Could not cancel session");
+    }
+  }
 
   const fetchMessages = useCallback(async () => {
     if (!groupId) return;
@@ -422,35 +466,51 @@ export default function LoungeWorkspacePage() {
             )}
 
             {/* "Join Live Meeting" vs "Start Video Meeting" */}
-            <button
-              type="button"
-              data-magnetic
-              disabled={isStartingVideo}
-              onClick={handleStartMeeting}
-              className={`magnetic-cta px-4 py-2 rounded-[var(--radius-button)] font-sans text-xs font-semibold uppercase tracking-[0.04em] active:scale-[0.97] transition-all duration-[var(--dur-fast)] ease-[var(--ease-out-quart)] shadow-none flex items-center gap-2 cursor-pointer disabled:opacity-70 ${
-                activeSession
-                  ? "bg-[#e5484d] text-white hover:bg-[#d63b40]"
-                  : "bg-[var(--invert-bg)] text-[var(--invert-text)] hover:bg-white"
-              }`}
-            >
-              {isStartingVideo ? (
-                <span className="inline-flex items-center gap-1 py-0.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-current animate-busy-dot-1" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-current animate-busy-dot-2" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-current animate-busy-dot-3" />
-                </span>
-              ) : activeSession ? (
-                <>
-                  <Video className="w-3.5 h-3.5" />
-                  Join Live Meeting
-                </>
-              ) : (
-                <>
-                  <Video className="w-3.5 h-3.5" />
-                  Start Video Meeting
-                </>
+            <div className="flex items-center gap-2">
+              {isCreator && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingScheduledSession(null);
+                    setIsScheduleModalOpen(true);
+                  }}
+                  className="px-3 py-2 rounded-[var(--radius-button)] font-sans text-xs font-semibold uppercase tracking-[0.04em] border border-[var(--border-hairline)] hover:bg-[var(--bg-inset)] text-[var(--text-primary)] transition-all flex items-center gap-1.5 cursor-pointer shadow-none"
+                >
+                  <Calendar className="w-3.5 h-3.5 text-[#d97706]" />
+                  <span>Schedule</span>
+                </button>
               )}
-            </button>
+
+              <button
+                type="button"
+                data-magnetic
+                disabled={isStartingVideo}
+                onClick={handleStartMeeting}
+                className={`magnetic-cta px-4 py-2 rounded-[var(--radius-button)] font-sans text-xs font-semibold uppercase tracking-[0.04em] active:scale-[0.97] transition-all duration-[var(--dur-fast)] ease-[var(--ease-out-quart)] shadow-none flex items-center gap-2 cursor-pointer disabled:opacity-70 ${
+                  activeSession
+                    ? "bg-[#e5484d] text-white hover:bg-[#d63b40]"
+                    : "bg-[var(--invert-bg)] text-[var(--invert-text)] hover:bg-white"
+                }`}
+              >
+                {isStartingVideo ? (
+                  <span className="inline-flex items-center gap-1 py-0.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-current animate-busy-dot-1" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-current animate-busy-dot-2" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-current animate-busy-dot-3" />
+                  </span>
+                ) : activeSession ? (
+                  <>
+                    <Video className="w-3.5 h-3.5" />
+                    Join Live Meeting
+                  </>
+                ) : (
+                  <>
+                    <Video className="w-3.5 h-3.5" />
+                    Start Video Meeting
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -460,17 +520,30 @@ export default function LoungeWorkspacePage() {
             <h1 className="font-serif text-3xl sm:text-4xl lg:text-[2.75rem] leading-tight font-normal text-[var(--text-primary)]">
               {group.name}
             </h1>
-            {group.youtubeUrl && (
-              <a
-                href={group.youtubeUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Open YouTube live stream or video in new tab"
-                title="Watch on YouTube (opens in new tab)"
-                className="inline-flex items-center justify-center p-2 rounded-[var(--radius-button)] bg-[var(--bg-elevated)] border border-[var(--border-hairline)] text-[var(--text-primary)] hover:border-[var(--border-hover)] hover:bg-[var(--bg-overlay)] transition-colors duration-[var(--dur-fast)] cursor-pointer"
+            <a
+              href={group.youtubeUrl || "https://www.youtube.com"}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Open YouTube in new tab"
+              title={
+                group.youtubeUrl
+                  ? `Watch on YouTube: ${group.youtubeUrl} (opens in new tab)`
+                  : "Open YouTube (no channel URL set - owner can configure in Settings)"
+              }
+              className="inline-flex items-center justify-center p-2 rounded-[var(--radius-button)] bg-[var(--bg-elevated)] border border-[var(--border-hairline)] text-[var(--text-primary)] hover:border-[var(--border-hover)] hover:bg-[var(--bg-overlay)] transition-colors duration-[var(--dur-fast)] cursor-pointer"
+            >
+              <YouTubeIcon className="w-4 h-4 text-[var(--text-primary)]" />
+            </a>
+            {isCreator && (
+              <button
+                type="button"
+                onClick={() => setIsSettingsOpen(true)}
+                title="Configure lounge YouTube channel / stream"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[var(--radius-button)] bg-[var(--bg-elevated)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-hover)] text-xs font-mono transition-colors cursor-pointer"
               >
-                <YouTubeIcon className="w-4 h-4 text-[var(--text-primary)]" />
-              </a>
+                <Settings className="w-3 h-3" />
+                <span>{group.youtubeUrl ? "Edit Channel" : "Set Channel"}</span>
+              </button>
             )}
           </div>
 
@@ -757,6 +830,93 @@ export default function LoungeWorkspacePage() {
 
           {/* Right Column (4 cols): Study Stream & Session Logs */}
           <div className="lg:col-span-4 space-y-6">
+            {/* Upcoming Scheduled Meetings Card */}
+            <div className="bg-[var(--bg-elevated)] rounded-[var(--radius-card)] border border-[var(--border-hairline)] p-5">
+              <div className="flex items-center justify-between pb-3 border-b border-[var(--border-hairline)] mb-4">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-3.5 h-3.5 text-[#d97706]" />
+                  <h4 className="font-serif text-sm font-normal text-[var(--text-primary)]">
+                    Upcoming Meetings
+                  </h4>
+                </div>
+                {isCreator && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingScheduledSession(null);
+                      setIsScheduleModalOpen(true);
+                    }}
+                    className="font-mono text-[0.625rem] text-[#d97706] hover:underline uppercase tracking-[0.08em] flex items-center gap-1 cursor-pointer"
+                  >
+                    + Schedule
+                  </button>
+                )}
+              </div>
+
+              {scheduledSessionsList.length > 0 ? (
+                <div className="space-y-3 font-sans text-xs">
+                  {scheduledSessionsList.map((session) => (
+                    <div
+                      key={session.id}
+                      className="p-3 bg-[var(--bg-inset)] rounded-[var(--radius-button)] border border-[var(--border-hairline)]"
+                    >
+                      <div className="flex items-center justify-between text-[var(--text-secondary)] font-mono text-[0.6875rem] mb-1">
+                        <span className="text-[#d97706] font-semibold">
+                          {new Date(session.scheduledAt).toLocaleString([], {
+                            weekday: "short",
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                        {isCreator && (
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingScheduledSession(session);
+                                setIsScheduleModalOpen(true);
+                              }}
+                              className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-0.5"
+                              title="Edit meeting"
+                            >
+                              <Edit2 className="w-3 h-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleCancelScheduledSession(session.id)}
+                              className="text-[var(--text-secondary)] hover:text-[#e5484d] p-0.5"
+                              title="Cancel meeting"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      <p className="font-medium text-[var(--text-primary)] mb-0.5">
+                        {session.title}
+                      </p>
+                      {session.description && (
+                        <p className="text-[0.6875rem] text-[var(--text-secondary)] mt-1 border-t border-[var(--border-hairline)] pt-1">
+                          {session.description}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-4 font-mono text-xs text-[var(--text-secondary)]">
+                  <p>No upcoming meetings scheduled.</p>
+                  {isCreator && (
+                    <p className="text-[0.625rem] text-[var(--text-disabled)] mt-1">
+                      Click + Schedule to plan a session
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Session Record Card */}
             <div className="bg-[var(--bg-elevated)] rounded-[var(--radius-card)] border border-[var(--border-hairline)] p-5">
               <div className="flex items-center justify-between pb-3 border-b border-[var(--border-hairline)] mb-4">
@@ -957,6 +1117,20 @@ export default function LoungeWorkspacePage() {
               prev ? { ...prev, youtubeUrl: newYoutubeUrl } : null
             );
           }}
+        />
+      )}
+
+      {/* Schedule Meeting Modal (Creator-Only) */}
+      {isCreator && (
+        <ScheduleMeetingModal
+          groupId={groupId}
+          isOpen={isScheduleModalOpen}
+          initialSession={editingScheduledSession}
+          onClose={() => {
+            setIsScheduleModalOpen(false);
+            setEditingScheduledSession(null);
+          }}
+          onScheduled={fetchWorkspaceData}
         />
       )}
     </RouteTransition>

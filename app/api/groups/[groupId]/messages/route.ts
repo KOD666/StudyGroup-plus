@@ -4,6 +4,7 @@ import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { groups, groupMessages, users } from "@/models";
 import { isGroupMember } from "@/lib/permissions";
+import { checkRateLimit, rateLimitExceededResponse } from "@/lib/ratelimit";
 
 // GET /api/groups/[groupId]/messages - List recent chat messages in a group
 export async function GET(
@@ -107,6 +108,15 @@ export async function POST(
 
   const currentUserId = authResult.context.userId;
   const currentUser = authResult.context.user;
+
+  // Rate limiting check: max 30 chat messages per minute per user
+  const rateLimitResult = checkRateLimit(`chat_send:${currentUserId}`, {
+    windowMs: 60 * 1000,
+    maxRequests: 30,
+  });
+  if (!rateLimitResult.success) {
+    return rateLimitExceededResponse(rateLimitResult);
+  }
 
   try {
     // 1. Permission check: Caller must be a member of the group

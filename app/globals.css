@@ -8,7 +8,7 @@
    ========================================================================== */
 
 :root {
-  /* Surfaces — stepped, not flat */
+  /* Surfaces — stepped, not flat (dark theme default) */
   --bg-inset: #050505; /* recessed: inputs, code/transcript blocks */
   --bg-primary: #0a0a0a; /* base page background */
   --bg-elevated: #141414; /* cards, panels, tab bars */
@@ -69,6 +69,64 @@
 
   --space-section: clamp(2rem, 4vw, 3.5rem);
   --space-card-pad: 1.25rem;
+}
+
+/* Light Theme Variables */
+html:not(.dark),
+[data-theme="light"],
+.light {
+  /* Surfaces — stepped editorial paper */
+  --bg-inset: #f2f0ea; /* recessed: inputs, code/transcript wells */
+  --bg-primary: #fbf9f5; /* base page background */
+  --bg-elevated: #ffffff; /* cards, panels, tab bars */
+  --bg-overlay: #ffffff; /* modals, dropdowns, popovers */
+
+  /* Text */
+  --text-primary: #171615; /* deep carbon ink */
+  --text-secondary: #6e6b66; /* metadata, timestamps, captions */
+  --text-disabled: #9c9890;
+
+  /* Structure */
+  --border-hairline: rgba(23, 22, 21, 0.12);
+  --border-hover: rgba(23, 22, 21, 0.24);
+  --border-focus: rgba(23, 22, 21, 0.45);
+
+  /* Interactive — monochrome invert */
+  --invert-bg: #171615; /* primary button fill */
+  --invert-text: #fbf9f5; /* text on invert-bg */
+
+  /* The one accent in the entire system (3 sanctioned places only) */
+  --accent-live: #e5484d;
+  --accent-live-wash: rgba(229, 72, 77, 0.12);
+}
+
+/* Dark Theme Variables */
+html.dark,
+[data-theme="dark"],
+.dark {
+  /* Surfaces — stepped, not flat */
+  --bg-inset: #050505;
+  --bg-primary: #0a0a0a;
+  --bg-elevated: #141414;
+  --bg-overlay: #1c1c1c;
+
+  /* Text */
+  --text-primary: #ededed;
+  --text-secondary: #8a8a8a;
+  --text-disabled: #4a4a4a;
+
+  /* Structure */
+  --border-hairline: rgba(237, 237, 237, 0.08);
+  --border-hover: rgba(237, 237, 237, 0.18);
+  --border-focus: rgba(237, 237, 237, 0.35);
+
+  /* Interactive — monochrome invert */
+  --invert-bg: #ededed;
+  --invert-text: #0a0a0a;
+
+  /* The one accent in the entire system (3 sanctioned places only) */
+  --accent-live: #e5484d;
+  --accent-live-wash: rgba(229, 72, 77, 0.12);
 }
 
 @theme {
