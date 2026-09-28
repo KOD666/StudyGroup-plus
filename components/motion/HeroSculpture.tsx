@@ -57,19 +57,37 @@ export function HeroSculpture({ className = "" }: { className?: string }) {
         >
           <defs>
             {/* Red Accent Gradient matching ainsley.dev #ef4639 */}
-            <linearGradient id="sculpture-red" x1="0%" y1="0%" x2="100%" y2="100%">
+            <linearGradient
+              id="sculpture-red"
+              x1="0%"
+              y1="0%"
+              x2="100%"
+              y2="100%"
+            >
               <stop offset="0%" stopColor="#ef4639" stopOpacity="0.95" />
               <stop offset="100%" stopColor="#b91c1c" stopOpacity="0.8" />
             </linearGradient>
 
             {/* Charcoal / Elevated Inset Gradient */}
-            <linearGradient id="sculpture-dark" x1="0%" y1="0%" x2="100%" y2="100%">
+            <linearGradient
+              id="sculpture-dark"
+              x1="0%"
+              y1="0%"
+              x2="100%"
+              y2="100%"
+            >
               <stop offset="0%" stopColor="#222222" />
               <stop offset="100%" stopColor="#0d0d0d" />
             </linearGradient>
 
             {/* Translucent Frosted Glass Overlay */}
-            <linearGradient id="sculpture-glass" x1="0%" y1="0%" x2="100%" y2="100%">
+            <linearGradient
+              id="sculpture-glass"
+              x1="0%"
+              y1="0%"
+              x2="100%"
+              y2="100%"
+            >
               <stop offset="0%" stopColor="#ffffff" stopOpacity="0.12" />
               <stop offset="100%" stopColor="#ffffff" stopOpacity="0.02" />
             </linearGradient>
@@ -113,7 +131,13 @@ export function HeroSculpture({ className = "" }: { className?: string }) {
           />
 
           {/* Floating Live Pulse Accent Dot */}
-          <circle cx="200" cy="60" r="4" fill="#ef4639" className="animate-live-breathe" />
+          <circle
+            cx="200"
+            cy="60"
+            r="4"
+            fill="#ef4639"
+            className="animate-live-breathe"
+          />
           <circle cx="340" cy="280" r="3" fill="#ededed" opacity="0.6" />
           <circle cx="60" cy="280" r="3" fill="#ededed" opacity="0.6" />
         </svg>

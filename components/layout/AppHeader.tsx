@@ -227,10 +227,16 @@ export function AppHeader({}: AppHeaderProps) {
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       const target = event.target as Node;
-      if (searchContainerRef.current && !searchContainerRef.current.contains(target)) {
+      if (
+        searchContainerRef.current &&
+        !searchContainerRef.current.contains(target)
+      ) {
         setIsSearchOpen(false);
       }
-      if (notificationRef.current && !notificationRef.current.contains(target)) {
+      if (
+        notificationRef.current &&
+        !notificationRef.current.contains(target)
+      ) {
         setIsNotificationOpen(false);
       }
     }
@@ -313,7 +319,10 @@ export function AppHeader({}: AppHeaderProps) {
           {/* Left: Brand Logo */}
           <div className="flex items-center gap-4">
             <Link href="/lounges" className="flex items-center gap-2 group">
-              <StudyGroupLogo size={24} className="text-[var(--text-primary)] group-hover:opacity-80 transition-opacity" />
+              <StudyGroupLogo
+                size={24}
+                className="text-[var(--text-primary)] group-hover:opacity-80 transition-opacity"
+              />
               <span className="font-serif text-2xl font-normal tracking-tight text-[var(--text-primary)] group-hover:opacity-80 transition-opacity">
                 StudyGroup<span className="italic font-normal">+</span>
               </span>
@@ -345,7 +354,10 @@ export function AppHeader({}: AppHeaderProps) {
           {/* Right: Search, Notifications, User Profile, Log Out */}
           <div className="flex items-center gap-3">
             {/* Debounced, Server-Scoped Search Bar */}
-            <div className="relative hidden md:block w-64 lg:w-80" ref={searchContainerRef}>
+            <div
+              className="relative hidden md:block w-64 lg:w-80"
+              ref={searchContainerRef}
+            >
               <div className="relative flex items-center">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] pointer-events-none" />
                 <input
@@ -354,7 +366,10 @@ export function AppHeader({}: AppHeaderProps) {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onFocus={() => {
-                    if (searchResults.length > 0 || searchQuery.trim().length > 0) {
+                    if (
+                      searchResults.length > 0 ||
+                      searchQuery.trim().length > 0
+                    ) {
                       setIsSearchOpen(true);
                     }
                   }}
@@ -393,7 +408,8 @@ export function AppHeader({}: AppHeaderProps) {
                     <div className="p-4 text-center text-[var(--text-secondary)] font-sans text-xs">
                       <p>No results found for &ldquo;{searchQuery}&rdquo;</p>
                       <p className="font-mono text-[0.625rem] text-[var(--text-disabled)] mt-1">
-                        Try searching by lounge name, code, note title, or session
+                        Try searching by lounge name, code, note title, or
+                        session
                       </p>
                     </div>
                   ) : (
@@ -414,7 +430,9 @@ export function AppHeader({}: AppHeaderProps) {
                                 : "hover:bg-[var(--bg-inset)]"
                             }`}
                           >
-                            <div className="mt-0.5">{getResultIcon(item.type)}</div>
+                            <div className="mt-0.5">
+                              {getResultIcon(item.type)}
+                            </div>
                             <div className="min-w-0 flex-1">
                               <div className="font-sans text-xs font-medium text-[var(--text-primary)] truncate">
                                 {item.title}
@@ -477,9 +495,12 @@ export function AppHeader({}: AppHeaderProps) {
                   <div className="max-h-80 overflow-y-auto divide-y divide-[var(--border-hairline)]">
                     {notifications.length === 0 ? (
                       <div className="py-8 px-4 text-center text-[var(--text-secondary)]">
-                        <p className="font-sans text-xs">No notifications yet</p>
+                        <p className="font-sans text-xs">
+                          No notifications yet
+                        </p>
                         <p className="font-mono text-[0.625rem] text-[var(--text-disabled)] mt-1">
-                          Updates on meetings and uploaded material will appear here
+                          Updates on meetings and uploaded material will appear
+                          here
                         </p>
                       </div>
                     ) : (
@@ -495,7 +516,9 @@ export function AppHeader({}: AppHeaderProps) {
                                 : "hover:bg-[var(--bg-inset)]/40 opacity-80 hover:opacity-100"
                             }`}
                           >
-                            <div className="mt-0.5">{getNotificationIcon(n.type)}</div>
+                            <div className="mt-0.5">
+                              {getNotificationIcon(n.type)}
+                            </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between gap-1">
                                 <p

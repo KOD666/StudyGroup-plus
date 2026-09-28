@@ -43,7 +43,9 @@ export async function PUT(req: NextRequest) {
     lowerKey.endsWith(".js")
   ) {
     return NextResponse.json(
-      { error: "Validation Error: HTML, SVG, and script uploads are forbidden" },
+      {
+        error: "Validation Error: HTML, SVG, and script uploads are forbidden",
+      },
       { status: 400 }
     );
   }
@@ -65,7 +67,10 @@ export async function PUT(req: NextRequest) {
     const buffer = Buffer.from(arrayBuffer);
 
     // Deep content inspection: check magic bytes and reject embedded script/HTML/SVG
-    const headerSnippet = buffer.subarray(0, 512).toString("utf-8").toLowerCase();
+    const headerSnippet = buffer
+      .subarray(0, 512)
+      .toString("utf-8")
+      .toLowerCase();
     if (
       headerSnippet.includes("<script") ||
       headerSnippet.includes("<html") ||
@@ -106,7 +111,10 @@ export async function PUT(req: NextRequest) {
         buffer[3] === 0x04;
       if (!isZip) {
         return NextResponse.json(
-          { error: "Validation Error: File content is not a valid PPTX document" },
+          {
+            error:
+              "Validation Error: File content is not a valid PPTX document",
+          },
           { status: 400 }
         );
       }

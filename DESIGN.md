@@ -23,32 +23,38 @@ appears instead of being wallpaper.
 ```css
 :root {
   /* Surfaces — stepped, not flat */
-  --bg-inset:     #050505;   /* recessed: inputs, code/transcript blocks */
-  --bg-primary:   #0a0a0a;   /* base page background */
-  --bg-elevated:  #141414;   /* cards, panels, tab bars */
-  --bg-overlay:   #1c1c1c;   /* modals, dropdowns, popovers */
+  --bg-inset: #050505; /* recessed: inputs, code/transcript blocks */
+  --bg-primary: #0a0a0a; /* base page background */
+  --bg-elevated: #141414; /* cards, panels, tab bars */
+  --bg-overlay: #1c1c1c; /* modals, dropdowns, popovers */
 
   /* Text */
-  --text-primary:   #ededed;  /* never pure #fff */
-  --text-secondary: #8a8a8a;  /* metadata, timestamps, captions */
-  --text-disabled:  #4a4a4a;
+  --text-primary: #ededed; /* never pure #fff */
+  --text-secondary: #8a8a8a; /* metadata, timestamps, captions */
+  --text-disabled: #4a4a4a;
 
   /* Structure */
   --border-hairline: rgba(237, 237, 237, 0.08);
-  --border-hover:    rgba(237, 237, 237, 0.18);
-  --border-focus:    rgba(237, 237, 237, 0.35);
+  --border-hover: rgba(237, 237, 237, 0.18);
+  --border-focus: rgba(237, 237, 237, 0.35);
 
   /* Interactive — monochrome invert, no brand hue */
-  --invert-bg:   #ededed;  /* primary button fill (hover/filled state) */
-  --invert-text: #0a0a0a;  /* text on invert-bg */
+  --invert-bg: #ededed; /* primary button fill (hover/filled state) */
+  --invert-text: #0a0a0a; /* text on invert-bg */
 
   /* The one accent in the entire system */
-  --accent-live: #e5484d;  /* reserved exclusively for live/recording/active-call state */
-  --accent-live-wash: rgba(229, 72, 77, 0.12); /* background tint behind live badges only */
+  --accent-live: #e5484d; /* reserved exclusively for live/recording/active-call state */
+  --accent-live-wash: rgba(
+    229,
+    72,
+    77,
+    0.12
+  ); /* background tint behind live badges only */
 }
 ```
 
 **Hard rules:**
+
 - `--accent-live` appears in exactly three places across the whole product:
   the live-session badge on the Dashboard, the recording/live indicator in
   the Meeting Room, and nowhere else. If a new feature wants an accent
@@ -66,23 +72,28 @@ appears instead of being wallpaper.
 
 ```css
 --font-display: "Instrument Serif", "Canela", Georgia, serif;
---font-body:    "PP Neue Montreal", "Inter", -apple-system, sans-serif;
---font-mono:    "JetBrains Mono", "PP Mono", ui-monospace, monospace;
+--font-body: "PP Neue Montreal", "Inter", -apple-system, sans-serif;
+--font-mono: "JetBrains Mono", "PP Mono", ui-monospace, monospace;
 
---size-display-lg: clamp(2rem, 3.5vw, 3rem);    /* page titles: "Good morning, Elena" */
+--size-display-lg: clamp(
+  2rem,
+  3.5vw,
+  3rem
+); /* page titles: "Good morning, Elena" */
 --size-display-sm: clamp(1.5rem, 2.2vw, 1.875rem); /* section headers */
---size-body-lg:     1.0625rem;  /* primary reading content, asset viewer */
---size-body:        0.9375rem; /* default UI text */
---size-caption:     0.8125rem;
---size-micro:       0.75rem;   /* mono labels, timestamps, invite codes */
+--size-body-lg: 1.0625rem; /* primary reading content, asset viewer */
+--size-body: 0.9375rem; /* default UI text */
+--size-caption: 0.8125rem;
+--size-micro: 0.75rem; /* mono labels, timestamps, invite codes */
 
 --tracking-display: -0.02em;
---tracking-mono:     0.02em;   /* mono type wants slightly *positive* tracking */
---leading-display:  1.1;
---leading-body:     1.5;
+--tracking-mono: 0.02em; /* mono type wants slightly *positive* tracking */
+--leading-display: 1.1;
+--leading-body: 1.5;
 ```
 
 Three-font system, used deliberately by role, not by page:
+
 - **Serif (display):** page titles and section headers only. Never body
   text, never buttons, never inside cards.
 - **Sans (body):** everything functional — labels, buttons, chat, forms,
@@ -98,18 +109,18 @@ Three-font system, used deliberately by role, not by page:
 
 ```css
 /* Durations */
---dur-instant: 100ms;  /* icon swaps, checkbox ticks */
---dur-fast:    200ms;  /* hover, focus, toggles */
---dur-base:    300ms;  /* tab switches, dropdown open */
---dur-slow:    450ms;  /* modal open, tile re-layout */
---dur-reveal:  600ms;  /* content entrance on page load */
---dur-page:    550ms;  /* route transitions */
+--dur-instant: 100ms; /* icon swaps, checkbox ticks */
+--dur-fast: 200ms; /* hover, focus, toggles */
+--dur-base: 300ms; /* tab switches, dropdown open */
+--dur-slow: 450ms; /* modal open, tile re-layout */
+--dur-reveal: 600ms; /* content entrance on page load */
+--dur-page: 550ms; /* route transitions */
 
 /* Easing */
---ease-out-expo:   cubic-bezier(0.16, 1, 0.3, 1);   /* entrances, reveals */
---ease-out-quart:  cubic-bezier(0.25, 1, 0.5, 1);   /* general UI transitions */
+--ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1); /* entrances, reveals */
+--ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1); /* general UI transitions */
 --ease-in-out-soft: cubic-bezier(0.65, 0, 0.35, 1); /* route/page transitions */
---ease-spring:     cubic-bezier(0.34, 1.56, 0.64, 1); /* press feedback, pop-ins */
+--ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* press feedback, pop-ins */
 ```
 
 **Scroll physics:** inertia scroll (Lenis-style, lerp `0.1`, wheel
@@ -143,18 +154,18 @@ the page body.
 
 ## 5. Interaction Catalog (applies everywhere unless a page overrides it)
 
-| Element | Behavior |
-|---|---|
-| Primary button | Rest: `--bg-elevated` fill, `--text-primary` label, `--border-hairline`. Hover: inverts to `--invert-bg` fill / `--invert-text` label over `--dur-fast` `--ease-out-quart`. Press: scales to `0.97` via `--ease-spring`, `150ms`, releases on pointerup. |
-| Secondary/ghost button | No fill at rest; hover adds `--bg-elevated` fill only, no invert. |
-| Card | Hover: lifts `-4px` (translateY) + border brightens hairline→hover, `--dur-fast`. No scale. |
-| Toggle/switch | Thumb slides on `--ease-spring`, `250ms`. Track: `--bg-elevated` (off) → `rgba(237,237,237,0.2)` (on). No color change — state is communicated by position and track brightness only. |
-| Tab / segmented control | Active indicator (underline or pill) animates position via layout transition, `--dur-base`, `--ease-out-quart`. Content beneath cross-fades: `150ms` out, then `150ms` in — sequential, not simultaneous, to avoid a flash of empty state. |
-| Modal / dialog | Backdrop fades to `--bg-primary` at 60% opacity. Modal itself: scale `0.96 → 1` + fade, `--dur-slow`, `--ease-out-expo`. |
-| Input focus | 2px ring in `--border-focus`, offset 2px, `--dur-fast`. No accent color used for focus anywhere in the system. |
-| Confirm action (e.g. "Copy") | Label/icon morphs to a checkmark: `200ms` in, holds `800ms`, `200ms` back out. Shape communicates success — no color change. |
-| Busy/loading button | Label is replaced by a 3-dot pulse (opacity `0.3→1→0.3`, staggered `150ms` per dot, `900ms` loop) rather than a spinner. |
-| Skeleton loading | Shimmer sweeps left-to-right between `--bg-elevated` and `--bg-overlay`, `1.5s` linear, looping. Used for all initial data fetches in place of spinners. |
+| Element                      | Behavior                                                                                                                                                                                                                                                 |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Primary button               | Rest: `--bg-elevated` fill, `--text-primary` label, `--border-hairline`. Hover: inverts to `--invert-bg` fill / `--invert-text` label over `--dur-fast` `--ease-out-quart`. Press: scales to `0.97` via `--ease-spring`, `150ms`, releases on pointerup. |
+| Secondary/ghost button       | No fill at rest; hover adds `--bg-elevated` fill only, no invert.                                                                                                                                                                                        |
+| Card                         | Hover: lifts `-4px` (translateY) + border brightens hairline→hover, `--dur-fast`. No scale.                                                                                                                                                              |
+| Toggle/switch                | Thumb slides on `--ease-spring`, `250ms`. Track: `--bg-elevated` (off) → `rgba(237,237,237,0.2)` (on). No color change — state is communicated by position and track brightness only.                                                                    |
+| Tab / segmented control      | Active indicator (underline or pill) animates position via layout transition, `--dur-base`, `--ease-out-quart`. Content beneath cross-fades: `150ms` out, then `150ms` in — sequential, not simultaneous, to avoid a flash of empty state.               |
+| Modal / dialog               | Backdrop fades to `--bg-primary` at 60% opacity. Modal itself: scale `0.96 → 1` + fade, `--dur-slow`, `--ease-out-expo`.                                                                                                                                 |
+| Input focus                  | 2px ring in `--border-focus`, offset 2px, `--dur-fast`. No accent color used for focus anywhere in the system.                                                                                                                                           |
+| Confirm action (e.g. "Copy") | Label/icon morphs to a checkmark: `200ms` in, holds `800ms`, `200ms` back out. Shape communicates success — no color change.                                                                                                                             |
+| Busy/loading button          | Label is replaced by a 3-dot pulse (opacity `0.3→1→0.3`, staggered `150ms` per dot, `900ms` loop) rather than a spinner.                                                                                                                                 |
+| Skeleton loading             | Shimmer sweeps left-to-right between `--bg-elevated` and `--bg-overlay`, `1.5s` linear, looping. Used for all initial data fetches in place of spinners.                                                                                                 |
 
 ---
 
@@ -244,8 +255,8 @@ centerpiece of the whole system.
   transform-origin centered on the viewport so zooming doesn't jump the
   reading position.
 - **Selection toolbar:** appears above the selection with an `8px` rise
-  + fade, `--dur-fast` — this one needs to feel immediate since it
-  fires mid-read.
+  - fade, `--dur-fast` — this one needs to feel immediate since it
+    fires mid-read.
 - **Highlight action:** the highlight color sweeps in left-to-right via
   a clip-path reveal over `300ms`, `--ease-out-quart`, rather than
   snapping to full opacity on click.
@@ -260,6 +271,7 @@ centerpiece of the whole system.
 ## 7. Reduced Motion
 
 When `prefers-reduced-motion: reduce` is set:
+
 - Disable entirely: custom cursor, magnetic buttons, FLIP tile
   re-layout (snap instead), word-by-word transcript reveal (fall back to
   line-level), digit-roll clock (hard replace instead), marginal-note
@@ -274,10 +286,10 @@ When `prefers-reduced-motion: reduce` is set:
 ## 8. Structure
 
 ```css
---radius-card:   10px;
---radius-modal:  14px;
+--radius-card: 10px;
+--radius-modal: 14px;
 --radius-button: 6px;
 
---space-section:  clamp(2rem, 4vw, 3.5rem);
+--space-section: clamp(2rem, 4vw, 3.5rem);
 --space-card-pad: 1.25rem;
 ```

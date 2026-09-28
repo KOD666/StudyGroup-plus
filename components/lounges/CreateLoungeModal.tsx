@@ -50,7 +50,10 @@ export function CreateLoungeModal({
       const res = await fetch("/api/groups", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), description: description.trim() || undefined }),
+        body: JSON.stringify({
+          name: name.trim(),
+          description: description.trim() || undefined,
+        }),
       });
 
       const data = await res.json();
@@ -63,7 +66,9 @@ export function CreateLoungeModal({
       onClose();
       onLoungeCreated(data.group.id);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "An unexpected error occurred");
+      setError(
+        err instanceof Error ? err.message : "An unexpected error occurred"
+      );
     } finally {
       setIsLoading(false);
     }
@@ -95,7 +100,9 @@ export function CreateLoungeModal({
       onClose();
       onLoungeCreated(data.group.id);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "An unexpected error occurred");
+      setError(
+        err instanceof Error ? err.message : "An unexpected error occurred"
+      );
     } finally {
       setIsLoading(false);
     }
@@ -116,9 +123,13 @@ export function CreateLoungeModal({
 
         {/* Modal Window */}
         <motion.div
-          initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
+          initial={
+            shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96 }
+          }
           animate={{ opacity: 1, scale: 1 }}
-          exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
+          exit={
+            shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96 }
+          }
           transition={{
             duration: shouldReduceMotion ? 0.15 : 0.45,
             ease: [0.16, 1, 0.3, 1],
@@ -216,10 +227,21 @@ export function CreateLoungeModal({
                 </div>
 
                 <div className="pt-3 flex items-center justify-end gap-3 border-t border-[var(--border-hairline)]">
-                  <Button type="button" variant="secondary" size="sm" onClick={onClose} disabled={isLoading}>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={onClose}
+                    disabled={isLoading}
+                  >
                     Cancel
                   </Button>
-                  <Button type="submit" variant="primary" size="sm" isLoading={isLoading}>
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="sm"
+                    isLoading={isLoading}
+                  >
                     Create Group
                   </Button>
                 </div>
@@ -238,14 +260,26 @@ export function CreateLoungeModal({
                 />
 
                 <p className="font-mono text-xs text-[var(--text-secondary)]">
-                  Ask the group host for their 6-character code (found in the group header).
+                  Ask the group host for their 6-character code (found in the
+                  group header).
                 </p>
 
                 <div className="pt-3 flex items-center justify-end gap-3 border-t border-[var(--border-hairline)]">
-                  <Button type="button" variant="secondary" size="sm" onClick={onClose} disabled={isLoading}>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={onClose}
+                    disabled={isLoading}
+                  >
                     Cancel
                   </Button>
-                  <Button type="submit" variant="primary" size="sm" isLoading={isLoading}>
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="sm"
+                    isLoading={isLoading}
+                  >
                     Join Group
                   </Button>
                 </div>

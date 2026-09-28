@@ -38,7 +38,10 @@ export function HairlineTableBody({
   ...props
 }: React.HTMLAttributes<HTMLTableSectionElement>) {
   return (
-    <tbody className={`divide-y divide-[var(--border-hairline)] ${className}`} {...props}>
+    <tbody
+      className={`divide-y divide-[var(--border-hairline)] ${className}`}
+      {...props}
+    >
       {children}
     </tbody>
   );
@@ -65,7 +68,10 @@ export function HairlineTableCell({
   ...props
 }: React.TdHTMLAttributes<HTMLTableCellElement>) {
   return (
-    <td className={`py-3 px-4 text-[var(--text-primary)] align-middle ${className}`} {...props}>
+    <td
+      className={`py-3 px-4 text-[var(--text-primary)] align-middle ${className}`}
+      {...props}
+    >
       {children}
     </td>
   );
@@ -77,7 +83,10 @@ export function HairlineTableHeadCell({
   ...props
 }: React.ThHTMLAttributes<HTMLTableCellElement>) {
   return (
-    <th className={`py-3 px-4 font-normal align-middle ${className}`} {...props}>
+    <th
+      className={`py-3 px-4 font-normal align-middle ${className}`}
+      {...props}
+    >
       {children}
     </th>
   );

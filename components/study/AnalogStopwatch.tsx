@@ -39,7 +39,8 @@ export function AnalogStopwatch({
   const updateLoop = useCallback(() => {
     if (startTimeRef.current !== null) {
       const now = performance.now();
-      const currentElapsed = accumulatedMsRef.current + (now - startTimeRef.current);
+      const currentElapsed =
+        accumulatedMsRef.current + (now - startTimeRef.current);
       setElapsedMs(currentElapsed);
 
       if (onTick) {
@@ -142,7 +143,11 @@ export function AnalogStopwatch({
         y2={y2}
         stroke="var(--border-hairline)"
         strokeWidth={isMajor ? 1.5 : 0.75}
-        className={isMajor ? "stroke-[var(--text-primary)]/80" : "stroke-[var(--text-disabled)]"}
+        className={
+          isMajor
+            ? "stroke-[var(--text-primary)]/80"
+            : "stroke-[var(--text-disabled)]"
+        }
       />
     );
   }
@@ -192,7 +197,11 @@ export function AnalogStopwatch({
         y1={y1}
         x2={x2}
         y2={y2}
-        className={isSubMajor ? "stroke-[var(--text-secondary)]" : "stroke-[var(--text-disabled)]"}
+        className={
+          isSubMajor
+            ? "stroke-[var(--text-secondary)]"
+            : "stroke-[var(--text-disabled)]"
+        }
         strokeWidth={isSubMajor ? 1 : 0.5}
       />
     );
@@ -271,12 +280,7 @@ export function AnalogStopwatch({
               strokeWidth="1.2"
               strokeLinecap="round"
             />
-            <circle
-              cx={subCx}
-              cy={subCy}
-              r={2}
-              fill="var(--text-secondary)"
-            />
+            <circle cx={subCx} cy={subCy} r={2} fill="var(--text-secondary)" />
           </g>
 
           {/* Sweeping Second Hand (Ochre Accent) */}
@@ -310,12 +314,7 @@ export function AnalogStopwatch({
               stroke="var(--bg-elevated)"
               strokeWidth="1"
             />
-            <circle
-              cx={cx}
-              cy={cy}
-              r={1}
-              fill="var(--bg-elevated)"
-            />
+            <circle cx={cx} cy={cy} r={1} fill="var(--bg-elevated)" />
           </g>
         </svg>
       </div>

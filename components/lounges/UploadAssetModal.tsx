@@ -137,9 +137,13 @@ export function UploadAssetModal({
 
         {/* Modal Window */}
         <motion.div
-          initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
+          initial={
+            shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96 }
+          }
           animate={{ opacity: 1, scale: 1 }}
-          exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
+          exit={
+            shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96 }
+          }
           transition={{
             duration: shouldReduceMotion ? 0.15 : 0.45,
             ease: [0.16, 1, 0.3, 1],
@@ -233,10 +237,22 @@ export function UploadAssetModal({
             </div>
 
             <div className="pt-3 flex items-center justify-end gap-3 border-t border-[var(--border-hairline)]">
-              <Button type="button" variant="secondary" size="sm" onClick={onClose} disabled={isUploading}>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={onClose}
+                disabled={isUploading}
+              >
                 Cancel
               </Button>
-              <Button type="submit" variant="primary" size="sm" isLoading={isUploading} disabled={!file}>
+              <Button
+                type="submit"
+                variant="primary"
+                size="sm"
+                isLoading={isUploading}
+                disabled={!file}
+              >
                 Upload Document
               </Button>
             </div>

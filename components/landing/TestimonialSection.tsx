@@ -31,8 +31,12 @@ export function TestimonialSection() {
                 <Timer className="w-4 h-4" />
               </div>
               <div>
-                <span className="font-mono text-lg font-bold tracking-tight text-[var(--text-primary)]">25:00</span>
-                <span className="text-[0.625rem] font-mono text-[var(--text-secondary)] uppercase ml-1.5">Focus</span>
+                <span className="font-mono text-lg font-bold tracking-tight text-[var(--text-primary)]">
+                  25:00
+                </span>
+                <span className="text-[0.625rem] font-mono text-[var(--text-secondary)] uppercase ml-1.5">
+                  Focus
+                </span>
               </div>
             </div>
             <div className="flex items-center gap-1 text-[0.625rem] font-mono uppercase text-[var(--text-primary)] bg-[var(--bg-overlay)] px-2 py-0.5 rounded-[4px] border border-[var(--border-hairline)]">
@@ -74,7 +78,9 @@ export function TestimonialSection() {
         <div className="p-4 bg-[var(--bg-inset)] border border-[var(--border-hairline)] rounded-[6px] space-y-3 font-sans">
           {/* Highlight Palette Preview */}
           <div className="flex items-center justify-between text-[0.625rem] font-mono">
-            <span className="font-medium uppercase tracking-wider text-[var(--text-secondary)]">Palette</span>
+            <span className="font-medium uppercase tracking-wider text-[var(--text-secondary)]">
+              Palette
+            </span>
             <div className="flex items-center gap-1">
               <span className="px-1.5 py-0.5 bg-[var(--bg-overlay)] text-[var(--text-primary)] border border-[var(--border-hairline)] rounded-[2px] font-semibold">
                 [CONCEPT]
@@ -90,7 +96,8 @@ export function TestimonialSection() {
 
           <div className="p-2.5 bg-[var(--bg-elevated)] border-l-2 border-[var(--text-primary)] border-y border-r border-[var(--border-hairline)] rounded-r-[4px]">
             <p className="font-serif italic text-xs leading-relaxed text-[var(--text-secondary)]">
-              &ldquo;Synaptic plasticity provides the neurobiological substrate for memory consolidation.&rdquo;
+              &ldquo;Synaptic plasticity provides the neurobiological substrate
+              for memory consolidation.&rdquo;
             </p>
           </div>
 
@@ -114,7 +121,9 @@ export function TestimonialSection() {
       visual: (
         <div className="p-4 bg-[var(--bg-inset)] border border-[var(--border-hairline)] rounded-[6px] space-y-2.5 font-sans">
           <div className="flex items-center justify-between text-[0.625rem] font-mono">
-            <span className="font-medium uppercase tracking-wider text-[var(--text-secondary)]">Problem Set Progress</span>
+            <span className="font-medium uppercase tracking-wider text-[var(--text-secondary)]">
+              Problem Set Progress
+            </span>
             <span className="font-semibold text-[var(--text-primary)] bg-[var(--bg-overlay)] px-1.5 py-0.5 rounded-[4px] border border-[var(--border-hairline)]">
               3 of 4 Mastered
             </span>
@@ -151,7 +160,10 @@ export function TestimonialSection() {
   ];
 
   return (
-    <section id="study-modes" className="py-20 sm:py-28 bg-[var(--bg-inset)] border-y border-[var(--border-hairline)] relative">
+    <section
+      id="study-modes"
+      className="py-20 sm:py-28 bg-[var(--bg-inset)] border-y border-[var(--border-hairline)] relative"
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="max-w-3xl mx-auto text-center mb-16">
@@ -184,8 +196,9 @@ export function TestimonialSection() {
             transition={{ duration: 0.25, delay: 0.05, ease: "easeOut" }}
             className="font-sans text-base sm:text-lg text-[var(--text-secondary)] leading-relaxed"
           >
-            Most study groups drown in a maze of video meeting links, buried Google Docs, and noisy chat apps.
-            StudyGroup+ unites your reading, problem solving, and focus sprints in a unified academic workspace.
+            Most study groups drown in a maze of video meeting links, buried
+            Google Docs, and noisy chat apps. StudyGroup+ unites your reading,
+            problem solving, and focus sprints in a unified academic workspace.
           </motion.p>
         </div>
 
@@ -197,7 +210,11 @@ export function TestimonialSection() {
               initial={{ opacity: 0, y: 12 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.25, delay: index * 0.08, ease: "easeOut" }}
+              transition={{
+                duration: 0.25,
+                delay: index * 0.08,
+                ease: "easeOut",
+              }}
               className="bg-[var(--bg-elevated)] rounded-[10px] border border-[var(--border-hairline)] p-6 flex flex-col justify-between"
             >
               <div>
@@ -246,7 +263,8 @@ export function TestimonialSection() {
                   100% Browser-Native
                 </h4>
                 <p className="font-sans text-xs text-[var(--text-secondary)] leading-relaxed">
-                  WebRTC audio and video with native PDF canvas rendering. No desktop clients or downloads required.
+                  WebRTC audio and video with native PDF canvas rendering. No
+                  desktop clients or downloads required.
                 </p>
               </div>
             </div>
@@ -261,7 +279,8 @@ export function TestimonialSection() {
                   Term-Long Persistence
                 </h4>
                 <p className="font-sans text-xs text-[var(--text-secondary)] leading-relaxed">
-                  Every document, highlight, and checked-out question stays organized in your group repository for finals.
+                  Every document, highlight, and checked-out question stays
+                  organized in your group repository for finals.
                 </p>
               </div>
             </div>
@@ -276,7 +295,9 @@ export function TestimonialSection() {
                   High-Contrast Studio Aesthetic
                 </h4>
                 <p className="font-sans text-xs text-[var(--text-secondary)] leading-relaxed">
-                  Engineered with high-contrast monochrome surfaces and editorial typography designed to reduce eye strain during late-night study.
+                  Engineered with high-contrast monochrome surfaces and
+                  editorial typography designed to reduce eye strain during
+                  late-night study.
                 </p>
               </div>
             </div>

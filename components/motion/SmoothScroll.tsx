@@ -10,13 +10,19 @@ import Lenis from "lenis";
  * - Supports [data-lenis-prevent] for nested scroll containers (chat, live transcripts, modals)
  * - Auto-disabled if prefers-reduced-motion: reduce
  */
-export function SmoothScrollProvider({ children }: { children: React.ReactNode }) {
+export function SmoothScrollProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const lenisRef = useRef<Lenis | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
     if (reducedMotion) return;
 
     const lenis = new Lenis({

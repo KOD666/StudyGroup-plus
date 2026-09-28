@@ -6,7 +6,12 @@ import Link from "next/link";
 import { BookOpen, ArrowRight, Hash } from "lucide-react";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { Button } from "@/components/ui/Button";
-import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/Card";
+import {
+  Card,
+  CardHeader,
+  CardContent,
+  CardFooter,
+} from "@/components/ui/Card";
 import { RouteTransition } from "@/components/motion/RouteTransition";
 import { StudyGroupLogo } from "@/components/icons/StudyGroupLogo";
 
@@ -52,7 +57,8 @@ export default function EnterInviteCodePage() {
               )}
 
               <p className="font-sans text-xs text-[var(--text-secondary)] text-center leading-relaxed">
-                Enter the 6-character invite code provided by your study group host to enroll in the workspace.
+                Enter the 6-character invite code provided by your study group
+                host to enroll in the workspace.
               </p>
 
               <div className="relative">
@@ -86,11 +92,17 @@ export default function EnterInviteCodePage() {
           </CardContent>
 
           <CardFooter className="border-t border-[var(--border-hairline)] justify-between text-xs font-mono text-[var(--text-secondary)]">
-            <Link href="/lounges" className="hover:text-[var(--text-primary)] transition-colors">
+            <Link
+              href="/lounges"
+              className="hover:text-[var(--text-primary)] transition-colors"
+            >
               ← Dashboard
             </Link>
             <span className="inline-flex items-center gap-1.5">
-              <StudyGroupLogo size={14} className="text-[var(--text-secondary)]" />
+              <StudyGroupLogo
+                size={14}
+                className="text-[var(--text-secondary)]"
+              />
               <span>StudyGroup+</span>
             </span>
           </CardFooter>

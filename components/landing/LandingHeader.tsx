@@ -13,13 +13,15 @@ export function LandingHeader() {
 
   return (
     <header className="w-full sticky top-0 z-50 bg-[var(--bg-primary)]/90 backdrop-blur-md border-b border-[var(--border-hairline)]">
-
       {/* Main Navigation Bar */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Logo & Term Tag */}
         <div className="flex items-center gap-3">
           <Link href="/" className="flex items-center gap-2 group">
-            <StudyGroupLogo size={24} className="text-[var(--text-primary)] group-hover:opacity-80 transition-opacity" />
+            <StudyGroupLogo
+              size={24}
+              className="text-[var(--text-primary)] group-hover:opacity-80 transition-opacity"
+            />
             <span className="font-serif text-2xl font-normal tracking-tight text-[var(--text-primary)] group-hover:opacity-80 transition-opacity">
               StudyGroup<span className="font-normal opacity-60">+</span>
             </span>

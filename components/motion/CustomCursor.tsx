@@ -24,19 +24,39 @@ export function CustomCursor() {
   const mouseY = useMotionValue(-100);
 
   // Snappy spring for center dot
-  const dotSpringX = useSpring(mouseX, { damping: 40, stiffness: 700, mass: 0.1 });
-  const dotSpringY = useSpring(mouseY, { damping: 40, stiffness: 700, mass: 0.1 });
+  const dotSpringX = useSpring(mouseX, {
+    damping: 40,
+    stiffness: 700,
+    mass: 0.1,
+  });
+  const dotSpringY = useSpring(mouseY, {
+    damping: 40,
+    stiffness: 700,
+    mass: 0.1,
+  });
 
   // Fluid trailing spring for the outer blur lens
-  const lensSpringX = useSpring(mouseX, { damping: 26, stiffness: 280, mass: 0.4 });
-  const lensSpringY = useSpring(mouseY, { damping: 26, stiffness: 280, mass: 0.4 });
+  const lensSpringX = useSpring(mouseX, {
+    damping: 26,
+    stiffness: 280,
+    mass: 0.4,
+  });
+  const lensSpringY = useSpring(mouseY, {
+    damping: 26,
+    stiffness: 280,
+    mass: 0.4,
+  });
 
   const activeMagneticRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     // Only enable on desktop with fine pointer and no reduced motion
-    const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const finePointer = window.matchMedia(
+      "(hover: hover) and (pointer: fine)"
+    ).matches;
+    const reducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
 
     if (!finePointer || reducedMotion) {
       setIsEnabled(false);
@@ -70,14 +90,17 @@ export function CustomCursor() {
           const pullX = Math.max(-maxPull, Math.min(maxPull, dx * 0.18));
           const pullY = Math.max(-maxPull, Math.min(maxPull, dy * 0.18));
           target.style.transform = `translate3d(${pullX}px, ${pullY}px, 0)`;
-          target.style.transition = "transform 100ms cubic-bezier(0.16, 1, 0.3, 1)";
+          target.style.transition =
+            "transform 100ms cubic-bezier(0.16, 1, 0.3, 1)";
         } else {
           target.style.transform = "translate3d(0px, 0px, 0)";
-          target.style.transition = "transform 250ms cubic-bezier(0.34, 1.56, 0.64, 1)";
+          target.style.transition =
+            "transform 250ms cubic-bezier(0.34, 1.56, 0.64, 1)";
         }
       } else if (activeMagneticRef.current) {
         activeMagneticRef.current.style.transform = "translate3d(0px, 0px, 0)";
-        activeMagneticRef.current.style.transition = "transform 250ms cubic-bezier(0.34, 1.56, 0.64, 1)";
+        activeMagneticRef.current.style.transition =
+          "transform 250ms cubic-bezier(0.34, 1.56, 0.64, 1)";
         activeMagneticRef.current = null;
       }
     };
@@ -153,8 +176,12 @@ export function CustomCursor() {
           width: isHovered ? (cursorText ? 64 : 48) : 28,
           height: isHovered ? (cursorText ? 64 : 48) : 28,
           scale: isHovered ? 1.15 : 1,
-          backgroundColor: isHovered ? "rgba(255, 255, 255, 0.09)" : "rgba(255, 255, 255, 0.03)",
-          borderColor: isHovered ? "rgba(255, 255, 255, 0.40)" : "rgba(255, 255, 255, 0.18)",
+          backgroundColor: isHovered
+            ? "rgba(255, 255, 255, 0.09)"
+            : "rgba(255, 255, 255, 0.03)",
+          borderColor: isHovered
+            ? "rgba(255, 255, 255, 0.40)"
+            : "rgba(255, 255, 255, 0.18)",
           backdropFilter: isHovered ? "blur(8px)" : "blur(2px)",
         }}
         transition={{

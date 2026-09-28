@@ -15,7 +15,11 @@ interface ArrowHoverProps {
  * - Hidden duplicate arrow seamlessly slides in from the opposite side
  * - Fluid cubic-bezier transition [0.16, 1, 0.3, 1]
  */
-export function ArrowHover({ className = "", size = 18, rotation = 0 }: ArrowHoverProps) {
+export function ArrowHover({
+  className = "",
+  size = 18,
+  rotation = 0,
+}: ArrowHoverProps) {
   return (
     <span
       className={`relative inline-flex items-center justify-center overflow-hidden group/arrow align-middle select-none ${className}`}

@@ -46,12 +46,7 @@ export async function POST(
         endedAt: new Date(),
         updatedAt: new Date(),
       })
-      .where(
-        and(
-          eq(sessions.id, sessionId),
-          eq(sessions.groupId, groupId)
-        )
-      )
+      .where(and(eq(sessions.id, sessionId), eq(sessions.groupId, groupId)))
       .returning();
 
     if (!updatedSession) {

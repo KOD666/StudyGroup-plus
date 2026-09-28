@@ -372,7 +372,8 @@ export default function MeetingRoomPage() {
     useState(false);
 
   // In-meeting shared note/doc viewer state (§Feature 3)
-  const [activeMeetingDoc, setActiveMeetingDoc] = useState<ActiveMeetingDoc | null>(null);
+  const [activeMeetingDoc, setActiveMeetingDoc] =
+    useState<ActiveMeetingDoc | null>(null);
   const [isLoadingDoc, setIsLoadingDoc] = useState(false);
 
   // Camera Mirroring state (§Feature 4: defaults to un-mirrored per spec)
@@ -1269,24 +1270,33 @@ export default function MeetingRoomPage() {
 
   // Feature 3: Document Picture-in-Picture API popout for floating video window
   async function handlePopOutVideo() {
-    if (typeof window === "undefined" || !("documentPictureInPicture" in window)) {
+    if (
+      typeof window === "undefined" ||
+      !("documentPictureInPicture" in window)
+    ) {
       return;
     }
     try {
       type DocPiP = {
-        requestWindow: (options?: { width?: number; height?: number }) => Promise<Window>;
+        requestWindow: (options?: {
+          width?: number;
+          height?: number;
+        }) => Promise<Window>;
       };
-      const docPiP = (window as unknown as { documentPictureInPicture?: DocPiP })
-        .documentPictureInPicture;
+      const docPiP = (
+        window as unknown as { documentPictureInPicture?: DocPiP }
+      ).documentPictureInPicture;
       if (!docPiP) return;
       const pipWindow = await docPiP.requestWindow({
         width: 360,
         height: 270,
       });
 
-      document.querySelectorAll('link[rel="stylesheet"], style').forEach((node) => {
-        pipWindow.document.head.appendChild(node.cloneNode(true));
-      });
+      document
+        .querySelectorAll('link[rel="stylesheet"], style')
+        .forEach((node) => {
+          pipWindow.document.head.appendChild(node.cloneNode(true));
+        });
 
       pipWindow.document.body.style.margin = "0";
       pipWindow.document.body.style.background = "#0a0a0a";
@@ -1344,7 +1354,7 @@ export default function MeetingRoomPage() {
     const plainText = inCallMessages
       .map(
         (m) =>
-          `${m.isSelf ? (user?.fullName || "You") : m.senderName} [${m.time}]: ${m.text}`
+          `${m.isSelf ? user?.fullName || "You" : m.senderName} [${m.time}]: ${m.text}`
       )
       .join("\n");
 
@@ -1477,7 +1487,9 @@ export default function MeetingRoomPage() {
             className="font-serif text-lg font-normal text-[var(--text-primary)] flex items-center gap-1.5 hover:opacity-80 transition-opacity"
           >
             <StudyGroupLogo size={18} className="text-[var(--text-primary)]" />
-            <span>StudyGroup<span className="italic font-normal">+</span></span>
+            <span>
+              StudyGroup<span className="italic font-normal">+</span>
+            </span>
           </Link>
           <span className="text-[var(--text-disabled)]">/</span>
           <Link
@@ -1658,226 +1670,227 @@ export default function MeetingRoomPage() {
                       }`}
                     />
 
-                  {/* Fallback Display when Camera Off */}
-                  {isVideoOff && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-[var(--bg-elevated)]">
-                      <div className="relative w-28 h-28 rounded-full bg-[var(--bg-inset)] border border-[var(--border-hairline)] flex items-center justify-center font-mono text-3xl text-[var(--text-primary)] mb-4">
-                        {scholarInitials}
-                        <span
-                          className="absolute bottom-1 right-1 w-4 h-4 rounded-full bg-[var(--bg-overlay)] border border-[var(--border-hairline)] ring-2 ring-[var(--bg-elevated)]"
-                          title="Camera Off"
-                        />
+                    {/* Fallback Display when Camera Off */}
+                    {isVideoOff && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-[var(--bg-elevated)]">
+                        <div className="relative w-28 h-28 rounded-full bg-[var(--bg-inset)] border border-[var(--border-hairline)] flex items-center justify-center font-mono text-3xl text-[var(--text-primary)] mb-4">
+                          {scholarInitials}
+                          <span
+                            className="absolute bottom-1 right-1 w-4 h-4 rounded-full bg-[var(--bg-overlay)] border border-[var(--border-hairline)] ring-2 ring-[var(--bg-elevated)]"
+                            title="Camera Off"
+                          />
+                        </div>
+
+                        <h3 className="font-serif text-2xl font-normal text-[var(--text-primary)] mb-1">
+                          {user?.fullName || "You"}
+                        </h3>
+                        <p className="font-sans text-xs text-[var(--text-secondary)] max-w-sm mb-6 leading-relaxed">
+                          Your camera is currently muted. Turn it on with the
+                          tray button below, or invite study peers to this
+                          lounge.
+                        </p>
                       </div>
-
-                      <h3 className="font-serif text-2xl font-normal text-[var(--text-primary)] mb-1">
-                        {user?.fullName || "You"}
-                      </h3>
-                      <p className="font-sans text-xs text-[var(--text-secondary)] max-w-sm mb-6 leading-relaxed">
-                        Your camera is currently muted. Turn it on with the tray
-                        button below, or invite study peers to this lounge.
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Top Stage Badges */}
-                  <div className="absolute top-4 left-4 z-20 flex items-center gap-2">
-                    <span className="px-2.5 py-1 rounded-[var(--radius-button)] bg-[var(--bg-inset)]/90 backdrop-blur-sm border border-[var(--border-hairline)] text-xs font-mono text-[var(--text-primary)] flex items-center gap-2">
-                      <span
-                        className={`w-2 h-2 rounded-full ${
-                          isVideoOff
-                            ? "bg-[var(--text-disabled)]"
-                            : "bg-[var(--text-primary)]"
-                        }`}
-                      />
-                      {user?.fullName || "You"} (Stage)
-                    </span>
-                    {isMuted && (
-                      <span className="px-2.5 py-1 rounded-[var(--radius-button)] bg-[var(--bg-inset)]/90 border border-[var(--border-hairline)] text-[var(--text-secondary)] text-xs font-mono flex items-center gap-1.5">
-                        <MicOff className="w-3 h-3" /> Muted
-                      </span>
                     )}
-                  </div>
 
-                  {/* Bottom Invite Floating Bar */}
-                  <div className="absolute bottom-4 left-4 right-4 z-20 flex items-center justify-between pointer-events-none">
-                    <div className="pointer-events-auto bg-[var(--bg-elevated)]/90 backdrop-blur-md px-4 py-2 rounded-[var(--radius-card)] border border-[var(--border-hairline)] flex items-center gap-3">
-                      <span className="font-sans text-xs text-[var(--text-secondary)] hidden sm:inline">
-                        Waiting for members to join
+                    {/* Top Stage Badges */}
+                    <div className="absolute top-4 left-4 z-20 flex items-center gap-2">
+                      <span className="px-2.5 py-1 rounded-[var(--radius-button)] bg-[var(--bg-inset)]/90 backdrop-blur-sm border border-[var(--border-hairline)] text-xs font-mono text-[var(--text-primary)] flex items-center gap-2">
+                        <span
+                          className={`w-2 h-2 rounded-full ${
+                            isVideoOff
+                              ? "bg-[var(--text-disabled)]"
+                              : "bg-[var(--text-primary)]"
+                          }`}
+                        />
+                        {user?.fullName || "You"} (Stage)
                       </span>
-                      <button
-                        type="button"
-                        onClick={handleCopyInviteLink}
-                        className="px-3 py-1.5 bg-[var(--invert-bg)] hover:bg-white text-[var(--invert-text)] text-xs font-semibold rounded-[var(--radius-button)] flex items-center gap-1.5 transition-colors cursor-pointer"
-                      >
-                        {copiedLink ? (
-                          <>
-                            <Check className="w-3.5 h-3.5" /> Link Copied!
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="w-3.5 h-3.5" /> Copy Invite Link
-                          </>
-                        )}
-                      </button>
-                      {groupCode && (
-                        <span className="font-mono text-xs text-[var(--text-secondary)] hidden md:inline">
-                          #{groupCode}
+                      {isMuted && (
+                        <span className="px-2.5 py-1 rounded-[var(--radius-button)] bg-[var(--bg-inset)]/90 border border-[var(--border-hairline)] text-[var(--text-secondary)] text-xs font-mono flex items-center gap-1.5">
+                          <MicOff className="w-3 h-3" /> Muted
                         </span>
                       )}
                     </div>
-                  </div>
-                </div>
-              )}
 
-              {/* Live Transcript Panel (§6.3 word-by-word reveal, 4px rise, Pin-to-notes travel animation) */}
-              {transcript && (
-                <motion.div
-                  initial={
-                    shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 4 }
-                  }
-                  animate={{
-                    opacity: 1,
-                    y: 0,
-                    backgroundColor: isPinFlashing
-                      ? "var(--bg-overlay)"
-                      : "rgba(10, 10, 10, 0.92)",
-                  }}
-                  transition={{ duration: shouldReduceMotion ? 0.1 : 0.2 }}
-                  className="relative z-20 m-4 p-4 rounded-[var(--radius-card)] backdrop-blur-md border border-[var(--border-hairline)] max-w-2xl"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="w-3.5 h-3.5 text-[var(--text-primary)]" />
-                      <span className="font-mono text-[0.625rem] font-medium uppercase tracking-[0.08em] text-[var(--text-secondary)]">
-                        Live Transcript • {transcriptTime}
-                      </span>
-                      <span className="inline-flex items-center gap-1 text-[#e5484d] font-mono text-[0.625rem] font-semibold uppercase tracking-wider ml-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#e5484d] animate-live-breathe inline-block" />
-                        STREAMING
-                      </span>
-                    </div>
-
-                    <div className="relative">
-                      <button
-                        type="button"
-                        onClick={handlePinTranscript}
-                        className="font-mono text-xs text-[var(--text-primary)] hover:underline transition-colors flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <Pin className="w-3 h-3" /> Pin to Notes
-                      </button>
-
-                      {/* Traveling Pin Icon Animation (§6.3) */}
-                      {showTravelingPin && !shouldReduceMotion && (
-                        <motion.div
-                          initial={{ opacity: 1, x: 0, y: 0, scale: 1 }}
-                          animate={{ opacity: 0, x: 180, y: -40, scale: 0.4 }}
-                          transition={{
-                            duration: 0.6,
-                            ease: [0.16, 1, 0.3, 1],
-                          }}
-                          className="absolute -top-1 left-0 pointer-events-none text-[var(--text-primary)]"
+                    {/* Bottom Invite Floating Bar */}
+                    <div className="absolute bottom-4 left-4 right-4 z-20 flex items-center justify-between pointer-events-none">
+                      <div className="pointer-events-auto bg-[var(--bg-elevated)]/90 backdrop-blur-md px-4 py-2 rounded-[var(--radius-card)] border border-[var(--border-hairline)] flex items-center gap-3">
+                        <span className="font-sans text-xs text-[var(--text-secondary)] hidden sm:inline">
+                          Waiting for members to join
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleCopyInviteLink}
+                          className="px-3 py-1.5 bg-[var(--invert-bg)] hover:bg-white text-[var(--invert-text)] text-xs font-semibold rounded-[var(--radius-button)] flex items-center gap-1.5 transition-colors cursor-pointer"
                         >
-                          <Pin className="w-4 h-4" />
-                        </motion.div>
-                      )}
-                    </div>
-                  </div>
-
-                  <p className="font-serif text-sm sm:text-base leading-relaxed text-[var(--text-primary)]">
-                    <WordByWordTranscript
-                      text={transcript}
-                      shouldReduceMotion={shouldReduceMotion}
-                    />
-                  </p>
-                </motion.div>
-              )}
-            </motion.div>
-
-            {/* Right Column: Local User + Additional Remote Participants (FLIP-animated) */}
-            <div className="lg:col-span-4 flex flex-col gap-4 justify-between overflow-y-auto">
-              {/* Local Participant Feed */}
-              <motion.div
-                layout={!shouldReduceMotion}
-                className="flex-1 min-h-[9.5rem] bg-[var(--bg-elevated)] rounded-[var(--radius-card)] border border-[var(--border-hairline)] relative overflow-hidden flex flex-col justify-end p-3 group hover:border-[var(--border-hover)] transition-colors"
-              >
-                <video
-                  ref={localVideoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  style={{
-                    transform: isSelfViewMirrored ? "scaleX(-1)" : "none",
-                  }}
-                  className={`absolute inset-0 w-full h-full object-cover ${
-                    isVideoOff ? "hidden" : "block"
-                  }`}
-                />
-
-                {isVideoOff && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-[var(--bg-inset)]">
-                    <div className="w-12 h-12 rounded-full bg-[var(--bg-elevated)] border border-[var(--border-hairline)] flex items-center justify-center font-mono font-bold text-xs text-[var(--text-primary)]">
-                      {scholarInitials}
+                          {copiedLink ? (
+                            <>
+                              <Check className="w-3.5 h-3.5" /> Link Copied!
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3.5 h-3.5" /> Copy Invite Link
+                            </>
+                          )}
+                        </button>
+                        {groupCode && (
+                          <span className="font-mono text-xs text-[var(--text-secondary)] hidden md:inline">
+                            #{groupCode}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
 
-                <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg-primary)]/80 via-transparent to-transparent z-10 pointer-events-none" />
+                {/* Live Transcript Panel (§6.3 word-by-word reveal, 4px rise, Pin-to-notes travel animation) */}
+                {transcript && (
+                  <motion.div
+                    initial={
+                      shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 4 }
+                    }
+                    animate={{
+                      opacity: 1,
+                      y: 0,
+                      backgroundColor: isPinFlashing
+                        ? "var(--bg-overlay)"
+                        : "rgba(10, 10, 10, 0.92)",
+                    }}
+                    transition={{ duration: shouldReduceMotion ? 0.1 : 0.2 }}
+                    className="relative z-20 m-4 p-4 rounded-[var(--radius-card)] backdrop-blur-md border border-[var(--border-hairline)] max-w-2xl"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-3.5 h-3.5 text-[var(--text-primary)]" />
+                        <span className="font-mono text-[0.625rem] font-medium uppercase tracking-[0.08em] text-[var(--text-secondary)]">
+                          Live Transcript • {transcriptTime}
+                        </span>
+                        <span className="inline-flex items-center gap-1 text-[#e5484d] font-mono text-[0.625rem] font-semibold uppercase tracking-wider ml-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#e5484d] animate-live-breathe inline-block" />
+                          STREAMING
+                        </span>
+                      </div>
 
-                <div className="relative z-20 flex items-center justify-between text-xs">
-                  <div>
-                    <span className="font-sans font-medium text-[var(--text-primary)] block">
-                      {user?.fullName || "You"} (You)
-                    </span>
-                    <span className="font-mono text-[0.6875rem] text-[var(--text-secondary)]">
-                      {isScreenSharing ? "Sharing Screen" : "Member"}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {isMuted ? (
-                      <div
-                        className="p-1 rounded-[var(--radius-button)] bg-[var(--bg-inset)]/80 text-[var(--text-secondary)] border border-[var(--border-hairline)]"
-                        title="Microphone muted"
-                      >
-                        <MicOff className="w-3.5 h-3.5" />
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={handlePinTranscript}
+                          className="font-mono text-xs text-[var(--text-primary)] hover:underline transition-colors flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <Pin className="w-3 h-3" /> Pin to Notes
+                        </button>
+
+                        {/* Traveling Pin Icon Animation (§6.3) */}
+                        {showTravelingPin && !shouldReduceMotion && (
+                          <motion.div
+                            initial={{ opacity: 1, x: 0, y: 0, scale: 1 }}
+                            animate={{ opacity: 0, x: 180, y: -40, scale: 0.4 }}
+                            transition={{
+                              duration: 0.6,
+                              ease: [0.16, 1, 0.3, 1],
+                            }}
+                            className="absolute -top-1 left-0 pointer-events-none text-[var(--text-primary)]"
+                          >
+                            <Pin className="w-4 h-4" />
+                          </motion.div>
+                        )}
                       </div>
-                    ) : (
-                      <div
-                        className="p-1 rounded-[var(--radius-button)] bg-[var(--bg-inset)]/80 text-[var(--text-primary)] border border-[var(--border-hairline)]"
-                        title="Microphone active"
-                      >
-                        <Mic className="w-3.5 h-3.5" />
-                      </div>
-                    )}
-                  </div>
-                </div>
+                    </div>
+
+                    <p className="font-serif text-sm sm:text-base leading-relaxed text-[var(--text-primary)]">
+                      <WordByWordTranscript
+                        text={transcript}
+                        shouldReduceMotion={shouldReduceMotion}
+                      />
+                    </p>
+                  </motion.div>
+                )}
               </motion.div>
 
-              {/* Additional Remote Participants */}
-              {remoteParticipants.slice(1).map((participant) => (
-                <RemoteParticipantTile
-                  key={participant.identity}
-                  participant={participant}
-                  shouldReduceMotion={shouldReduceMotion}
-                />
-              ))}
+              {/* Right Column: Local User + Additional Remote Participants (FLIP-animated) */}
+              <div className="lg:col-span-4 flex flex-col gap-4 justify-between overflow-y-auto">
+                {/* Local Participant Feed */}
+                <motion.div
+                  layout={!shouldReduceMotion}
+                  className="flex-1 min-h-[9.5rem] bg-[var(--bg-elevated)] rounded-[var(--radius-card)] border border-[var(--border-hairline)] relative overflow-hidden flex flex-col justify-end p-3 group hover:border-[var(--border-hover)] transition-colors"
+                >
+                  <video
+                    ref={localVideoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    style={{
+                      transform: isSelfViewMirrored ? "scaleX(-1)" : "none",
+                    }}
+                    className={`absolute inset-0 w-full h-full object-cover ${
+                      isVideoOff ? "hidden" : "block"
+                    }`}
+                  />
 
-              {/* If only local user, show Waiting Status tile */}
-              {remoteParticipants.length === 0 && (
-                <div className="flex-1 min-h-[9.5rem] bg-[var(--bg-inset)] rounded-[var(--radius-card)] border border-dashed border-[var(--border-hairline)] flex flex-col items-center justify-center p-4 text-center">
-                  <Users className="w-6 h-6 text-[var(--text-secondary)] mb-2 opacity-50" />
-                  <span className="font-sans text-xs text-[var(--text-primary)] font-medium mb-1">
-                    Room Ready
-                  </span>
-                  <span className="font-mono text-[0.6875rem] text-[var(--text-secondary)] max-w-xs leading-relaxed">
-                    1 participant connected. Share invite link to add others.
-                  </span>
-                </div>
-              )}
+                  {isVideoOff && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-[var(--bg-inset)]">
+                      <div className="w-12 h-12 rounded-full bg-[var(--bg-elevated)] border border-[var(--border-hairline)] flex items-center justify-center font-mono font-bold text-xs text-[var(--text-primary)]">
+                        {scholarInitials}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg-primary)]/80 via-transparent to-transparent z-10 pointer-events-none" />
+
+                  <div className="relative z-20 flex items-center justify-between text-xs">
+                    <div>
+                      <span className="font-sans font-medium text-[var(--text-primary)] block">
+                        {user?.fullName || "You"} (You)
+                      </span>
+                      <span className="font-mono text-[0.6875rem] text-[var(--text-secondary)]">
+                        {isScreenSharing ? "Sharing Screen" : "Member"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {isMuted ? (
+                        <div
+                          className="p-1 rounded-[var(--radius-button)] bg-[var(--bg-inset)]/80 text-[var(--text-secondary)] border border-[var(--border-hairline)]"
+                          title="Microphone muted"
+                        >
+                          <MicOff className="w-3.5 h-3.5" />
+                        </div>
+                      ) : (
+                        <div
+                          className="p-1 rounded-[var(--radius-button)] bg-[var(--bg-inset)]/80 text-[var(--text-primary)] border border-[var(--border-hairline)]"
+                          title="Microphone active"
+                        >
+                          <Mic className="w-3.5 h-3.5" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+
+                {/* Additional Remote Participants */}
+                {remoteParticipants.slice(1).map((participant) => (
+                  <RemoteParticipantTile
+                    key={participant.identity}
+                    participant={participant}
+                    shouldReduceMotion={shouldReduceMotion}
+                  />
+                ))}
+
+                {/* If only local user, show Waiting Status tile */}
+                {remoteParticipants.length === 0 && (
+                  <div className="flex-1 min-h-[9.5rem] bg-[var(--bg-inset)] rounded-[var(--radius-card)] border border-dashed border-[var(--border-hairline)] flex flex-col items-center justify-center p-4 text-center">
+                    <Users className="w-6 h-6 text-[var(--text-secondary)] mb-2 opacity-50" />
+                    <span className="font-sans text-xs text-[var(--text-primary)] font-medium mb-1">
+                      Room Ready
+                    </span>
+                    <span className="font-mono text-[0.6875rem] text-[var(--text-secondary)] max-w-xs leading-relaxed">
+                      1 participant connected. Share invite link to add others.
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Floating Bottom Media Control Bar (§6.3 mic/cam cross-fade glyph swaps) */}
+          {/* Floating Bottom Media Control Bar (§6.3 mic/cam cross-fade glyph swaps) */}
           <div className="pt-4 flex justify-center z-30">
             <div className="px-5 py-2.5 rounded-[var(--radius-card)] bg-[var(--bg-elevated)] border border-[var(--border-hairline)] flex items-center gap-3 font-sans">
               {/* Mic Toggle with 150ms Icon Cross-fade */}

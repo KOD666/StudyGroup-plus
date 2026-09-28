@@ -19,7 +19,10 @@ export function ReferenceDeskSection() {
   ];
 
   return (
-    <section id="workspace" className="py-20 md:py-28 bg-[var(--bg-primary)] border-t border-[var(--border-hairline)]">
+    <section
+      id="workspace"
+      className="py-20 md:py-28 bg-[var(--bg-primary)] border-t border-[var(--border-hairline)]"
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
           {/* Left Column: Descriptive text and feature bullets (capped at 2) */}
@@ -31,8 +34,9 @@ export function ReferenceDeskSection() {
               Built for real study, not endless chat.
             </h2>
             <p className="font-sans text-base sm:text-lg text-[var(--text-secondary)] leading-relaxed mb-8">
-              Every study group includes a shared workspace with your reading materials, working notes,
-              and meeting records kept organized across the entire semester.
+              Every study group includes a shared workspace with your reading
+              materials, working notes, and meeting records kept organized
+              across the entire semester.
             </p>
 
             {/* Feature Bullets (capped at 2 items) */}
@@ -46,7 +50,8 @@ export function ReferenceDeskSection() {
                     Shared Reading Documents
                   </h4>
                   <p className="font-sans text-sm text-[var(--text-secondary)]">
-                    Read, annotate, and highlight PDFs and Markdown notes side-by-side with peers.
+                    Read, annotate, and highlight PDFs and Markdown notes
+                    side-by-side with peers.
                   </p>
                 </div>
               </div>
@@ -60,7 +65,8 @@ export function ReferenceDeskSection() {
                     Meeting Records &amp; Transcripts
                   </h4>
                   <p className="font-sans text-sm text-[var(--text-secondary)]">
-                    Live discussion transcripts and session summaries saved directly to your workspace.
+                    Live discussion transcripts and session summaries saved
+                    directly to your workspace.
                   </p>
                 </div>
               </div>
@@ -129,13 +135,15 @@ export function ReferenceDeskSection() {
                   type="button"
                   className="flex items-center gap-1.5 hover:text-[var(--text-primary)] transition-colors"
                 >
-                  <Download className="w-3.5 h-3.5 text-[var(--text-primary)]" /> Export Files
+                  <Download className="w-3.5 h-3.5 text-[var(--text-primary)]" />{" "}
+                  Export Files
                 </button>
                 <button
                   type="button"
                   className="flex items-center gap-1.5 hover:text-[var(--text-primary)] transition-colors"
                 >
-                  <Settings className="w-3.5 h-3.5 text-[var(--text-secondary)]" /> Group Settings
+                  <Settings className="w-3.5 h-3.5 text-[var(--text-secondary)]" />{" "}
+                  Group Settings
                 </button>
               </div>
             </div>

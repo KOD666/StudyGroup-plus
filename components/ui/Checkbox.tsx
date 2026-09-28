@@ -3,8 +3,10 @@
 import React from "react";
 import { Check } from "lucide-react";
 
-export interface CheckboxProps
-  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "type"> {
+export interface CheckboxProps extends Omit<
+  React.InputHTMLAttributes<HTMLInputElement>,
+  "type"
+> {
   label?: React.ReactNode;
   sublabel?: React.ReactNode;
 }
@@ -14,7 +16,10 @@ export interface CheckboxProps
  * Checked state: --invert-bg fill (#ededed) with --invert-text (#0a0a0a) checkmark.
  */
 export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
-  ({ checked, onChange, label, sublabel, className = "", disabled, ...props }, ref) => {
+  (
+    { checked, onChange, label, sublabel, className = "", disabled, ...props },
+    ref
+  ) => {
     return (
       <label
         className={`inline-flex items-start gap-2.5 cursor-pointer select-none group ${

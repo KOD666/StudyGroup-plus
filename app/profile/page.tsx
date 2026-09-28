@@ -79,7 +79,9 @@ export default function ProfilePage() {
               Study Groups
             </Link>
             <span className="text-[var(--text-disabled)]">/</span>
-            <span className="text-[var(--text-primary)] font-medium">Account Settings</span>
+            <span className="text-[var(--text-primary)] font-medium">
+              Account Settings
+            </span>
           </div>
 
           <div className="flex items-center gap-2 font-mono text-xs text-[var(--text-secondary)]">
@@ -228,7 +230,8 @@ export default function ProfilePage() {
                 Reading Atmosphere &amp; Theme
               </h2>
               <p className="text-xs text-[var(--text-secondary)] font-sans mt-0.5">
-                Customize your reading environment for light or dark editorial study.
+                Customize your reading environment for light or dark editorial
+                study.
               </p>
             </div>
             <span className="font-mono text-[0.625rem] uppercase tracking-[0.08em] px-2 py-0.5 rounded-[var(--radius-button)] border border-[var(--border-hairline)] bg-[var(--bg-inset)] text-[var(--text-secondary)]">
@@ -342,13 +345,16 @@ export default function ProfilePage() {
                 elements: {
                   rootBox: "w-full shadow-none",
                   card: "shadow-none border-0 p-0 w-full bg-transparent",
-                  navbar: "border-r border-[var(--border-hairline)] bg-[var(--bg-inset)]",
+                  navbar:
+                    "border-r border-[var(--border-hairline)] bg-[var(--bg-inset)]",
                   navbarButton:
                     "text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-sans text-xs",
                   navbarButtonActive:
                     "text-[var(--text-primary)] font-semibold bg-[var(--bg-elevated)]",
-                  headerTitle: "font-serif text-xl text-[var(--text-primary)] font-normal",
-                  headerSubtitle: "font-sans text-xs text-[var(--text-secondary)]",
+                  headerTitle:
+                    "font-serif text-xl text-[var(--text-primary)] font-normal",
+                  headerSubtitle:
+                    "font-sans text-xs text-[var(--text-secondary)]",
                   formButtonPrimary:
                     "bg-[var(--invert-bg)] hover:bg-white text-[var(--invert-text)] font-sans text-xs font-semibold rounded-[var(--radius-button)] transition-colors shadow-none",
                   badge:

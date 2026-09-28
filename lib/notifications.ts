@@ -26,7 +26,10 @@ export async function notifySessionStarted(params: {
       .select({ userId: memberships.userId })
       .from(memberships)
       .where(
-        and(eq(memberships.groupId, groupId), ne(memberships.userId, starterUserId))
+        and(
+          eq(memberships.groupId, groupId),
+          ne(memberships.userId, starterUserId)
+        )
       );
 
     if (!Array.isArray(members) || members.length === 0) return;
@@ -72,7 +75,10 @@ export async function notifySessionScheduled(params: {
       .select({ userId: memberships.userId })
       .from(memberships)
       .where(
-        and(eq(memberships.groupId, groupId), ne(memberships.userId, creatorUserId))
+        and(
+          eq(memberships.groupId, groupId),
+          ne(memberships.userId, creatorUserId)
+        )
       );
 
     if (!Array.isArray(members) || members.length === 0) return;
@@ -124,7 +130,10 @@ export async function notifyAssetUploaded(params: {
       .select({ userId: memberships.userId })
       .from(memberships)
       .where(
-        and(eq(memberships.groupId, groupId), ne(memberships.userId, uploaderUserId))
+        and(
+          eq(memberships.groupId, groupId),
+          ne(memberships.userId, uploaderUserId)
+        )
       );
 
     if (!Array.isArray(members) || members.length === 0) return;

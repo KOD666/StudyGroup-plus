@@ -23,7 +23,10 @@ export function CardSpotlight({
   borderColor = "rgba(239, 70, 57, 0.35)",
 }: CardSpotlightProps) {
   const cardRef = useRef<HTMLDivElement>(null);
-  const [coords, setCoords] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [coords, setCoords] = useState<{ x: number; y: number }>({
+    x: 0,
+    y: 0,
+  });
   const shouldReduceMotion = useReducedMotion();
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -55,7 +58,8 @@ export function CardSpotlight({
             style={{
               background: `radial-gradient(200px circle at ${coords.x}px ${coords.y}px, ${borderColor}, transparent 80%)`,
               mask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
-              WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+              WebkitMask:
+                "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
               maskComposite: "exclude",
               WebkitMaskComposite: "xor",
               padding: "1px",

@@ -90,8 +90,8 @@ export function MeetingDocViewer({
               {doc.type === "doc"
                 ? doc.fileType?.toUpperCase() || "DOCUMENT"
                 : doc.type === "note"
-                ? "STUDY NOTE"
-                : "CITATION"}
+                  ? "STUDY NOTE"
+                  : "CITATION"}
             </span>
             <h3 className="font-serif text-sm font-normal text-[var(--text-primary)] truncate">
               {doc.title}
@@ -104,7 +104,13 @@ export function MeetingDocViewer({
             <Button
               variant="secondary"
               size="sm"
-              icon={copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+              icon={
+                copied ? (
+                  <Check className="w-3.5 h-3.5" />
+                ) : (
+                  <Copy className="w-3.5 h-3.5" />
+                )
+              }
               onClick={() => handleCopy(doc.citationText || "")}
               className="text-xs"
             >
@@ -172,7 +178,9 @@ export function MeetingDocViewer({
                   <FileText className="w-6 h-6" />
                 </div>
                 <div>
-                  <h4 className="font-serif text-lg text-[var(--text-primary)]">{doc.title}</h4>
+                  <h4 className="font-serif text-lg text-[var(--text-primary)]">
+                    {doc.title}
+                  </h4>
                   <p className="font-mono text-xs text-[var(--text-secondary)] mt-1">
                     {doc.fileType?.toUpperCase()} document
                   </p>
@@ -205,7 +213,13 @@ export function MeetingDocViewer({
               <Button
                 variant="secondary"
                 size="sm"
-                icon={copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                icon={
+                  copied ? (
+                    <Check className="w-3.5 h-3.5" />
+                  ) : (
+                    <Copy className="w-3.5 h-3.5" />
+                  )
+                }
                 onClick={() => handleCopy(noteContent)}
                 className="text-xs"
               >
@@ -230,7 +244,9 @@ export function MeetingDocViewer({
                   variant="primary"
                   size="sm"
                   onClick={handleSaveNote}
-                  icon={isSavedNote ? <Check className="w-3.5 h-3.5" /> : undefined}
+                  icon={
+                    isSavedNote ? <Check className="w-3.5 h-3.5" /> : undefined
+                  }
                   className="text-xs"
                 >
                   {isSavedNote ? "Note Saved" : "Save Note"}
@@ -262,7 +278,13 @@ export function MeetingDocViewer({
               <Button
                 variant="secondary"
                 size="sm"
-                icon={copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                icon={
+                  copied ? (
+                    <Check className="w-3.5 h-3.5" />
+                  ) : (
+                    <Copy className="w-3.5 h-3.5" />
+                  )
+                }
                 onClick={() => handleCopy(doc.citationText || "")}
                 className="text-xs"
               >

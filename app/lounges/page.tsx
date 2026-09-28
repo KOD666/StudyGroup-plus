@@ -23,7 +23,12 @@ import {
 import { AppHeader } from "@/components/layout/AppHeader";
 import { CreateLoungeModal } from "@/components/lounges/CreateLoungeModal";
 import { Button } from "@/components/ui/Button";
-import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/Card";
+import {
+  Card,
+  CardHeader,
+  CardContent,
+  CardFooter,
+} from "@/components/ui/Card";
 import { GreetingClock } from "@/components/dashboard/GreetingClock";
 import { RouteTransition } from "@/components/motion/RouteTransition";
 import { CardSpotlight } from "@/components/motion/CardSpotlight";
@@ -74,7 +79,9 @@ export default function LoungesDashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalTab, setModalTab] = useState<"create" | "join">("create");
-  const [activeLiveGroup, setActiveLiveGroup] = useState<GroupItem | null>(null);
+  const [activeLiveGroup, setActiveLiveGroup] = useState<GroupItem | null>(
+    null
+  );
 
   const checkActiveLiveGroups = useCallback(async (groupItems: GroupItem[]) => {
     for (const g of groupItems) {
@@ -108,7 +115,9 @@ export default function LoungesDashboardPage() {
       checkActiveLiveGroups(loadedGroups);
     } catch (err: unknown) {
       console.error("Error fetching study groups:", err);
-      setError(err instanceof Error ? err.message : "Failed to load study groups");
+      setError(
+        err instanceof Error ? err.message : "Failed to load study groups"
+      );
     } finally {
       setIsLoading(false);
     }
@@ -146,7 +155,13 @@ export default function LoungesDashboardPage() {
     } else if (isUserLoaded && !user) {
       setIsLoading(false);
     }
-  }, [isUserLoaded, user, fetchGroups, fetchRecentAssets, fetchUpcomingSessions]);
+  }, [
+    isUserLoaded,
+    user,
+    fetchGroups,
+    fetchRecentAssets,
+    fetchUpcomingSessions,
+  ]);
 
   const scholarName = user?.firstName || user?.username || "Member";
   const activeLounge = activeLiveGroup;
@@ -159,9 +174,12 @@ export default function LoungesDashboardPage() {
   };
 
   const handleCardClick = (groupId: string) => {
-    setTimeout(() => {
-      router.push(`/lounges/${groupId}`);
-    }, shouldReduceMotion ? 0 : 80);
+    setTimeout(
+      () => {
+        router.push(`/lounges/${groupId}`);
+      },
+      shouldReduceMotion ? 0 : 80
+    );
   };
 
   const handleDownloadAsset = async (assetId: string, e: React.MouseEvent) => {
@@ -253,7 +271,9 @@ export default function LoungesDashboardPage() {
               >
                 <div className="flex items-center gap-3">
                   <Radio className="w-3.5 h-3.5 text-[#e5484d] animate-pulse" />
-                  <span className="text-[var(--text-primary)] font-medium">Live Session</span>
+                  <span className="text-[var(--text-primary)] font-medium">
+                    Live Session
+                  </span>
                 </div>
                 <span className="w-2 h-2 rounded-full bg-[#e5484d] animate-live-breathe" />
               </Link>
@@ -266,7 +286,9 @@ export default function LoungesDashboardPage() {
                   <Radio className="w-3.5 h-3.5 text-[var(--text-disabled)]" />
                   <span>Live Sessions</span>
                 </div>
-                <span className="font-mono text-[0.625rem] text-[var(--text-disabled)]">Idle</span>
+                <span className="font-mono text-[0.625rem] text-[var(--text-disabled)]">
+                  Idle
+                </span>
               </div>
             )}
           </nav>
@@ -325,7 +347,9 @@ export default function LoungesDashboardPage() {
                   <h4 className="font-sans text-sm font-medium text-[var(--text-primary)]">
                     Unable to Load Study Groups
                   </h4>
-                  <p className="font-sans text-xs text-[var(--text-secondary)] mt-0.5">{error}</p>
+                  <p className="font-sans text-xs text-[var(--text-secondary)] mt-0.5">
+                    {error}
+                  </p>
                 </div>
               </div>
               <Button variant="secondary" size="sm" onClick={fetchGroups}>
@@ -440,7 +464,8 @@ export default function LoungesDashboardPage() {
                     No Active Study Groups
                   </h4>
                   <p className="font-sans text-xs text-[var(--text-secondary)] max-w-sm mx-auto leading-relaxed">
-                    Create your first study group or enter an invite code to start collaborating with your peers.
+                    Create your first study group or enter an invite code to
+                    start collaborating with your peers.
                   </p>
                   <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
                     <Button
@@ -473,19 +498,33 @@ export default function LoungesDashboardPage() {
                   {groups.map((group, idx) => (
                     <motion.div
                       key={group.id}
-                      initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 24 }}
+                      initial={
+                        shouldReduceMotion
+                          ? { opacity: 0 }
+                          : { opacity: 0, y: 24 }
+                      }
                       animate={{ opacity: 1, y: 0 }}
                       transition={{
                         duration: shouldReduceMotion ? 0.15 : 0.45,
                         delay: getCardDelay(idx),
                         ease: [0.16, 1, 0.3, 1],
                       }}
-                      whileTap={shouldReduceMotion ? undefined : { scale: 0.98 }}
+                      whileTap={
+                        shouldReduceMotion ? undefined : { scale: 0.98 }
+                      }
                       onClick={() => handleCardClick(group.id)}
                       className="cursor-pointer h-full"
                     >
-                      <MagneticSkew transformFactor={0.05} rotateFactor={0.04} className="h-full">
-                        <CardSpotlight glowColor="rgba(239, 70, 57, 0.08)" borderColor="rgba(239, 70, 57, 0.3)" className="h-full rounded-[var(--radius-card)]">
+                      <MagneticSkew
+                        transformFactor={0.05}
+                        rotateFactor={0.04}
+                        className="h-full"
+                      >
+                        <CardSpotlight
+                          glowColor="rgba(239, 70, 57, 0.08)"
+                          borderColor="rgba(239, 70, 57, 0.3)"
+                          className="h-full rounded-[var(--radius-card)]"
+                        >
                           <Card
                             variant="elevated"
                             className="group flex flex-col justify-between h-full hover:border-[var(--border-hover)] transition-all duration-[var(--dur-fast)]"
@@ -496,7 +535,9 @@ export default function LoungesDashboardPage() {
                                   #{group.code}
                                 </span>
                                 <span className="font-mono text-[0.6875rem] text-[var(--text-secondary)]">
-                                  {group.role === "creator" ? "Owner" : "Member"}
+                                  {group.role === "creator"
+                                    ? "Owner"
+                                    : "Member"}
                                 </span>
                               </div>
                               <h4 className="font-serif text-lg font-normal text-[var(--text-primary)] group-hover:underline transition-colors leading-snug tracking-normal">
@@ -512,7 +553,9 @@ export default function LoungesDashboardPage() {
                             </CardContent>
 
                             <CardFooter className="flex items-center justify-between text-xs font-mono text-[var(--text-secondary)] pt-3 border-t border-[var(--border-hairline)]">
-                              <span>{new Date(group.createdAt).toLocaleDateString()}</span>
+                              <span>
+                                {new Date(group.createdAt).toLocaleDateString()}
+                              </span>
                               <span className="flex items-center gap-1.5 group-hover:text-[var(--text-primary)] transition-colors text-xs font-mono">
                                 Enter Workspace <ArrowHover size={14} />
                               </span>
@@ -535,7 +578,9 @@ export default function LoungesDashboardPage() {
                         Active Study Enrolment
                       </div>
                       <div className="font-mono text-[0.6875rem] text-[var(--text-secondary)]">
-                        {groups.length} {groups.length === 1 ? "group" : "groups"} active in your workspace
+                        {groups.length}{" "}
+                        {groups.length === 1 ? "group" : "groups"} active in
+                        your workspace
                       </div>
                     </div>
                   </div>
@@ -543,7 +588,9 @@ export default function LoungesDashboardPage() {
                     <div className="w-32 sm:w-44 h-1.5 rounded-full bg-[var(--bg-inset)] overflow-hidden">
                       <div className="h-full bg-[var(--text-primary)] rounded-full w-full" />
                     </div>
-                    <span className="font-mono text-xs text-[var(--text-secondary)]">100%</span>
+                    <span className="font-mono text-xs text-[var(--text-secondary)]">
+                      100%
+                    </span>
                   </div>
                 </div>
               )}
@@ -551,7 +598,9 @@ export default function LoungesDashboardPage() {
 
             {/* Right Sidebar */}
             <motion.div
-              initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 24 }}
+              initial={
+                shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 24 }
+              }
               animate={{ opacity: 1, y: 0 }}
               transition={{
                 duration: shouldReduceMotion ? 0.15 : 0.45,
@@ -589,12 +638,16 @@ export default function LoungesDashboardPage() {
                               {session.title}
                             </div>
                             <div className="font-mono text-[0.625rem] text-[var(--text-secondary)] truncate">
-                              {session.groupName} • {new Date(session.scheduledAt).toLocaleString([], {
-                                month: "short",
-                                day: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
+                              {session.groupName} •{" "}
+                              {new Date(session.scheduledAt).toLocaleString(
+                                [],
+                                {
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                }
+                              )}
                             </div>
                           </div>
                         </div>
@@ -660,7 +713,8 @@ export default function LoungesDashboardPage() {
                   <div className="py-6 text-center text-xs text-[var(--text-secondary)]">
                     <p className="font-sans">No notes or transcripts yet</p>
                     <p className="font-mono text-[0.625rem] text-[var(--text-disabled)] mt-1">
-                      Uploaded documents and session transcripts will appear here
+                      Uploaded documents and session transcripts will appear
+                      here
                     </p>
                   </div>
                 )}
@@ -675,19 +729,31 @@ export default function LoungesDashboardPage() {
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <p>© 2026 StudyGroup+ • Collaborative Study Workspace</p>
           <div className="flex items-center gap-4">
-            <Link href="/lounges" className="hover:text-[var(--text-primary)] transition-colors">
+            <Link
+              href="/lounges"
+              className="hover:text-[var(--text-primary)] transition-colors"
+            >
               Study Groups
             </Link>
             <span>•</span>
-            <Link href="/profile" className="hover:text-[var(--text-primary)] transition-colors">
+            <Link
+              href="/profile"
+              className="hover:text-[var(--text-primary)] transition-colors"
+            >
               Profile
             </Link>
             <span>•</span>
-            <Link href="/" className="hover:text-[var(--text-primary)] transition-colors">
+            <Link
+              href="/"
+              className="hover:text-[var(--text-primary)] transition-colors"
+            >
               Home
             </Link>
             <span>•</span>
-            <a href="#" className="hover:text-[var(--text-primary)] transition-colors">
+            <a
+              href="#"
+              className="hover:text-[var(--text-primary)] transition-colors"
+            >
               Back to top ↑
             </a>
           </div>

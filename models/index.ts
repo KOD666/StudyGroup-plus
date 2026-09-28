@@ -95,13 +95,16 @@ export const notificationsRelations = relations(notifications, ({ one }) => ({
   }),
 }));
 
-export const scheduledSessionsRelations = relations(scheduledSessions, ({ one }) => ({
-  group: one(groups, {
-    fields: [scheduledSessions.groupId],
-    references: [groups.id],
-  }),
-  creator: one(users, {
-    fields: [scheduledSessions.creatorId],
-    references: [users.id],
-  }),
-}));
+export const scheduledSessionsRelations = relations(
+  scheduledSessions,
+  ({ one }) => ({
+    group: one(groups, {
+      fields: [scheduledSessions.groupId],
+      references: [groups.id],
+    }),
+    creator: one(users, {
+      fields: [scheduledSessions.creatorId],
+      references: [users.id],
+    }),
+  })
+);

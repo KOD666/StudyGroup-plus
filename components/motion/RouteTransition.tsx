@@ -15,7 +15,10 @@ interface RouteTransitionProps {
  * - Duration: 550ms (--dur-page), ease: [0.65, 0, 0.35, 1] (--ease-in-out-soft)
  * - Reduced motion fallback: opacity only, 150ms
  */
-export function RouteTransition({ children, className = "" }: RouteTransitionProps) {
+export function RouteTransition({
+  children,
+  className = "",
+}: RouteTransitionProps) {
   const shouldReduceMotion = useReducedMotion();
 
   return (

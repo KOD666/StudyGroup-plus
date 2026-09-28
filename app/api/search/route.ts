@@ -57,14 +57,19 @@ export async function GET(req: NextRequest) {
       })
       .from(memberships)
       .innerJoin(groups, eq(memberships.groupId, groups.id))
-      .where(and(eq(memberships.userId, currentUserId), isNull(groups.deletedAt)));
+      .where(
+        and(eq(memberships.userId, currentUserId), isNull(groups.deletedAt))
+      );
 
     if (userMemberships.length === 0) {
       return NextResponse.json({ results: [] }, { status: 200 });
     }
 
     const memberGroupMap = new Map(
-      userMemberships.map((m) => [m.groupId, { name: m.groupName, code: m.groupCode }])
+      userMemberships.map((m) => [
+        m.groupId,
+        { name: m.groupName, code: m.groupCode },
+      ])
     );
     const userGroupIds = userMemberships.map((m) => m.groupId);
 

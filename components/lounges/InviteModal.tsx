@@ -64,9 +64,13 @@ export function InviteModal({
 
         {/* Modal: scale 0.96 -> 1 + fade, --dur-slow (450ms), --ease-out-expo */}
         <motion.div
-          initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
+          initial={
+            shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96 }
+          }
           animate={{ opacity: 1, scale: 1 }}
-          exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
+          exit={
+            shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96 }
+          }
           transition={{
             duration: shouldReduceMotion ? 0.15 : 0.45,
             ease: [0.16, 1, 0.3, 1],
@@ -160,7 +164,8 @@ export function InviteModal({
                   <span>Post into Group Chat</span>
                 </div>
                 <p className="font-sans text-xs text-[var(--text-secondary)] leading-relaxed">
-                  Broadcast this invite code and link directly into the study group chat for current members.
+                  Broadcast this invite code and link directly into the study
+                  group chat for current members.
                 </p>
                 <Button
                   variant="secondary"
@@ -175,7 +180,9 @@ export function InviteModal({
                     )
                   }
                 >
-                  {postedToChat ? "Posted to Group Chat!" : "Post Invite into Chat"}
+                  {postedToChat
+                    ? "Posted to Group Chat!"
+                    : "Post Invite into Chat"}
                 </Button>
               </div>
             </div>

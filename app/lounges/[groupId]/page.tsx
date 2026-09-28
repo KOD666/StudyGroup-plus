@@ -187,7 +187,8 @@ export default function LoungeWorkspacePage() {
   }, [groupId]);
 
   async function handleCancelScheduledSession(sessionId: string) {
-    if (!confirm("Are you sure you want to cancel this scheduled meeting?")) return;
+    if (!confirm("Are you sure you want to cancel this scheduled meeting?"))
+      return;
     try {
       const res = await fetch(`/api/groups/${groupId}/schedule/${sessionId}`, {
         method: "DELETE",
@@ -885,7 +886,9 @@ export default function LoungeWorkspacePage() {
                             </button>
                             <button
                               type="button"
-                              onClick={() => handleCancelScheduledSession(session.id)}
+                              onClick={() =>
+                                handleCancelScheduledSession(session.id)
+                              }
                               className="text-[var(--text-secondary)] hover:text-[#e5484d] p-0.5"
                               title="Cancel meeting"
                             >

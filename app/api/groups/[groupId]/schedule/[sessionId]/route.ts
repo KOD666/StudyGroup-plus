@@ -29,7 +29,10 @@ export async function PATCH(
     const isOwner = await isGroupCreator(currentUserId, groupId);
     if (!isOwner) {
       return NextResponse.json(
-        { error: "Forbidden: Only the lounge owner can edit a scheduled session" },
+        {
+          error:
+            "Forbidden: Only the lounge owner can edit a scheduled session",
+        },
         { status: 403 }
       );
     }
@@ -56,7 +59,9 @@ export async function PATCH(
     }
 
     if (body.description !== undefined) {
-      updateData.description = body.description ? body.description.trim() : null;
+      updateData.description = body.description
+        ? body.description.trim()
+        : null;
     }
 
     if (body.scheduledAt !== undefined) {
@@ -138,7 +143,10 @@ export async function DELETE(
     const isOwner = await isGroupCreator(currentUserId, groupId);
     if (!isOwner) {
       return NextResponse.json(
-        { error: "Forbidden: Only the lounge owner can cancel a scheduled session" },
+        {
+          error:
+            "Forbidden: Only the lounge owner can cancel a scheduled session",
+        },
         { status: 403 }
       );
     }

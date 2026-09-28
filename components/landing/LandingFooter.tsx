@@ -11,13 +11,21 @@ export function LandingFooter() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-10 pb-12 border-b border-[var(--border-hairline)]">
           {/* Brand Atelier Column */}
           <div className="lg:col-span-6 space-y-3">
-            <Link href="/" className="inline-flex items-center gap-2 font-serif text-2xl font-normal tracking-tight text-[var(--text-primary)] hover:opacity-80 transition-opacity">
-              <StudyGroupLogo size={24} className="text-[var(--text-primary)]" />
-              <span>StudyGroup<span className="font-normal opacity-60">+</span></span>
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 font-serif text-2xl font-normal tracking-tight text-[var(--text-primary)] hover:opacity-80 transition-opacity"
+            >
+              <StudyGroupLogo
+                size={24}
+                className="text-[var(--text-primary)]"
+              />
+              <span>
+                StudyGroup<span className="font-normal opacity-60">+</span>
+              </span>
             </Link>
             <p className="font-sans text-sm text-[var(--text-secondary)] leading-relaxed max-w-md">
-              A collaborative study workspace where video meetings live directly inside your shared
-              reading documents, notes, and group archives.
+              A collaborative study workspace where video meetings live directly
+              inside your shared reading documents, notes, and group archives.
             </p>
           </div>
 
@@ -28,12 +36,18 @@ export function LandingFooter() {
             </h4>
             <ul className="space-y-2 text-sm text-[var(--text-secondary)]">
               <li>
-                <Link href="/lounges" className="hover:text-[var(--text-primary)] transition-colors">
+                <Link
+                  href="/lounges"
+                  className="hover:text-[var(--text-primary)] transition-colors"
+                >
                   Study Groups Dashboard
                 </Link>
               </li>
               <li>
-                <Link href="/" className="hover:text-[var(--text-primary)] transition-colors">
+                <Link
+                  href="/"
+                  className="hover:text-[var(--text-primary)] transition-colors"
+                >
                   Home &amp; Overview
                 </Link>
               </li>
@@ -47,12 +61,18 @@ export function LandingFooter() {
             </h4>
             <ul className="space-y-2 text-sm text-[var(--text-secondary)]">
               <li>
-                <Link href="/profile" className="hover:text-[var(--text-primary)] transition-colors">
+                <Link
+                  href="/profile"
+                  className="hover:text-[var(--text-primary)] transition-colors"
+                >
                   Profile &amp; Account Settings
                 </Link>
               </li>
               <li>
-                <Link href="/sign-in" className="hover:text-[var(--text-primary)] transition-colors">
+                <Link
+                  href="/sign-in"
+                  className="hover:text-[var(--text-primary)] transition-colors"
+                >
                   Sign In
                 </Link>
               </li>
@@ -63,14 +83,21 @@ export function LandingFooter() {
         {/* Legal & Status Bottom Bar (only real links and facts) */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-mono text-[var(--text-secondary)]">
           <p>
-            © 2026 StudyGroup+. Built with Next.js, Neon PostgreSQL, LiveKit, and Clerk.
+            © 2026 StudyGroup+. Built with Next.js, Neon PostgreSQL, LiveKit,
+            and Clerk.
           </p>
           <div className="flex items-center gap-4 text-xs">
-            <Link href="/lounges" className="hover:text-[var(--text-primary)] transition-colors">
+            <Link
+              href="/lounges"
+              className="hover:text-[var(--text-primary)] transition-colors"
+            >
               Go to Dashboard
             </Link>
             <span>•</span>
-            <a href="#" className="hover:text-[var(--text-primary)] transition-colors">
+            <a
+              href="#"
+              className="hover:text-[var(--text-primary)] transition-colors"
+            >
               Back to top ↑
             </a>
           </div>

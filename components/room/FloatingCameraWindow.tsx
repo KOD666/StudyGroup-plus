@@ -65,7 +65,10 @@ export function FloatingCameraWindow({
         const saved = localStorage.getItem("sg_floating_camera_size");
         if (saved) {
           const parsed = JSON.parse(saved);
-          if (typeof parsed.width === "number" && typeof parsed.height === "number") {
+          if (
+            typeof parsed.width === "number" &&
+            typeof parsed.height === "number"
+          ) {
             return {
               width: Math.max(240, Math.min(parsed.width, 500)),
               height: Math.max(160, Math.min(parsed.height, 380)),
@@ -79,7 +82,8 @@ export function FloatingCameraWindow({
 
   const [hasRemoteVideo, setHasRemoteVideo] = useState(false);
   const [remoteMuted, setRemoteMuted] = useState(false);
-  const primaryRemote = remoteParticipants.length > 0 ? remoteParticipants[0] : null;
+  const primaryRemote =
+    remoteParticipants.length > 0 ? remoteParticipants[0] : null;
 
   // Sync local stream with local video ref
   useEffect(() => {
@@ -100,7 +104,9 @@ export function FloatingCameraWindow({
       const videoPub =
         primaryRemote.getTrackPublication(Track.Source.Camera) ||
         primaryRemote.getTrackPublication(Track.Source.ScreenShare);
-      const audioPub = primaryRemote.getTrackPublication(Track.Source.Microphone);
+      const audioPub = primaryRemote.getTrackPublication(
+        Track.Source.Microphone
+      );
 
       if (videoPub?.track && !videoPub.isMuted) {
         if (floatingRemoteVideoRef.current) {
@@ -161,8 +167,14 @@ export function FloatingCameraWindow({
     const startH = size.height;
 
     const onMouseMove = (moveEvent: MouseEvent) => {
-      const nextW = Math.max(240, Math.min(startW + (moveEvent.clientX - startX), 540));
-      const nextH = Math.max(160, Math.min(startH + (moveEvent.clientY - startY), 400));
+      const nextW = Math.max(
+        240,
+        Math.min(startW + (moveEvent.clientX - startX), 540)
+      );
+      const nextH = Math.max(
+        160,
+        Math.min(startH + (moveEvent.clientY - startY), 400)
+      );
       setSize({ width: nextW, height: nextH });
     };
 
@@ -263,7 +275,9 @@ export function FloatingCameraWindow({
             {!hasRemoteVideo && (
               <div className="w-full h-full flex flex-col items-center justify-center p-3 text-center">
                 <div className="w-10 h-10 rounded-full bg-[var(--bg-elevated)] border border-[var(--border-hairline)] flex items-center justify-center font-mono font-semibold text-xs text-[var(--text-primary)] mb-1">
-                  {primaryRemote.name ? primaryRemote.name.substring(0, 2).toUpperCase() : "SP"}
+                  {primaryRemote.name
+                    ? primaryRemote.name.substring(0, 2).toUpperCase()
+                    : "SP"}
                 </div>
                 <span className="font-mono text-[0.625rem] text-[var(--text-secondary)]">
                   {remoteMuted ? "Remote muted" : "Camera off"}
@@ -278,7 +292,9 @@ export function FloatingCameraWindow({
                 autoPlay
                 playsInline
                 muted
-                style={{ transform: isSelfViewMirrored ? "scaleX(-1)" : "none" }}
+                style={{
+                  transform: isSelfViewMirrored ? "scaleX(-1)" : "none",
+                }}
                 className={`w-full h-full object-cover ${isVideoOff ? "hidden" : "block"}`}
               />
               {isVideoOff && (

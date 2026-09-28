@@ -33,8 +33,16 @@ export function MagneticSkew({
   // Springs for silky physics
   const springX = useSpring(0, { stiffness: 320, damping: 24, mass: 0.4 });
   const springY = useSpring(0, { stiffness: 320, damping: 24, mass: 0.4 });
-  const springRotateX = useSpring(0, { stiffness: 280, damping: 24, mass: 0.4 });
-  const springRotateY = useSpring(0, { stiffness: 280, damping: 24, mass: 0.4 });
+  const springRotateX = useSpring(0, {
+    stiffness: 280,
+    damping: 24,
+    mass: 0.4,
+  });
+  const springRotateY = useSpring(0, {
+    stiffness: 280,
+    damping: 24,
+    mass: 0.4,
+  });
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (disabled || shouldReduceMotion || !ref.current) return;

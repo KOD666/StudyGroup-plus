@@ -19,7 +19,9 @@ export const Card = React.forwardRef<HTMLDivElement, CardProps>(
     ref
   ) => {
     const bgClass =
-      variant === "parchment" ? "bg-[var(--bg-inset)]" : "bg-[var(--bg-elevated)]";
+      variant === "parchment"
+        ? "bg-[var(--bg-inset)]"
+        : "bg-[var(--bg-elevated)]";
 
     return (
       <div

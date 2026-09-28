@@ -2,7 +2,8 @@
 
 import React from "react";
 
-export type ButtonVariant = "primary" | "secondary" | "ghost" | "editorial" | "forest";
+export type ButtonVariant =
+  "primary" | "secondary" | "ghost" | "editorial" | "forest";
 export type ButtonSize = "sm" | "md" | "lg";
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -61,21 +62,28 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       >
         {isLoading ? (
           /* DESIGN.md §5: 3-dot pulse rather than a spinner */
-          <span className="inline-flex items-center gap-1 py-1" aria-label="Loading">
+          <span
+            className="inline-flex items-center gap-1 py-1"
+            aria-label="Loading"
+          >
             <span className="w-1.5 h-1.5 rounded-full bg-current animate-busy-dot-1" />
             <span className="w-1.5 h-1.5 rounded-full bg-current animate-busy-dot-2" />
             <span className="w-1.5 h-1.5 rounded-full bg-current animate-busy-dot-3" />
           </span>
         ) : (
           <>
-            {icon && iconPosition === "left" && <span className="inline-flex shrink-0">{icon}</span>}
+            {icon && iconPosition === "left" && (
+              <span className="inline-flex shrink-0">{icon}</span>
+            )}
             <span className="relative">
               {children}
               {variant === "editorial" && (
                 <span className="absolute bottom-0 left-0 w-0 h-[1px] bg-current transition-all duration-200 group-hover:w-full" />
               )}
             </span>
-            {icon && iconPosition === "right" && <span className="inline-flex shrink-0">{icon}</span>}
+            {icon && iconPosition === "right" && (
+              <span className="inline-flex shrink-0">{icon}</span>
+            )}
           </>
         )}
       </button>

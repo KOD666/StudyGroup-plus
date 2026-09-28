@@ -23,18 +23,25 @@ export function CtaSection() {
           </span>
 
           <h2 className="font-serif text-3xl sm:text-5xl lg:text-[3.5rem] leading-[1.12] font-normal text-[var(--text-primary)] tracking-tight mb-6">
-            <KineticReveal text="Start your study group in minutes." delay={0.08} />
+            <KineticReveal
+              text="Start your study group in minutes."
+              delay={0.08}
+            />
           </h2>
 
           <p className="font-sans text-base sm:text-lg text-[var(--text-secondary)] max-w-2xl mx-auto mb-10 leading-relaxed font-normal">
-            No downloads or meeting links required. Just a permanent study space for your class,
-            reading group, or research team.
+            No downloads or meeting links required. Just a permanent study space
+            for your class, reading group, or research team.
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-5">
             <MagneticSkew transformFactor={0.15} rotateFactor={0.1}>
               <Link href="/sign-up">
-                <Button variant="primary" size="lg" className="px-8 magnetic-cta font-medium">
+                <Button
+                  variant="primary"
+                  size="lg"
+                  className="px-8 magnetic-cta font-medium"
+                >
                   Create a Study Group
                 </Button>
               </Link>

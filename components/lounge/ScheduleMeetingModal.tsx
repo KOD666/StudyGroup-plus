@@ -141,11 +141,14 @@ export function ScheduleMeetingModal({
         <div className="flex items-center gap-2 mb-2">
           <Calendar className="w-5 h-5 text-[#d97706]" />
           <h3 className="font-serif text-lg font-semibold text-[var(--text-primary)]">
-            {initialSession ? "Edit Scheduled Meeting" : "Schedule a Study Meeting"}
+            {initialSession
+              ? "Edit Scheduled Meeting"
+              : "Schedule a Study Meeting"}
           </h3>
         </div>
         <p className="font-sans text-xs text-[var(--text-secondary)] mb-5">
-          Schedule an upcoming study session for your group members. Times are stored in UTC and displayed in each member&apos;s local timezone.
+          Schedule an upcoming study session for your group members. Times are
+          stored in UTC and displayed in each member&apos;s local timezone.
         </p>
 
         {error && (
@@ -236,7 +239,9 @@ export function ScheduleMeetingModal({
                   <span>Saving...</span>
                 </>
               ) : (
-                <span>{initialSession ? "Save Changes" : "Schedule Session"}</span>
+                <span>
+                  {initialSession ? "Save Changes" : "Schedule Session"}
+                </span>
               )}
             </button>
           </div>

@@ -19,7 +19,9 @@ export async function GET() {
       .select({ groupId: memberships.groupId })
       .from(memberships)
       .innerJoin(groups, eq(memberships.groupId, groups.id))
-      .where(and(eq(memberships.userId, currentUserId), isNull(groups.deletedAt)));
+      .where(
+        and(eq(memberships.userId, currentUserId), isNull(groups.deletedAt))
+      );
 
     if (userMemberships.length === 0) {
       return NextResponse.json({ sessions: [] }, { status: 200 });

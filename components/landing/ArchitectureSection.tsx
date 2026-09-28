@@ -32,7 +32,10 @@ export function ArchitectureSection() {
   ];
 
   return (
-    <section id="features" className="py-20 md:py-28 border-t border-[var(--border-hairline)] bg-[var(--bg-primary)] relative overflow-hidden">
+    <section
+      id="features"
+      className="py-20 md:py-28 border-t border-[var(--border-hairline)] bg-[var(--bg-primary)] relative overflow-hidden"
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="max-w-3xl mb-16">
@@ -43,8 +46,8 @@ export function ArchitectureSection() {
             <KineticReveal text="How StudyGroup+ Works" delay={0.1} />
           </h2>
           <p className="font-sans text-base sm:text-lg text-[var(--text-secondary)] leading-relaxed">
-            Designed for deep focus, shared documents, and effortless group collaboration without
-            the friction of disconnected tools.
+            Designed for deep focus, shared documents, and effortless group
+            collaboration without the friction of disconnected tools.
           </p>
         </div>
 
@@ -56,9 +59,18 @@ export function ArchitectureSection() {
               initial={{ opacity: 0, y: 24 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-50px" }}
-              transition={{ duration: 0.6, delay: index * 0.12, ease: [0.16, 1, 0.3, 1] }}
+              transition={{
+                duration: 0.6,
+                delay: index * 0.12,
+                ease: [0.16, 1, 0.3, 1],
+              }}
             >
-              <MagneticSkew transformFactor={0.06} rotateFactor={0.04} shouldRotate={true} className="h-full">
+              <MagneticSkew
+                transformFactor={0.06}
+                rotateFactor={0.04}
+                shouldRotate={true}
+                className="h-full"
+              >
                 <CardSpotlight
                   glowColor="rgba(239, 70, 57, 0.08)"
                   borderColor="rgba(239, 70, 57, 0.3)"

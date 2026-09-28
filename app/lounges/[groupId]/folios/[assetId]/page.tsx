@@ -333,12 +333,16 @@ export default function FolioReaderPage() {
   // UI state
   const [zoomLevel, setZoomLevel] = useState(100);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [sidebarTab, setSidebarTab] = useState<"checklist" | "highlights" | "notes">("checklist");
+  const [sidebarTab, setSidebarTab] = useState<
+    "checklist" | "highlights" | "notes"
+  >("checklist");
   const [copiedCitation, setCopiedCitation] = useState(false);
   const [isFocusMode, setIsFocusMode] = useState(false);
 
   // Study Tools Focus Timer state
-  const [timerMode, setTimerMode] = useState<"focus" | "deep" | "shortBreak" | "longBreak" | "stopwatch">("focus");
+  const [timerMode, setTimerMode] = useState<
+    "focus" | "deep" | "shortBreak" | "longBreak" | "stopwatch"
+  >("focus");
   const [timerSecondsLeft, setTimerSecondsLeft] = useState(25 * 60);
   const [timerInitialSeconds, setTimerInitialSeconds] = useState(25 * 60);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
@@ -351,13 +355,18 @@ export default function FolioReaderPage() {
   const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTodoType, setNewTodoType] = useState<TodoType>("question");
-  const [activeTodoFilter, setActiveTodoFilter] = useState<"all" | "question" | "reading" | "task" | "pending" | "completed">("all");
-  const [expandedAnswerTodoId, setExpandedAnswerTodoId] = useState<string | null>(null);
+  const [activeTodoFilter, setActiveTodoFilter] = useState<
+    "all" | "question" | "reading" | "task" | "pending" | "completed"
+  >("all");
+  const [expandedAnswerTodoId, setExpandedAnswerTodoId] = useState<
+    string | null
+  >(null);
 
   // Bulk Question Import state
   const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false);
   const [bulkQuestionsInput, setBulkQuestionsInput] = useState("");
-  const [bulkQuestionsType, setBulkQuestionsType] = useState<TodoType>("question");
+  const [bulkQuestionsType, setBulkQuestionsType] =
+    useState<TodoType>("question");
 
   // Real user notes state
   const [marginalNotes, setMarginalNotes] = useState<MarginalNote[]>([]);
@@ -367,11 +376,16 @@ export default function FolioReaderPage() {
   const [highlights, setHighlights] = useState<HighlightItem[]>([]);
   const [isHighlightModalOpen, setIsHighlightModalOpen] = useState(false);
   const [highlightText, setHighlightText] = useState("");
-  const [highlightColor, setHighlightColor] = useState<"yellow" | "green" | "rose" | "ochre">("yellow");
+  const [highlightColor, setHighlightColor] = useState<
+    "yellow" | "green" | "rose" | "ochre"
+  >("yellow");
   const [highlightPage, setHighlightPage] = useState("1");
   const [highlightNote, setHighlightNote] = useState("");
-  const [copiedHighlightId, setCopiedHighlightId] = useState<string | null>(null);
-  const [activeHighlightFilter, setActiveHighlightFilter] = useState<string>("all");
+  const [copiedHighlightId, setCopiedHighlightId] = useState<string | null>(
+    null
+  );
+  const [activeHighlightFilter, setActiveHighlightFilter] =
+    useState<string>("all");
 
   // Selection toolbar state (§6.4)
   const [selectionToolbar, setSelectionToolbar] = useState<{
@@ -405,7 +419,8 @@ export default function FolioReaderPage() {
       if (typeof window === "undefined") return;
       const AudioCtx =
         window.AudioContext ||
-        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+        (window as unknown as { webkitAudioContext?: typeof AudioContext })
+          .webkitAudioContext;
       if (!AudioCtx) return;
       const ctx = new AudioCtx();
       const osc = ctx.createOscillator();
@@ -452,7 +467,9 @@ export default function FolioReaderPage() {
     };
   }, [isTimerRunning, timerMode, playChime]);
 
-  function handleSetPreset(preset: "focus" | "deep" | "shortBreak" | "longBreak" | "stopwatch") {
+  function handleSetPreset(
+    preset: "focus" | "deep" | "shortBreak" | "longBreak" | "stopwatch"
+  ) {
     setIsTimerRunning(false);
     setTimerJustFinished(false);
     setTimerMode(preset);
@@ -532,7 +549,10 @@ export default function FolioReaderPage() {
         const dlData = await dlRes.json();
         setDownloadUrl(dlData.downloadUrl);
 
-        if (currentAsset.fileType === "md" || currentAsset.fileType === "transcript") {
+        if (
+          currentAsset.fileType === "md" ||
+          currentAsset.fileType === "transcript"
+        ) {
           setIsLoadingContent(true);
           try {
             const textRes = await fetch(dlData.downloadUrl);
@@ -541,7 +561,10 @@ export default function FolioReaderPage() {
               setTextContent(text);
             }
           } catch (fetchErr) {
-            console.warn("Could not read text content directly from URL:", fetchErr);
+            console.warn(
+              "Could not read text content directly from URL:",
+              fetchErr
+            );
           } finally {
             setIsLoadingContent(false);
           }
@@ -586,7 +609,10 @@ export default function FolioReaderPage() {
             ...item,
             completed: nextCompleted,
             completedAt: nextCompleted
-              ? new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+              ? new Date().toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
               : undefined,
           };
         }
@@ -609,13 +635,18 @@ export default function FolioReaderPage() {
     const trimmed = newTaskTitle.trim();
     if (
       trimmed.endsWith("?") ||
-      /^(what|how|why|explain|define|derive|compare|does|is|can|describe)\b/i.test(trimmed)
+      /^(what|how|why|explain|define|derive|compare|does|is|can|describe)\b/i.test(
+        trimmed
+      )
     ) {
       detectedType = "question";
     }
 
     const authorName = user?.fullName || user?.firstName || "You";
-    const nowStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const nowStr = new Date().toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
 
     const newItem: ChecklistItem = {
       id: Date.now().toString(),
@@ -643,7 +674,11 @@ export default function FolioReaderPage() {
     return rawText
       .split("\n")
       .map((line) => line.trim())
-      .map((line) => line.replace(/^(\d+[\.\)]\s*|Q\d+[:\.]\s*|\[\d+\]\s*|[\-\*•]\s*)/i, "").trim())
+      .map((line) =>
+        line
+          .replace(/^(\d+[\.\)]\s*|Q\d+[:\.]\s*|\[\d+\]\s*|[\-\*•]\s*)/i, "")
+          .trim()
+      )
       .filter((line) => line.length > 0);
   }
 
@@ -653,7 +688,10 @@ export default function FolioReaderPage() {
     if (parsed.length === 0) return;
 
     const authorName = user?.fullName || user?.firstName || "You";
-    const nowStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const nowStr = new Date().toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
 
     const newItems: ChecklistItem[] = parsed.map((qText, index) => ({
       id: `${Date.now()}-${index}`,
@@ -681,7 +719,9 @@ export default function FolioReaderPage() {
 
   function handleSaveAnswerNote(id: string, note: string) {
     setChecklist((prev) => {
-      const updated = prev.map((item) => (item.id === id ? { ...item, answerNote: note } : item));
+      const updated = prev.map((item) =>
+        item.id === id ? { ...item, answerNote: note } : item
+      );
       try {
         localStorage.setItem(`sg_tasks_${assetId}`, JSON.stringify(updated));
       } catch {
@@ -753,10 +793,10 @@ export default function FolioReaderPage() {
       highlightColor === "yellow"
         ? "Concept"
         : highlightColor === "green"
-        ? "Evidence"
-        : highlightColor === "rose"
-        ? "Exam Note"
-        : "Question";
+          ? "Evidence"
+          : highlightColor === "rose"
+            ? "Exam Note"
+            : "Question";
 
     const newNote: MarginalNote = {
       id: `hl-${newHighlight.id}`,
@@ -840,11 +880,14 @@ export default function FolioReaderPage() {
     );
   }
 
-  const formattedDate = new Date(asset.createdAt).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+  const formattedDate = new Date(asset.createdAt).toLocaleDateString(
+    undefined,
+    {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    }
+  );
 
   const citationText = `"${asset.title}." StudyGroup+ Repository, ${groupName}, ${new Date(asset.createdAt).getFullYear()}.`;
 
@@ -863,9 +906,15 @@ export default function FolioReaderPage() {
     return true;
   });
 
-  const questionCount = checklist.filter((item) => item.type === "question").length;
-  const readingCount = checklist.filter((item) => item.type === "reading").length;
-  const taskCount = checklist.filter((item) => item.type === "task" || !item.type).length;
+  const questionCount = checklist.filter(
+    (item) => item.type === "question"
+  ).length;
+  const readingCount = checklist.filter(
+    (item) => item.type === "reading"
+  ).length;
+  const taskCount = checklist.filter(
+    (item) => item.type === "task" || !item.type
+  ).length;
   const completedCount = checklist.filter((item) => item.completed).length;
 
   return (
@@ -903,7 +952,9 @@ export default function FolioReaderPage() {
             >
               <ZoomOut className="w-3 h-3" />
             </button>
-            <span className="font-medium text-[var(--text-primary)]">{zoomLevel}%</span>
+            <span className="font-medium text-[var(--text-primary)]">
+              {zoomLevel}%
+            </span>
             <button
               type="button"
               onClick={() => setZoomLevel(Math.min(150, zoomLevel + 10))}
@@ -914,9 +965,7 @@ export default function FolioReaderPage() {
             </button>
           </div>
 
-          <Badge variant="neutral">
-            {asset.fileType.toUpperCase()}
-          </Badge>
+          <Badge variant="neutral">{asset.fileType.toUpperCase()}</Badge>
 
           {/* Quick Study Timer in Navigation Bar */}
           <div className="flex items-center gap-1.5 bg-[var(--bg-inset)] border border-[var(--border-hairline)] rounded-[var(--radius-button)] px-2.5 py-0.5 text-[0.6875rem] text-[var(--text-primary)]">
@@ -930,7 +979,9 @@ export default function FolioReaderPage() {
               title="View Focus Timer in Study Tools"
             >
               <Timer className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
-              <span className="font-mono font-medium">{formatTime(timerSecondsLeft)}</span>
+              <span className="font-mono font-medium">
+                {formatTime(timerSecondsLeft)}
+              </span>
             </button>
             <button
               type="button"
@@ -938,7 +989,11 @@ export default function FolioReaderPage() {
               className="p-0.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
               title={isTimerRunning ? "Pause timer" : "Start timer"}
             >
-              {isTimerRunning ? <Pause className="w-2.5 h-2.5" /> : <Play className="w-2.5 h-2.5 fill-current" />}
+              {isTimerRunning ? (
+                <Pause className="w-2.5 h-2.5" />
+              ) : (
+                <Play className="w-2.5 h-2.5 fill-current" />
+              )}
             </button>
             <button
               type="button"
@@ -978,9 +1033,17 @@ export default function FolioReaderPage() {
                 ? "bg-[var(--invert-bg)] text-[var(--invert-text)] border-[var(--invert-bg)]"
                 : "bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-[var(--border-hairline)]"
             }`}
-            title={isFocusMode ? "Exit Full Screen" : "Full Screen (Cover whole window)"}
+            title={
+              isFocusMode
+                ? "Exit Full Screen"
+                : "Full Screen (Cover whole window)"
+            }
           >
-            {isFocusMode ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+            {isFocusMode ? (
+              <Minimize2 className="w-3.5 h-3.5" />
+            ) : (
+              <Maximize2 className="w-3.5 h-3.5" />
+            )}
           </button>
 
           {downloadUrl && (
@@ -1005,9 +1068,17 @@ export default function FolioReaderPage() {
                 ? "bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-[var(--border-hairline)]"
                 : "bg-[var(--bg-overlay)] text-[var(--text-primary)] border-[var(--border-hover)]"
             }`}
-            title={isSidebarOpen ? "Collapse Study Tools Sidebar" : "Open Study Tools Sidebar"}
+            title={
+              isSidebarOpen
+                ? "Collapse Study Tools Sidebar"
+                : "Open Study Tools Sidebar"
+            }
           >
-            {isSidebarOpen ? <SidebarClose className="w-4 h-4" /> : <SidebarOpen className="w-4 h-4" />}
+            {isSidebarOpen ? (
+              <SidebarClose className="w-4 h-4" />
+            ) : (
+              <SidebarOpen className="w-4 h-4" />
+            )}
           </button>
         </div>
       </div>
@@ -1077,8 +1148,13 @@ export default function FolioReaderPage() {
               ) : (
                 <div className="flex-1 flex flex-col items-center justify-center p-12 text-center text-xs text-[var(--text-secondary)]">
                   <FileText className="w-12 h-12 text-[var(--text-secondary)] mx-auto mb-3 opacity-60" />
-                  <p className="font-serif text-base text-[var(--text-primary)] mb-2">PDF Document Ready</p>
-                  <p className="max-w-md mb-4 text-[var(--text-secondary)]">The document is stored in the repository. Please download to view.</p>
+                  <p className="font-serif text-base text-[var(--text-primary)] mb-2">
+                    PDF Document Ready
+                  </p>
+                  <p className="max-w-md mb-4 text-[var(--text-secondary)]">
+                    The document is stored in the repository. Please download to
+                    view.
+                  </p>
                 </div>
               )}
             </div>
@@ -1095,7 +1171,9 @@ export default function FolioReaderPage() {
               <motion.article
                 ref={articleRef}
                 onMouseUp={handleMouseUp}
-                initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 12 }}
+                initial={
+                  shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 12 }
+                }
                 animate={{ opacity: 1, y: 0 }}
                 transition={{
                   duration: shouldReduceMotion ? 0.15 : 0.6,
@@ -1143,8 +1221,13 @@ export default function FolioReaderPage() {
                 ) : (
                   <div className="p-8 bg-[var(--bg-inset)] border border-dashed border-[var(--border-hairline)] rounded-[var(--radius-card)] text-center text-xs text-[var(--text-secondary)]">
                     <FileText className="w-8 h-8 text-[var(--text-secondary)] mx-auto mb-2 opacity-50" />
-                    <p className="font-medium text-[var(--text-primary)] mb-1">Document Content Unavailable</p>
-                    <p>The text content could not be read from storage. Please re-upload this document.</p>
+                    <p className="font-medium text-[var(--text-primary)] mb-1">
+                      Document Content Unavailable
+                    </p>
+                    <p>
+                      The text content could not be read from storage. Please
+                      re-upload this document.
+                    </p>
                   </div>
                 )}
               </motion.article>
@@ -1153,12 +1236,16 @@ export default function FolioReaderPage() {
               {asset.fileType === "pptx" && (
                 <div className="w-full bg-[var(--bg-elevated)] rounded-[var(--radius-card)] border border-[var(--border-hairline)] p-8 sm:p-12 text-center">
                   <Presentation className="w-16 h-16 text-[var(--text-secondary)] mx-auto mb-4" />
-                  <h2 className="font-serif text-2xl font-normal text-[var(--text-primary)] mb-2">{asset.title}</h2>
+                  <h2 className="font-serif text-2xl font-normal text-[var(--text-primary)] mb-2">
+                    {asset.title}
+                  </h2>
                   <p className="font-mono text-xs text-[var(--text-secondary)] mb-6">
-                    Microsoft PowerPoint Slide Deck • {(asset.sizeBytes / 1024 / 1024).toFixed(2)} MB
+                    Microsoft PowerPoint Slide Deck •{" "}
+                    {(asset.sizeBytes / 1024 / 1024).toFixed(2)} MB
                   </p>
                   <p className="font-sans text-xs text-[var(--text-secondary)] max-w-md mx-auto mb-8 leading-relaxed">
-                    Slide presentations can be downloaded directly to open in PowerPoint, Keynote, or Google Slides.
+                    Slide presentations can be downloaded directly to open in
+                    PowerPoint, Keynote, or Google Slides.
                   </p>
                   {downloadUrl && (
                     <a
@@ -1180,7 +1267,9 @@ export default function FolioReaderPage() {
         <AnimatePresence>
           {selectionToolbar && (
             <motion.div
-              initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
+              initial={
+                shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }
+              }
               animate={{ opacity: 1, y: 0 }}
               exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
               transition={{ duration: 0.2, ease: [0.25, 1, 0.5, 1] }}
@@ -1266,12 +1355,12 @@ export default function FolioReaderPage() {
                         {timerMode === "focus"
                           ? "Focus"
                           : timerMode === "deep"
-                          ? "Deep Work"
-                          : timerMode === "shortBreak"
-                          ? "Short Break"
-                          : timerMode === "longBreak"
-                          ? "Long Break"
-                          : "Stopwatch"}
+                            ? "Deep Work"
+                            : timerMode === "shortBreak"
+                              ? "Short Break"
+                              : timerMode === "longBreak"
+                                ? "Long Break"
+                                : "Stopwatch"}
                       </span>
                     </div>
                   </div>
@@ -1312,9 +1401,17 @@ export default function FolioReaderPage() {
                     type="button"
                     onClick={() => setIsTimerExpanded(!isTimerExpanded)}
                     className="p-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
-                    title={isTimerExpanded ? "Collapse timer presets" : "Expand timer presets"}
+                    title={
+                      isTimerExpanded
+                        ? "Collapse timer presets"
+                        : "Expand timer presets"
+                    }
                   >
-                    {isTimerExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                    {isTimerExpanded ? (
+                      <ChevronUp className="w-3.5 h-3.5" />
+                    ) : (
+                      <ChevronDown className="w-3.5 h-3.5" />
+                    )}
                   </button>
                 </div>
               </div>
@@ -1406,8 +1503,13 @@ export default function FolioReaderPage() {
                   </div>
 
                   {/* Custom duration input */}
-                  <form onSubmit={handleSetCustomTimer} className="flex items-center gap-2 pt-1 font-mono text-xs">
-                    <span className="text-[0.6875rem] text-[var(--text-secondary)] whitespace-nowrap">Custom:</span>
+                  <form
+                    onSubmit={handleSetCustomTimer}
+                    className="flex items-center gap-2 pt-1 font-mono text-xs"
+                  >
+                    <span className="text-[0.6875rem] text-[var(--text-secondary)] whitespace-nowrap">
+                      Custom:
+                    </span>
                     <input
                       type="number"
                       min={1}
@@ -1417,7 +1519,9 @@ export default function FolioReaderPage() {
                       placeholder="Mins"
                       className="w-16 bg-[var(--bg-elevated)] border border-[var(--border-hairline)] rounded-[var(--radius-button)] text-xs px-2 py-1 text-[var(--text-primary)] outline-none focus:border-[var(--border-focus)]"
                     />
-                    <span className="text-[0.6875rem] text-[var(--text-secondary)]">min</span>
+                    <span className="text-[0.6875rem] text-[var(--text-secondary)]">
+                      min
+                    </span>
                     <button
                       type="submit"
                       className="px-2.5 py-1 text-xs bg-[var(--bg-elevated)] border border-[var(--border-hairline)] hover:border-[var(--border-hover)] text-[var(--text-primary)] rounded-[var(--radius-button)] transition-colors cursor-pointer"
@@ -1430,11 +1534,19 @@ export default function FolioReaderPage() {
                   <div className="flex items-center justify-between text-[0.6875rem] pt-1 border-t border-[var(--border-hairline)] text-[var(--text-secondary)] font-mono">
                     <div className="flex items-center gap-1">
                       <Flame className="w-3.5 h-3.5 text-[var(--text-primary)]" />
-                      <span>{pomodorosCompleted} focus session{pomodorosCompleted === 1 ? "" : "s"} done</span>
+                      <span>
+                        {pomodorosCompleted} focus session
+                        {pomodorosCompleted === 1 ? "" : "s"} done
+                      </span>
                     </div>
                     {timerMode !== "stopwatch" && timerInitialSeconds > 0 && (
                       <span>
-                        {Math.round(((timerInitialSeconds - timerSecondsLeft) / timerInitialSeconds) * 100)}%
+                        {Math.round(
+                          ((timerInitialSeconds - timerSecondsLeft) /
+                            timerInitialSeconds) *
+                            100
+                        )}
+                        %
                       </span>
                     )}
                   </div>
@@ -1445,7 +1557,10 @@ export default function FolioReaderPage() {
             {/* Sidebar Tabs (§5 layout transition) */}
             <div className="px-4 pt-2 flex gap-2 border-b border-[var(--border-hairline)] text-xs font-mono">
               {[
-                { key: "highlights", label: `Highlights (${highlights.length})` },
+                {
+                  key: "highlights",
+                  label: `Highlights (${highlights.length})`,
+                },
                 { key: "notes", label: `Notes (${marginalNotes.length})` },
                 { key: "checklist", label: `Tasks (${checklist.length})` },
               ].map((tab) => {
@@ -1522,8 +1637,13 @@ export default function FolioReaderPage() {
                   {filteredHighlights.length === 0 ? (
                     <div className="p-5 bg-[var(--bg-inset)] border border-dashed border-[var(--border-hairline)] rounded-[var(--radius-card)] text-center text-xs text-[var(--text-secondary)]">
                       <Highlighter className="w-6 h-6 text-[var(--text-secondary)] mx-auto mb-2 opacity-60" />
-                      <p className="font-medium text-[var(--text-primary)] mb-1">No highlights yet</p>
-                      <p className="mb-3">Highlight key concepts from this document to save quotes and study notes.</p>
+                      <p className="font-medium text-[var(--text-primary)] mb-1">
+                        No highlights yet
+                      </p>
+                      <p className="mb-3">
+                        Highlight key concepts from this document to save quotes
+                        and study notes.
+                      </p>
                       <Button
                         variant="primary"
                         size="sm"
@@ -1540,10 +1660,10 @@ export default function FolioReaderPage() {
                           hl.color === "yellow"
                             ? "CONCEPT"
                             : hl.color === "green"
-                            ? "EVIDENCE"
-                            : hl.color === "rose"
-                            ? "EXAM NOTE"
-                            : "QUESTION";
+                              ? "EVIDENCE"
+                              : hl.color === "rose"
+                                ? "EXAM NOTE"
+                                : "QUESTION";
 
                         return (
                           <div
@@ -1561,7 +1681,9 @@ export default function FolioReaderPage() {
                                   </span>
                                 )}
                               </div>
-                              <span className="text-[var(--text-secondary)] text-[0.625rem]">{hl.createdAt}</span>
+                              <span className="text-[var(--text-secondary)] text-[0.625rem]">
+                                {hl.createdAt}
+                              </span>
                             </div>
 
                             <p className="font-serif italic text-xs leading-relaxed text-[var(--text-primary)]">
@@ -1570,12 +1692,17 @@ export default function FolioReaderPage() {
 
                             {hl.note && (
                               <p className="text-[0.6875rem] text-[var(--text-secondary)] bg-[var(--bg-elevated)] p-1.5 rounded-[var(--radius-button)] border border-[var(--border-hairline)] font-sans">
-                                <span className="font-medium text-[var(--text-primary)]">Note:</span> {hl.note}
+                                <span className="font-medium text-[var(--text-primary)]">
+                                  Note:
+                                </span>{" "}
+                                {hl.note}
                               </p>
                             )}
 
                             <div className="pt-2 border-t border-[var(--border-hairline)] flex items-center justify-between text-[0.6875rem] font-mono">
-                              <span className="text-[var(--text-secondary)] text-[0.625rem]">{hl.author}</span>
+                              <span className="text-[var(--text-secondary)] text-[0.625rem]">
+                                {hl.author}
+                              </span>
                               <div className="flex items-center gap-2">
                                 <button
                                   type="button"
@@ -1586,7 +1713,9 @@ export default function FolioReaderPage() {
                                   {copiedHighlightId === hl.id ? (
                                     <>
                                       <Check className="w-3 h-3 text-[var(--text-primary)]" />
-                                      <span className="text-[var(--text-primary)]">Copied</span>
+                                      <span className="text-[var(--text-primary)]">
+                                        Copied
+                                      </span>
                                     </>
                                   ) : (
                                     <>
@@ -1641,16 +1770,26 @@ export default function FolioReaderPage() {
                     <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-[0.6875rem] font-mono">
                       {[
                         { key: "all", label: `All (${checklist.length})` },
-                        { key: "question", label: `Questions (${questionCount})` },
+                        {
+                          key: "question",
+                          label: `Questions (${questionCount})`,
+                        },
                         { key: "reading", label: `Reading (${readingCount})` },
                         { key: "task", label: `Tasks (${taskCount})` },
-                        { key: "pending", label: `In Progress (${checklist.length - completedCount})` },
+                        {
+                          key: "pending",
+                          label: `In Progress (${checklist.length - completedCount})`,
+                        },
                         { key: "completed", label: `Done (${completedCount})` },
                       ].map((tf) => (
                         <button
                           key={tf.key}
                           type="button"
-                          onClick={() => setActiveTodoFilter(tf.key as typeof activeTodoFilter)}
+                          onClick={() =>
+                            setActiveTodoFilter(
+                              tf.key as typeof activeTodoFilter
+                            )
+                          }
                           className={`px-2 py-0.5 rounded-[var(--radius-button)] border transition-colors cursor-pointer ${
                             activeTodoFilter === tf.key
                               ? "bg-[var(--invert-bg)] text-[var(--invert-text)] border-[var(--invert-bg)]"
@@ -1667,9 +1806,12 @@ export default function FolioReaderPage() {
                   {filteredChecklist.length === 0 ? (
                     <div className="p-5 bg-[var(--bg-inset)] border border-dashed border-[var(--border-hairline)] rounded-[var(--radius-card)] text-center text-xs text-[var(--text-secondary)] space-y-2 font-mono">
                       <HelpCircle className="w-6 h-6 text-[var(--text-secondary)] mx-auto opacity-50" />
-                      <p className="text-[var(--text-primary)]">No items in this view</p>
+                      <p className="text-[var(--text-primary)]">
+                        No items in this view
+                      </p>
                       <p className="text-[0.6875rem]">
-                        Add questions or import problem sets below to track your study progress.
+                        Add questions or import problem sets below to track your
+                        study progress.
                       </p>
                       <div className="pt-1">
                         <Button
@@ -1700,10 +1842,16 @@ export default function FolioReaderPage() {
                             <div className="flex items-center justify-between text-[0.6875rem] font-mono">
                               <div className="flex items-center gap-1.5">
                                 <span className="px-1.5 py-0.5 rounded-[calc(var(--radius-button)-2px)] border border-[var(--border-hairline)] bg-[var(--bg-elevated)] text-[var(--text-primary)] font-medium text-[0.625rem] uppercase">
-                                  {isQuestion ? "QUESTION" : isReading ? "READING" : "TASK"}
+                                  {isQuestion
+                                    ? "QUESTION"
+                                    : isReading
+                                      ? "READING"
+                                      : "TASK"}
                                 </span>
                                 {item.createdAt && (
-                                  <span className="text-[var(--text-secondary)]">{item.createdAt}</span>
+                                  <span className="text-[var(--text-secondary)]">
+                                    {item.createdAt}
+                                  </span>
                                 )}
                               </div>
 
@@ -1720,7 +1868,9 @@ export default function FolioReaderPage() {
                             <div>
                               <p
                                 className={`text-xs leading-relaxed ${
-                                  isQuestion ? "font-serif text-sm font-normal text-[var(--text-primary)]" : "font-sans text-[var(--text-primary)]"
+                                  isQuestion
+                                    ? "font-serif text-sm font-normal text-[var(--text-primary)]"
+                                    : "font-sans text-[var(--text-primary)]"
                                 } ${item.completed ? "line-through opacity-70" : ""}`}
                               >
                                 {item.title}
@@ -1734,12 +1884,17 @@ export default function FolioReaderPage() {
                                     <div className="flex items-center gap-1.5 font-mono text-[0.6875rem]">
                                       <CheckCircle2 className="w-3.5 h-3.5 text-[var(--text-primary)] shrink-0" />
                                       <span>
-                                        Checked out {item.completedAt ? `at ${item.completedAt}` : ""}
+                                        Checked out{" "}
+                                        {item.completedAt
+                                          ? `at ${item.completedAt}`
+                                          : ""}
                                       </span>
                                     </div>
                                     <button
                                       type="button"
-                                      onClick={() => handleToggleChecklist(item.id)}
+                                      onClick={() =>
+                                        handleToggleChecklist(item.id)
+                                      }
                                       className="text-[0.625rem] font-mono text-[var(--text-secondary)] hover:text-[var(--text-primary)] underline transition-colors cursor-pointer"
                                     >
                                       Reopen
@@ -1748,7 +1903,9 @@ export default function FolioReaderPage() {
                                 ) : (
                                   <button
                                     type="button"
-                                    onClick={() => handleToggleChecklist(item.id)}
+                                    onClick={() =>
+                                      handleToggleChecklist(item.id)
+                                    }
                                     className="w-full py-1.5 px-3 bg-[var(--bg-elevated)] hover:bg-[var(--bg-overlay)] border border-[var(--border-hairline)] hover:border-[var(--border-hover)] text-[var(--text-primary)] rounded-[var(--radius-button)] text-xs font-mono flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                                   >
                                     <CheckCircle2 className="w-3.5 h-3.5" />
@@ -1760,10 +1917,14 @@ export default function FolioReaderPage() {
                               <div className="pt-0.5">
                                 <Checkbox
                                   checked={item.completed}
-                                  onChange={() => handleToggleChecklist(item.id)}
+                                  onChange={() =>
+                                    handleToggleChecklist(item.id)
+                                  }
                                   label={
                                     <span className="text-xs text-[var(--text-secondary)] font-mono">
-                                      {item.completed ? `Checked out (${item.assignee})` : `Mark completed`}
+                                      {item.completed
+                                        ? `Checked out (${item.assignee})`
+                                        : `Mark completed`}
                                     </span>
                                   }
                                 />
@@ -1776,7 +1937,9 @@ export default function FolioReaderPage() {
                                   type="button"
                                   onClick={() =>
                                     setExpandedAnswerTodoId(
-                                      expandedAnswerTodoId === item.id ? null : item.id
+                                      expandedAnswerTodoId === item.id
+                                        ? null
+                                        : item.id
                                     )
                                   }
                                   className="text-[0.6875rem] font-mono text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors flex items-center gap-1 cursor-pointer"
@@ -1790,7 +1953,9 @@ export default function FolioReaderPage() {
                                     <>
                                       <ChevronDown className="w-3 h-3" />
                                       <span>
-                                        {item.answerNote ? "Edit Solution Notes (1 saved)" : "+ Add Solution Notes"}
+                                        {item.answerNote
+                                          ? "Edit Solution Notes (1 saved)"
+                                          : "+ Add Solution Notes"}
                                       </span>
                                     </>
                                   )}
@@ -1803,11 +1968,12 @@ export default function FolioReaderPage() {
                                   />
                                 )}
 
-                                {expandedAnswerTodoId !== item.id && item.answerNote && (
-                                  <p className="mt-1.5 text-[0.6875rem] font-serif italic text-[var(--text-secondary)] bg-[var(--bg-elevated)] p-2 rounded-[var(--radius-button)] border border-[var(--border-hairline)] line-clamp-2">
-                                    &ldquo;{item.answerNote}&rdquo;
-                                  </p>
-                                )}
+                                {expandedAnswerTodoId !== item.id &&
+                                  item.answerNote && (
+                                    <p className="mt-1.5 text-[0.6875rem] font-serif italic text-[var(--text-secondary)] bg-[var(--bg-elevated)] p-2 rounded-[var(--radius-button)] border border-[var(--border-hairline)] line-clamp-2">
+                                      &ldquo;{item.answerNote}&rdquo;
+                                    </p>
+                                  )}
                               </div>
                             )}
                           </div>
@@ -1869,8 +2035,8 @@ export default function FolioReaderPage() {
                           newTodoType === "question"
                             ? "e.g. What is the fundamental theorem of calculus?"
                             : newTodoType === "reading"
-                            ? "e.g. Read Chapter 3, pages 45–60"
-                            : "e.g. Review lecture problem set"
+                              ? "e.g. Read Chapter 3, pages 45–60"
+                              : "e.g. Review lecture problem set"
                         }
                         value={newTaskTitle}
                         onChange={(e) => setNewTaskTitle(e.target.value)}
@@ -1895,7 +2061,9 @@ export default function FolioReaderPage() {
                 <div className="space-y-4">
                   {marginalNotes.length === 0 ? (
                     <div className="p-4 bg-[var(--bg-inset)] border border-dashed border-[var(--border-hairline)] rounded-[var(--radius-card)] text-center text-xs text-[var(--text-secondary)] font-mono">
-                      <p className="text-[var(--text-primary)] mb-0.5">No notes saved</p>
+                      <p className="text-[var(--text-primary)] mb-0.5">
+                        No notes saved
+                      </p>
                       <p>Jot down reflections or discussion points below.</p>
                     </div>
                   ) : (
@@ -1903,7 +2071,11 @@ export default function FolioReaderPage() {
                       {marginalNotes.map((note) => (
                         <motion.div
                           key={note.id}
-                          initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.9 }}
+                          initial={
+                            shouldReduceMotion
+                              ? { opacity: 0 }
+                              : { opacity: 0, scale: 0.9 }
+                          }
                           animate={{ opacity: 1, scale: 1 }}
                           transition={{
                             type: "spring",
@@ -1914,7 +2086,9 @@ export default function FolioReaderPage() {
                           className="p-3 bg-[var(--bg-inset)] border border-[var(--border-hairline)] rounded-[var(--radius-card)] space-y-1.5"
                         >
                           <div className="flex items-center justify-between text-[0.625rem] font-mono text-[var(--text-secondary)]">
-                            <span className="text-[var(--text-primary)] font-medium">{note.author}</span>
+                            <span className="text-[var(--text-primary)] font-medium">
+                              {note.author}
+                            </span>
                             <span>{note.timeAgo}</span>
                           </div>
                           <p className="font-serif italic text-xs text-[var(--text-primary)] leading-relaxed">
@@ -1926,7 +2100,10 @@ export default function FolioReaderPage() {
                   )}
 
                   {/* Append Marginal Note Form */}
-                  <form onSubmit={handlePublishNote} className="p-4 bg-[var(--bg-inset)] border border-[var(--border-hairline)] rounded-[var(--radius-card)] space-y-3">
+                  <form
+                    onSubmit={handlePublishNote}
+                    className="p-4 bg-[var(--bg-inset)] border border-[var(--border-hairline)] rounded-[var(--radius-card)] space-y-3"
+                  >
                     <span className="block font-mono text-[0.625rem] font-medium uppercase tracking-[0.08em] text-[var(--text-secondary)]">
                       Add Note to Document
                     </span>
@@ -1940,7 +2117,12 @@ export default function FolioReaderPage() {
                     />
 
                     <div className="flex items-center justify-end pt-1">
-                      <Button type="submit" variant="primary" size="sm" disabled={!newNoteText.trim()}>
+                      <Button
+                        type="submit"
+                        variant="primary"
+                        size="sm"
+                        disabled={!newNoteText.trim()}
+                      >
                         Save Note
                       </Button>
                     </div>
@@ -1961,7 +2143,8 @@ export default function FolioReaderPage() {
                   >
                     {copiedCitation ? (
                       <>
-                        <Check className="w-3 h-3 text-[var(--text-primary)]" /> Copied!
+                        <Check className="w-3 h-3 text-[var(--text-primary)]" />{" "}
+                        Copied!
                       </>
                     ) : (
                       <>
@@ -2004,7 +2187,9 @@ export default function FolioReaderPage() {
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-primary)]" />
               <span className="text-[var(--text-primary)]">{groupName}</span>
             </div>
-            <span className="text-[var(--text-disabled)] hidden sm:inline">|</span>
+            <span className="text-[var(--text-disabled)] hidden sm:inline">
+              |
+            </span>
             <span className="hidden sm:inline truncate max-w-sm">
               {asset.title}
             </span>
@@ -2038,9 +2223,17 @@ export default function FolioReaderPage() {
               className="absolute inset-0 bg-[rgba(10,10,10,0.6)] backdrop-blur-xs"
             />
             <motion.div
-              initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
+              initial={
+                shouldReduceMotion
+                  ? { opacity: 0 }
+                  : { opacity: 0, scale: 0.96 }
+              }
               animate={{ opacity: 1, scale: 1 }}
-              exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
+              exit={
+                shouldReduceMotion
+                  ? { opacity: 0 }
+                  : { opacity: 0, scale: 0.96 }
+              }
               transition={{
                 duration: shouldReduceMotion ? 0.15 : 0.45,
                 ease: [0.16, 1, 0.3, 1],
@@ -2101,15 +2294,21 @@ export default function FolioReaderPage() {
                       <button
                         key={cat.key}
                         type="button"
-                        onClick={() => setHighlightColor(cat.key as typeof highlightColor)}
+                        onClick={() =>
+                          setHighlightColor(cat.key as typeof highlightColor)
+                        }
                         className={`p-2 rounded-[var(--radius-button)] border text-xs flex flex-col items-center gap-1 transition-all cursor-pointer ${
                           highlightColor === cat.key
                             ? "bg-[var(--invert-bg)] text-[var(--invert-text)] border-[var(--invert-bg)] font-medium"
                             : "bg-[var(--bg-inset)] border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                         }`}
                       >
-                        <span className="text-[0.625rem] tracking-wider">{cat.tag}</span>
-                        <span className="font-sans text-[0.6875rem]">{cat.label}</span>
+                        <span className="text-[0.625rem] tracking-wider">
+                          {cat.tag}
+                        </span>
+                        <span className="font-sans text-[0.6875rem]">
+                          {cat.label}
+                        </span>
                       </button>
                     ))}
                   </div>
@@ -2180,9 +2379,17 @@ export default function FolioReaderPage() {
               className="absolute inset-0 bg-[rgba(10,10,10,0.6)] backdrop-blur-xs"
             />
             <motion.div
-              initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
+              initial={
+                shouldReduceMotion
+                  ? { opacity: 0 }
+                  : { opacity: 0, scale: 0.96 }
+              }
               animate={{ opacity: 1, scale: 1 }}
-              exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
+              exit={
+                shouldReduceMotion
+                  ? { opacity: 0 }
+                  : { opacity: 0, scale: 0.96 }
+              }
               transition={{
                 duration: shouldReduceMotion ? 0.15 : 0.45,
                 ease: [0.16, 1, 0.3, 1],
@@ -2280,7 +2487,9 @@ export default function FolioReaderPage() {
                   <textarea
                     rows={5}
                     required
-                    placeholder={"1. What are the key properties of eigenvalues?\n2. How does gradient descent converge on convex surfaces?\n3. Explain the bias-variance tradeoff with an example."}
+                    placeholder={
+                      "1. What are the key properties of eigenvalues?\n2. How does gradient descent converge on convex surfaces?\n3. Explain the bias-variance tradeoff with an example."
+                    }
                     value={bulkQuestionsInput}
                     onChange={(e) => setBulkQuestionsInput(e.target.value)}
                     className="w-full bg-[var(--bg-inset)] border border-[var(--border-hairline)] rounded-[var(--radius-button)] text-xs p-3 text-[var(--text-primary)] placeholder:text-[var(--text-disabled)] outline-none focus:border-[var(--border-focus)] resize-none font-mono transition-colors"
@@ -2290,7 +2499,10 @@ export default function FolioReaderPage() {
                       <CheckCircle2 className="w-3 h-3 text-[var(--text-primary)]" />
                       <span>
                         {parseQuestionsList(bulkQuestionsInput).length} item
-                        {parseQuestionsList(bulkQuestionsInput).length === 1 ? "" : "s"} detected
+                        {parseQuestionsList(bulkQuestionsInput).length === 1
+                          ? ""
+                          : "s"}{" "}
+                        detected
                       </span>
                     </span>
                     <span className="italic text-[0.625rem]">
@@ -2313,9 +2525,12 @@ export default function FolioReaderPage() {
                     variant="primary"
                     size="sm"
                     icon={<ListPlus className="w-3.5 h-3.5" />}
-                    disabled={parseQuestionsList(bulkQuestionsInput).length === 0}
+                    disabled={
+                      parseQuestionsList(bulkQuestionsInput).length === 0
+                    }
                   >
-                    Convert to {parseQuestionsList(bulkQuestionsInput).length} Todos
+                    Convert to {parseQuestionsList(bulkQuestionsInput).length}{" "}
+                    Todos
                   </Button>
                 </div>
               </form>

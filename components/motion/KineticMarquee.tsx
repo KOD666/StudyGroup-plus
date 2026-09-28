@@ -36,7 +36,9 @@ export function KineticMarquee({
   return (
     <div
       className={`relative w-full overflow-hidden select-none py-6 border-y border-[var(--border-hairline)] bg-[var(--bg-inset)] ${
-        tilt ? "-rotate-1 md:-rotate-1.5 my-8 sm:my-12 scale-[1.02] shadow-[0_0_30px_rgba(0,0,0,0.5)]" : ""
+        tilt
+          ? "-rotate-1 md:-rotate-1.5 my-8 sm:my-12 scale-[1.02] shadow-[0_0_30px_rgba(0,0,0,0.5)]"
+          : ""
       } ${className}`}
     >
       {/* Edge gradient masks for smooth entry/exit */}

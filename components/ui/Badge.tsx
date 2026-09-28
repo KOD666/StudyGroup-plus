@@ -1,7 +1,14 @@
 import React from "react";
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
-  variant?: "live" | "neutral" | "subtle" | "outline" | "forest" | "ochre" | "parchment";
+  variant?:
+    | "live"
+    | "neutral"
+    | "subtle"
+    | "outline"
+    | "forest"
+    | "ochre"
+    | "parchment";
   dot?: boolean;
 }
 
@@ -20,13 +27,19 @@ export function Badge({
 
   const variantStyles = {
     live: "bg-[var(--accent-live-wash)] text-[var(--text-primary)] border-[rgba(229,72,77,0.3)]",
-    neutral: "bg-[var(--bg-elevated)] text-[var(--text-primary)] border-[var(--border-hairline)]",
-    subtle: "bg-[var(--bg-inset)] text-[var(--text-secondary)] border-[var(--border-hairline)]",
-    outline: "bg-transparent text-[var(--text-secondary)] border-[var(--border-hairline)]",
+    neutral:
+      "bg-[var(--bg-elevated)] text-[var(--text-primary)] border-[var(--border-hairline)]",
+    subtle:
+      "bg-[var(--bg-inset)] text-[var(--text-secondary)] border-[var(--border-hairline)]",
+    outline:
+      "bg-transparent text-[var(--text-secondary)] border-[var(--border-hairline)]",
     // Legacy compatibility aliases mapped strictly to monochrome tokens:
-    forest: "bg-[var(--bg-elevated)] text-[var(--text-primary)] border-[var(--border-hairline)]",
-    ochre: "bg-[var(--bg-inset)] text-[var(--text-primary)] border-[var(--border-hover)]",
-    parchment: "bg-[var(--bg-inset)] text-[var(--text-secondary)] border-[var(--border-hairline)]",
+    forest:
+      "bg-[var(--bg-elevated)] text-[var(--text-primary)] border-[var(--border-hairline)]",
+    ochre:
+      "bg-[var(--bg-inset)] text-[var(--text-primary)] border-[var(--border-hover)]",
+    parchment:
+      "bg-[var(--bg-inset)] text-[var(--text-secondary)] border-[var(--border-hairline)]",
   }[variant];
 
   return (

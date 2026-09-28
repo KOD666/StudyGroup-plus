@@ -12,7 +12,11 @@ function DigitColumn({ digit }: { digit: string }) {
   }
 
   if (shouldReduceMotion) {
-    return <span className="inline-block w-[1ch] text-center font-mono">{digit}</span>;
+    return (
+      <span className="inline-block w-[1ch] text-center font-mono">
+        {digit}
+      </span>
+    );
   }
 
   return (
@@ -24,7 +28,10 @@ function DigitColumn({ digit }: { digit: string }) {
         transition={{ duration: 0.2, ease: [0.25, 1, 0.5, 1] }}
       >
         {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
-          <span key={n} className="h-[1.2em] flex items-center justify-center leading-none">
+          <span
+            key={n}
+            className="h-[1.2em] flex items-center justify-center leading-none"
+          >
             {n}
           </span>
         ))}
@@ -58,7 +65,11 @@ export function GreetingClock() {
   }, []);
 
   if (!timeStr) {
-    return <span className="font-mono text-xs text-[var(--text-secondary)]">00:00:00 AM</span>;
+    return (
+      <span className="font-mono text-xs text-[var(--text-secondary)]">
+        00:00:00 AM
+      </span>
+    );
   }
 
   return (

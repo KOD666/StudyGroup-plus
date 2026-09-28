@@ -8,8 +8,7 @@ export default clerkMiddleware(async (_auth, req) => {
     ["POST", "PATCH", "DELETE", "PUT"].includes(req.method)
   ) {
     const origin = req.headers.get("origin");
-    const host =
-      req.headers.get("x-forwarded-host") || req.headers.get("host");
+    const host = req.headers.get("x-forwarded-host") || req.headers.get("host");
 
     if (origin && host) {
       try {

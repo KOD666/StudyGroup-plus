@@ -7,7 +7,12 @@ import { useUser, SignInButton } from "@clerk/nextjs";
 import { CheckCircle2, AlertCircle, ArrowRight, BookOpen } from "lucide-react";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { Button } from "@/components/ui/Button";
-import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/Card";
+import {
+  Card,
+  CardHeader,
+  CardContent,
+  CardFooter,
+} from "@/components/ui/Card";
 import { RouteTransition } from "@/components/motion/RouteTransition";
 
 export default function JoinGroupPage() {
@@ -17,9 +22,14 @@ export default function JoinGroupPage() {
   const rawCode = (params.code as string) || "";
   const code = rawCode.trim().toUpperCase();
 
-  const [status, setStatus] = useState<"loading" | "success" | "already_member" | "error">("loading");
+  const [status, setStatus] = useState<
+    "loading" | "success" | "already_member" | "error"
+  >("loading");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [joinedGroup, setJoinedGroup] = useState<{ id: string; name: string } | null>(null);
+  const [joinedGroup, setJoinedGroup] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -64,7 +74,9 @@ export default function JoinGroupPage() {
         }
 
         setStatus("error");
-        setErrorMessage(data.error || "Failed to join study group with this code.");
+        setErrorMessage(
+          data.error || "Failed to join study group with this code."
+        );
       } catch (err: unknown) {
         setStatus("error");
         setErrorMessage(err instanceof Error ? err.message : "Network error");
@@ -97,7 +109,8 @@ export default function JoinGroupPage() {
             {isLoaded && !isSignedIn && (
               <div className="space-y-4">
                 <p className="font-sans text-sm text-[var(--text-secondary)] leading-relaxed">
-                  Please sign in to your StudyGroup+ account to accept this invitation and join the group.
+                  Please sign in to your StudyGroup+ account to accept this
+                  invitation and join the group.
                 </p>
                 <div className="pt-2">
                   <SignInButton mode="modal">
@@ -137,12 +150,19 @@ export default function JoinGroupPage() {
                     Welcome to {joinedGroup.name}!
                   </h3>
                   <p className="font-sans text-xs text-[var(--text-secondary)]">
-                    You have successfully joined the group. Redirecting to workspace...
+                    You have successfully joined the group. Redirecting to
+                    workspace...
                   </p>
                 </div>
                 <div className="pt-2">
                   <Link href={`/lounges/${joinedGroup.id}`}>
-                    <Button variant="primary" size="md" className="w-full" icon={<ArrowRight className="w-4 h-4" />} iconPosition="right">
+                    <Button
+                      variant="primary"
+                      size="md"
+                      className="w-full"
+                      icon={<ArrowRight className="w-4 h-4" />}
+                      iconPosition="right"
+                    >
                       Enter Study Group Now
                     </Button>
                   </Link>
@@ -161,13 +181,20 @@ export default function JoinGroupPage() {
                     Already Enrolled
                   </h3>
                   <p className="font-sans text-xs text-[var(--text-secondary)] leading-relaxed">
-                    You are already enrolled in {joinedGroup?.name || "this study group"}.
+                    You are already enrolled in{" "}
+                    {joinedGroup?.name || "this study group"}.
                   </p>
                 </div>
                 <div className="pt-2 flex flex-col gap-2">
                   {joinedGroup?.id ? (
                     <Link href={`/lounges/${joinedGroup.id}`}>
-                      <Button variant="primary" size="md" className="w-full" icon={<ArrowRight className="w-4 h-4" />} iconPosition="right">
+                      <Button
+                        variant="primary"
+                        size="md"
+                        className="w-full"
+                        icon={<ArrowRight className="w-4 h-4" />}
+                        iconPosition="right"
+                      >
                         Go to Study Group
                       </Button>
                     </Link>
@@ -193,7 +220,8 @@ export default function JoinGroupPage() {
                     Unable to Join Group
                   </h3>
                   <p className="font-sans text-xs text-[var(--text-secondary)] leading-relaxed">
-                    {errorMessage || "No active study group found matching this invite code."}
+                    {errorMessage ||
+                      "No active study group found matching this invite code."}
                   </p>
                 </div>
                 <div className="pt-2 flex flex-col sm:flex-row gap-2 justify-center">

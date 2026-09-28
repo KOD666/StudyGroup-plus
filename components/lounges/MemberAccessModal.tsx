@@ -93,9 +93,13 @@ export function MemberAccessModal({
 
         {/* Modal: scale 0.96 -> 1 + fade, --dur-slow (450ms), --ease-out-expo per DESIGN.md §5 */}
         <motion.div
-          initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
+          initial={
+            shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96 }
+          }
           animate={{ opacity: 1, scale: 1 }}
-          exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
+          exit={
+            shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96 }
+          }
           transition={{
             duration: shouldReduceMotion ? 0.15 : 0.45,
             ease: [0.16, 1, 0.3, 1],
@@ -147,10 +151,16 @@ export function MemberAccessModal({
                         <h4 className="font-sans text-sm font-medium text-[var(--text-primary)]">
                           {member.name}
                         </h4>
-                        <p className="font-mono text-xs text-[var(--text-secondary)]">{member.email}</p>
+                        <p className="font-mono text-xs text-[var(--text-secondary)]">
+                          {member.email}
+                        </p>
                       </div>
                     </div>
-                    <Badge variant={member.role === "creator" ? "outline" : "neutral"}>
+                    <Badge
+                      variant={
+                        member.role === "creator" ? "outline" : "neutral"
+                      }
+                    >
                       {member.role === "creator" ? "Owner" : "Member"}
                     </Badge>
                   </div>
@@ -165,9 +175,14 @@ export function MemberAccessModal({
                         {assets.map((asset) => {
                           const hasAccess =
                             member.role === "creator" ||
-                            (member.assetAccess && member.assetAccess.includes(asset.id));
-                          const isUpdating = updatingKey === `${member.userId}-${asset.id}`;
-                          const isToggleDisabled = !isCreator || member.role === "creator" || isUpdating;
+                            (member.assetAccess &&
+                              member.assetAccess.includes(asset.id));
+                          const isUpdating =
+                            updatingKey === `${member.userId}-${asset.id}`;
+                          const isToggleDisabled =
+                            !isCreator ||
+                            member.role === "creator" ||
+                            isUpdating;
 
                           return (
                             <button
@@ -176,9 +191,13 @@ export function MemberAccessModal({
                               role="switch"
                               aria-checked={hasAccess}
                               disabled={isToggleDisabled}
-                              onClick={() => handleToggleAccess(member.userId, asset.id)}
+                              onClick={() =>
+                                handleToggleAccess(member.userId, asset.id)
+                              }
                               className={`flex items-center justify-between p-2.5 rounded-[var(--radius-button)] bg-[var(--bg-elevated)] border border-[var(--border-hairline)] transition-colors gap-2 text-left ${
-                                isToggleDisabled ? "cursor-default opacity-80" : "hover:border-[var(--border-hover)] cursor-pointer"
+                                isToggleDisabled
+                                  ? "cursor-default opacity-80"
+                                  : "hover:border-[var(--border-hover)] cursor-pointer"
                               }`}
                             >
                               <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -203,7 +222,11 @@ export function MemberAccessModal({
                                 <motion.div
                                   className="w-3.5 h-3.5 rounded-full bg-[var(--text-primary)]"
                                   animate={{ x: hasAccess ? 14 : 0 }}
-                                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                                  transition={{
+                                    type: "spring",
+                                    stiffness: 500,
+                                    damping: 30,
+                                  }}
                                 />
                               </div>
                             </button>
