@@ -31,6 +31,7 @@ import {
   Upload,
   Ban,
   FlipHorizontal,
+  VolumeX,
 } from "lucide-react";
 import {
   Room,
@@ -355,6 +356,10 @@ export default function MeetingRoomPage() {
   );
   const [connectionRetryCount, setConnectionRetryCount] = useState(0);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const activeSessionIdRef = useRef<string | null>(null);
+  const [silentStudyNotice, setSilentStudyNotice] = useState<string | null>(null);
+  const [showSaveChatModal, setShowSaveChatModal] = useState(false);
+  const chatMessagesEndRef = useRef<HTMLDivElement>(null);
 
   // Live transcript & Pin Animation state (§6.3)
   interface TranscriptItem {
@@ -507,6 +512,7 @@ export default function MeetingRoomPage() {
             const sData = await sessionRes.json();
             if (sData.session?.id && !isCancelled) {
               setActiveSessionId(sData.session.id);
+              activeSessionIdRef.current = sData.session.id;
             }
           }
         } catch (sessionErr) {
@@ -644,6 +650,31 @@ export default function MeetingRoomPage() {
                     isSelf: false,
                   },
                 ]);
+              } else if (
+                data.type === "room_mode" &&
+                (data.mode === "quiet" || data.mode === "discussion")
+              ) {
+                setRoomMode(data.mode);
+                if (data.mode === "quiet") {
+                  setIsMuted(true);
+                  if (localStreamRef.current) {
+                    localStreamRef.current.getAudioTracks().forEach((track) => {
+                      track.enabled = false;
+                    });
+                  }
+                  if (roomRef.current?.localParticipant) {
+                    roomRef.current.localParticipant
+                      .setMicrophoneEnabled(false)
+                      .catch(() => {});
+                  }
+                  setSilentStudyNotice(
+                    "Silent Study mode activated — microphones muted for focus."
+                  );
+                } else {
+                  setSilentStudyNotice(
+                    "Discussion mode activated — microphones can be unmuted."
+                  );
+                }
               }
             } catch {
               // ignore non-json data
@@ -746,6 +777,54 @@ export default function MeetingRoomPage() {
         console.warn("Failed to toggle LiveKit microphone:", err);
       }
     }
+
+    if (!nextMuted && roomMode === "quiet") {
+      setSilentStudyNotice(
+        "Silent Study mode is active — please speak quietly if needed."
+      );
+    }
+  }
+
+  async function handleSwitchRoomMode(mode: "quiet" | "discussion") {
+    setRoomMode(mode);
+
+    if (mode === "quiet") {
+      if (!isMuted) {
+        setIsMuted(true);
+        if (localStreamRef.current) {
+          localStreamRef.current.getAudioTracks().forEach((track) => {
+            track.enabled = false;
+          });
+        }
+        if (roomRef.current?.localParticipant) {
+          try {
+            await roomRef.current.localParticipant.setMicrophoneEnabled(false);
+          } catch (err) {
+            console.warn("Failed to mute mic on silent study switch:", err);
+          }
+        }
+      }
+      setSilentStudyNotice(
+        "Silent Study mode activated — microphones muted for focused study."
+      );
+    } else {
+      setSilentStudyNotice(
+        "Discussion mode activated — microphones can be unmuted."
+      );
+    }
+
+    if (roomRef.current?.localParticipant) {
+      try {
+        const payload = { type: "room_mode", mode };
+        const encoder = new TextEncoder();
+        await roomRef.current.localParticipant.publishData(
+          encoder.encode(JSON.stringify(payload)),
+          { reliable: true }
+        );
+      } catch (err) {
+        console.warn("Failed to broadcast room mode:", err);
+      }
+    }
   }
 
   async function handleToggleVideo() {
@@ -839,7 +918,25 @@ export default function MeetingRoomPage() {
   }
 
   // Leave Call (§6.3 - deliberate 250ms closing fade to --bg-primary before route transition)
+  async function handleLeaveClick() {
+    const isLastParticipant =
+      !roomRef.current ||
+      roomRef.current.remoteParticipants.size === 0 ||
+      remoteParticipants.length === 0;
+
+    if (isLastParticipant) {
+      setShowSaveChatModal(true);
+    } else {
+      await performLeave(false);
+    }
+  }
+
+  // Alias for backward-compatibility
   async function handleLeave() {
+    await handleLeaveClick();
+  }
+
+  async function performLeave(endSession: boolean) {
     setIsLeaving(true);
     if (bgProcessorRef.current) {
       try {
@@ -847,25 +944,37 @@ export default function MeetingRoomPage() {
       } catch {}
       bgProcessorRef.current = null;
     }
-    if (
-      activeSessionId &&
-      roomRef.current &&
-      roomRef.current.remoteParticipants.size === 0
-    ) {
+
+    if (endSession) {
+      const sId = activeSessionIdRef.current || activeSessionId || "active";
       try {
-        await fetch(`/api/groups/${groupId}/sessions/${activeSessionId}/end`, {
+        await fetch(`/api/groups/${groupId}/sessions/${sId}/end`, {
           method: "POST",
         });
       } catch (endErr) {
         console.warn("Could not mark session ended:", endErr);
       }
     }
+
     setTimeout(() => {
       if (roomRef.current) {
         roomRef.current.disconnect();
       }
-      router.push(`/lounges/${groupId}`);
+      router.push(
+        `/lounges/${groupId}${endSession ? "?meetingEnded=true" : ""}`
+      );
     }, 250);
+  }
+
+  async function handleSaveChatAndLeave() {
+    handleDownloadConversation();
+    setShowSaveChatModal(false);
+    await performLeave(true);
+  }
+
+  async function handleLeaveWithoutSaving() {
+    setShowSaveChatModal(false);
+    await performLeave(true);
   }
 
   // Virtual Photo Background & Blur Logic (Feature 1)
@@ -1072,6 +1181,48 @@ export default function MeetingRoomPage() {
     setHasDownloadedConversation(true);
     setTimeout(() => setHasDownloadedConversation(false), 2500);
   }
+
+  // Auto-scroll chat to bottom on new messages
+  useEffect(() => {
+    if (activeTab === "chat") {
+      chatMessagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [inCallMessages, activeTab]);
+
+  // Auto-dismiss silent study mode notice banner after 4 seconds
+  useEffect(() => {
+    if (!silentStudyNotice) return;
+    const timer = setTimeout(() => {
+      setSilentStudyNotice(null);
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [silentStudyNotice]);
+
+  // If last participant leaves by closing tab or navigating away, end active session
+  useEffect(() => {
+    function handleUnload() {
+      if (!roomRef.current || roomRef.current.remoteParticipants.size === 0) {
+        const sId = activeSessionIdRef.current || activeSessionId || "active";
+        try {
+          if (navigator.sendBeacon) {
+            navigator.sendBeacon(`/api/groups/${groupId}/sessions/${sId}/end`);
+          } else {
+            fetch(`/api/groups/${groupId}/sessions/${sId}/end`, {
+              method: "POST",
+              keepalive: true,
+            });
+          }
+        } catch {}
+      }
+    }
+
+    window.addEventListener("pagehide", handleUnload);
+    window.addEventListener("beforeunload", handleUnload);
+    return () => {
+      window.removeEventListener("pagehide", handleUnload);
+      window.removeEventListener("beforeunload", handleUnload);
+    };
+  }, [groupId, activeSessionId]);
 
   async function handleSendInCallMessage(e: React.FormEvent) {
     e.preventDefault();
@@ -1494,6 +1645,16 @@ export default function MeetingRoomPage() {
           <span className="text-[var(--text-disabled)]">/</span>
           <Link
             href={`/lounges/${groupId}`}
+            onClick={(e) => {
+              const isLastParticipant =
+                !roomRef.current ||
+                roomRef.current.remoteParticipants.size === 0 ||
+                remoteParticipants.length === 0;
+              if (isLastParticipant) {
+                e.preventDefault();
+                setShowSaveChatModal(true);
+              }
+            }}
             className="font-mono text-xs uppercase tracking-[0.06em] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors hidden sm:inline"
           >
             {groupName}
@@ -1517,7 +1678,7 @@ export default function MeetingRoomPage() {
           <div className="p-1 bg-[var(--bg-inset)] border border-[var(--border-hairline)] rounded-[var(--radius-button)] flex items-center gap-1 text-xs font-mono">
             <button
               type="button"
-              onClick={() => setRoomMode("quiet")}
+              onClick={() => handleSwitchRoomMode("quiet")}
               className={`relative px-3 py-1 rounded-[calc(var(--radius-button)-2px)] transition-colors duration-[var(--dur-fast)] cursor-pointer ${
                 roomMode === "quiet"
                   ? "text-[var(--text-primary)]"
@@ -1534,11 +1695,14 @@ export default function MeetingRoomPage() {
                   className="absolute inset-0 rounded-[calc(var(--radius-button)-2px)] bg-[var(--bg-elevated)] border border-[var(--border-hairline)]"
                 />
               )}
-              <span className="relative z-10">Silent Study</span>
+              <span className="relative z-10 flex items-center gap-1.5">
+                <VolumeX className="w-3 h-3 text-amber-500" />
+                Silent Study
+              </span>
             </button>
             <button
               type="button"
-              onClick={() => setRoomMode("discussion")}
+              onClick={() => handleSwitchRoomMode("discussion")}
               className={`relative px-3 py-1 rounded-[calc(var(--radius-button)-2px)] transition-colors duration-[var(--dur-fast)] cursor-pointer ${
                 roomMode === "discussion"
                   ? "text-[var(--text-primary)]"
@@ -2160,11 +2324,18 @@ export default function MeetingRoomPage() {
             </div>
 
             {/* Panel Body */}
-            <div className="flex-1 p-5 overflow-y-auto space-y-6">
+            <div
+              data-lenis-prevent
+              className={`flex-1 ${
+                activeTab === "chat"
+                  ? "overflow-hidden flex flex-col p-4"
+                  : "p-5 overflow-y-auto space-y-6"
+              }`}
+            >
               {activeTab === "chat" && (
-                <div className="flex flex-col h-[calc(100vh-17rem)]">
+                <div className="flex flex-col flex-1 h-full min-h-0">
                   {/* Chat Tab Header Bar with Copy to Clipboard Button (§Feature 5) */}
-                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-[var(--border-hairline)] text-xs">
+                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-[var(--border-hairline)] text-xs shrink-0">
                     <span className="font-mono text-[0.625rem] uppercase tracking-wider text-[var(--text-secondary)]">
                       Live WebRTC Data Channel
                     </span>
@@ -2190,7 +2361,15 @@ export default function MeetingRoomPage() {
                     </button>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+                  <div
+                    data-lenis-prevent
+                    className="flex-1 overflow-y-auto overscroll-contain space-y-3 pr-1 min-h-0 scroll-smooth"
+                    style={{
+                      overscrollBehavior: "contain",
+                      WebkitOverflowScrolling: "touch",
+                      touchAction: "pan-y",
+                    }}
+                  >
                     {inCallMessages.length === 0 ? (
                       <div className="h-full min-h-[14rem] flex flex-col items-center justify-center text-center p-6 border border-dashed border-[var(--border-hairline)] rounded-[var(--radius-card)]">
                         <MessageSquare className="w-8 h-8 text-[var(--text-secondary)] opacity-40 mb-2" />
@@ -2233,11 +2412,12 @@ export default function MeetingRoomPage() {
                         </motion.div>
                       ))
                     )}
+                    <div ref={chatMessagesEndRef} />
                   </div>
 
                   <form
                     onSubmit={handleSendInCallMessage}
-                    className="pt-3 border-t border-[var(--border-hairline)] mt-3"
+                    className="pt-3 border-t border-[var(--border-hairline)] mt-3 shrink-0"
                   >
                     <div className="flex items-center gap-2 relative">
                       <EmojiPickerButton
@@ -2446,6 +2626,16 @@ export default function MeetingRoomPage() {
               </Button>
               <Link
                 href={`/lounges/${groupId}`}
+                onClick={(e) => {
+                  const isLastParticipant =
+                    !roomRef.current ||
+                    roomRef.current.remoteParticipants.size === 0 ||
+                    remoteParticipants.length === 0;
+                  if (isLastParticipant) {
+                    e.preventDefault();
+                    setShowSaveChatModal(true);
+                  }
+                }}
                 className="font-mono text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
               >
                 Back to Workspace
@@ -2676,6 +2866,108 @@ export default function MeetingRoomPage() {
                   className="text-xs"
                 >
                   Done
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Silent Study Mode Floating Notice */}
+      <AnimatePresence>
+        {silentStudyNotice && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className="absolute top-16 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--bg-elevated)]/95 border border-[var(--border-hairline)] shadow-xl text-xs font-mono text-[var(--text-primary)] backdrop-blur-md pointer-events-none"
+          >
+            <VolumeX className="w-3.5 h-3.5 text-amber-500" />
+            <span>{silentStudyNotice}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Save Chat Prompt Modal when Last Participant Leaves */}
+      <AnimatePresence>
+        {showSaveChatModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.6 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={() => setShowSaveChatModal(false)}
+              className="absolute inset-0 bg-[var(--bg-primary)] backdrop-blur-sm cursor-pointer"
+            />
+            <motion.div
+              initial={
+                shouldReduceMotion
+                  ? { opacity: 0 }
+                  : { opacity: 0, scale: 0.96, y: 10 }
+              }
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={
+                shouldReduceMotion
+                  ? { opacity: 0 }
+                  : { opacity: 0, scale: 0.96, y: 10 }
+              }
+              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              className="relative w-full max-w-md bg-[var(--bg-elevated)] border border-[var(--border-hairline)] rounded-[var(--radius-card)] p-6 shadow-2xl space-y-5 z-10 font-sans"
+            >
+              <div className="flex items-start gap-4">
+                <div className="p-2.5 rounded-[var(--radius-button)] bg-[var(--bg-inset)] border border-[var(--border-hairline)] text-[var(--text-primary)] shrink-0">
+                  <Download className="w-5 h-5 text-[var(--text-primary)]" />
+                </div>
+                <div>
+                  <h3 className="font-serif text-lg font-normal text-[var(--text-primary)]">
+                    Save Meeting Chat?
+                  </h3>
+                  <p className="font-sans text-xs text-[var(--text-secondary)] mt-1 leading-relaxed">
+                    You are the last participant leaving this meeting. Would you like to save and download the chat history before the session ends?
+                  </p>
+                </div>
+              </div>
+
+              {inCallMessages.length > 0 ? (
+                <div className="p-3 rounded-[var(--radius-button)] bg-[var(--bg-inset)] border border-[var(--border-hairline)] flex items-center justify-between text-xs font-mono">
+                  <span className="text-[var(--text-secondary)]">Messages recorded:</span>
+                  <span className="text-[var(--text-primary)] font-semibold">
+                    {inCallMessages.length} message{inCallMessages.length === 1 ? "" : "s"}
+                  </span>
+                </div>
+              ) : (
+                <div className="p-3 rounded-[var(--radius-button)] bg-[var(--bg-inset)] border border-[var(--border-hairline)] text-xs text-[var(--text-secondary)] font-mono">
+                  No in-call chat messages recorded in this session.
+                </div>
+              )}
+
+              <div className="flex flex-col sm:flex-row items-center gap-2 pt-2 border-t border-[var(--border-hairline)]">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="w-full sm:flex-1 text-xs justify-center"
+                  icon={<Download className="w-3.5 h-3.5" />}
+                  onClick={handleSaveChatAndLeave}
+                >
+                  Download & End
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="w-full sm:flex-1 text-xs justify-center"
+                  onClick={handleLeaveWithoutSaving}
+                >
+                  Leave Without Saving
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full sm:w-auto text-xs justify-center"
+                  onClick={() => setShowSaveChatModal(false)}
+                >
+                  Cancel
                 </Button>
               </div>
             </motion.div>

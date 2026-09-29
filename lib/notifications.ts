@@ -164,3 +164,45 @@ export async function notifyAssetUploaded(params: {
     console.error("Failed to deliver asset_uploaded notification:", error);
   }
 }
+
+/**
+ * Notifies all group members when a live meeting ends.
+ */
+export async function notifySessionEnded(params: {
+  groupId: string;
+  sessionId: string;
+  endedByUserId?: string;
+}) {
+  try {
+    const { groupId, sessionId } = params;
+
+    const groupRows = await db
+      .select({ id: groups.id, name: groups.name })
+      .from(groups)
+      .where(and(eq(groups.id, groupId), isNull(groups.deletedAt)));
+    const group = Array.isArray(groupRows) ? groupRows[0] : groupRows;
+
+    if (!group) return;
+
+    const members = await db
+      .select({ userId: memberships.userId })
+      .from(memberships)
+      .where(eq(memberships.groupId, groupId));
+
+    if (!Array.isArray(members) || members.length === 0) return;
+
+    const rows = members.map((m) => ({
+      recipientId: m.userId,
+      type: "session_ended",
+      groupId,
+      referenceId: sessionId,
+      title: `Meeting Ended: ${group.name}`,
+      message: `The live study session in ${group.name} has concluded.`,
+      link: `/lounges/${groupId}`,
+    }));
+
+    await db.insert(notifications).values(rows);
+  } catch (error) {
+    console.error("Failed to deliver session_ended notification:", error);
+  }
+}

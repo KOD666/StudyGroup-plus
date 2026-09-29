@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { sessions } from "@/models";
 import { isGroupMember } from "@/lib/permissions";
+import { notifySessionEnded } from "@/lib/notifications";
 
 // POST /api/groups/[groupId]/sessions/[sessionId]/end - Mark an active session ended
 export async function POST(
@@ -40,21 +41,39 @@ export async function POST(
     }
 
     // 2. Update session endedAt if currently null
+    const condition =
+      sessionId === "active"
+        ? and(eq(sessions.groupId, groupId), isNull(sessions.endedAt))
+        : and(eq(sessions.id, sessionId), eq(sessions.groupId, groupId));
+
     const [updatedSession] = await db
       .update(sessions)
       .set({
         endedAt: new Date(),
         updatedAt: new Date(),
       })
-      .where(and(eq(sessions.id, sessionId), eq(sessions.groupId, groupId)))
+      .where(condition)
       .returning();
 
     if (!updatedSession) {
+      if (sessionId === "active") {
+        return NextResponse.json(
+          { message: "No active session to end" },
+          { status: 200 }
+        );
+      }
       return NextResponse.json(
         { error: "Not Found: Meeting session not found" },
         { status: 404 }
       );
     }
+
+    // Trigger notification to group members
+    await notifySessionEnded({
+      groupId,
+      sessionId: updatedSession.id,
+      endedByUserId: currentUserId,
+    });
 
     return NextResponse.json(
       {

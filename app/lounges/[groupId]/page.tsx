@@ -128,6 +128,7 @@ export default function LoungeWorkspacePage() {
   const [activeSession, setActiveSession] = useState<ActiveSessionData | null>(
     null
   );
+  const [meetingEndedNotice, setMeetingEndedNotice] = useState(false);
 
   const [scheduledSessionsList, setScheduledSessionsList] = useState<
     Array<{
@@ -247,6 +248,18 @@ export default function LoungeWorkspacePage() {
 
     return () => clearInterval(interval);
   }, [fetchWorkspaceData, fetchMessages, fetchActiveSession]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get("meetingEnded") === "true") {
+        setMeetingEndedNotice(true);
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, "", newUrl);
+        fetchActiveSession();
+      }
+    }
+  }, [fetchActiveSession]);
 
   async function handleStartMeeting() {
     setIsStartingVideo(true);
@@ -432,6 +445,32 @@ export default function LoungeWorkspacePage() {
         data-inertia-scroll
         className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10"
       >
+        {/* Meeting Ended Notification Banner */}
+        {meetingEndedNotice && (
+          <div className="mb-6 p-4 rounded-[var(--radius-card)] bg-[var(--bg-elevated)] border border-[var(--border-hairline)] flex items-center justify-between text-xs shadow-sm animate-fade-in">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-full bg-[var(--bg-inset)] text-[var(--text-secondary)]">
+                <Clock className="w-4 h-4 text-[var(--text-primary)]" />
+              </div>
+              <div>
+                <span className="font-semibold text-[var(--text-primary)]">
+                  Meeting Ended
+                </span>
+                <p className="text-[var(--text-secondary)] mt-0.5">
+                  The live study session has concluded.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setMeetingEndedNotice(false)}
+              className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-xs font-mono cursor-pointer px-2.5 py-1 rounded-[var(--radius-button)] hover:bg-[var(--bg-inset)] transition-colors"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
         {/* Top Breadcrumb & Status Sub-header */}
         <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-[var(--border-hairline)] mb-6 text-xs text-[var(--text-secondary)]">
           <div className="flex items-center gap-2">
