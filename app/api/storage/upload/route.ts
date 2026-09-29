@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { getLocalStorageDir } from "@/lib/r2";
 import fs from "fs";
 import path from "path";
 
@@ -120,7 +121,7 @@ export async function PUT(req: NextRequest) {
       }
     }
 
-    const filePath = path.join(process.cwd(), ".storage", normalized);
+    const filePath = path.join(getLocalStorageDir(), normalized);
 
     await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
     await fs.promises.writeFile(filePath, buffer);

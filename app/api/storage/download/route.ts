@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { getLocalStorageDir } from "@/lib/r2";
 import fs from "fs";
 import path from "path";
 
@@ -32,7 +33,7 @@ export async function GET(req: NextRequest) {
 
   const normalized = path.normalize(key).replace(/^\/+/, "");
 
-  const filePath = path.join(process.cwd(), ".storage", normalized);
+  const filePath = path.join(getLocalStorageDir(), normalized);
 
   try {
     const fileBuffer = await fs.promises.readFile(filePath);

@@ -3,6 +3,7 @@ import {
   PutObjectCommand,
   GetObjectCommand,
   DeleteObjectCommand,
+  PutBucketCorsCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import crypto from "crypto";
@@ -10,6 +11,21 @@ import fs from "fs";
 import path from "path";
 
 let _r2Client: S3Client | null = null;
+let _corsEnsured = false;
+
+/**
+ * Returns the storage base directory for local disk fallback.
+ * Uses /tmp/.storage on Vercel/serverless environments to avoid read-only filesystem errors.
+ */
+export function getLocalStorageDir(): string {
+  if (process.env.STORAGE_LOCAL_DIR) {
+    return process.env.STORAGE_LOCAL_DIR;
+  }
+  if (process.env.VERCEL) {
+    return path.join("/tmp", ".storage");
+  }
+  return path.join(process.cwd(), ".storage");
+}
 
 /**
  * Checks whether the application should use local disk storage fallback.
@@ -109,6 +125,42 @@ export function generateRandomR2Key(prefix = "assets", extension = ""): string {
 }
 
 /**
+ * Ensures standard CORS configuration is applied to the S3/R2/B2 bucket
+ * allowing browser uploads and downloads.
+ */
+export async function ensureBucketCors(): Promise<void> {
+  if (_corsEnsured || isLocalStorage()) return;
+  try {
+    const client = getR2Client();
+    const bucket = getR2BucketName();
+    await client.send(
+      new PutBucketCorsCommand({
+        Bucket: bucket,
+        CORSConfiguration: {
+          CORSRules: [
+            {
+              AllowedHeaders: ["*"],
+              AllowedMethods: ["HEAD", "POST", "GET", "PUT"],
+              AllowedOrigins: ["*"],
+              ExposeHeaders: ["ETag"],
+              MaxAgeSeconds: 3600,
+            },
+          ],
+        },
+      })
+    );
+    _corsEnsured = true;
+  } catch (err) {
+    // If the storage provider key has restricted permissions (e.g. read/write only, no PutBucketCors),
+    // do not crash the app. The bucket may already have CORS configured or server fallback will handle it.
+    console.warn(
+      "Storage CORS configuration notice:",
+      (err as Error)?.message || err
+    );
+  }
+}
+
+/**
  * Generates a presigned URL for direct client-to-R2 upload via HTTP PUT
  * (or returns the local storage upload endpoint when fallback is active)
  */
@@ -119,6 +171,11 @@ export async function getPresignedUploadUrl(
 ): Promise<string> {
   if (isLocalStorage()) {
     return `/api/storage/upload?key=${encodeURIComponent(key)}`;
+  }
+
+  // Ensure bucket has CORS configured for browser uploads (runs at most once)
+  if (!_corsEnsured) {
+    await ensureBucketCors();
   }
 
   const client = getR2Client();
@@ -164,7 +221,7 @@ export async function getPresignedDownloadUrl(
 export async function deleteR2Object(key: string): Promise<void> {
   if (isLocalStorage()) {
     const cleanKey = key.replace(/^\/+/, "");
-    const filePath = path.join(process.cwd(), ".storage", cleanKey);
+    const filePath = path.join(getLocalStorageDir(), cleanKey);
     try {
       await fs.promises.unlink(filePath);
     } catch {
@@ -194,7 +251,7 @@ export async function putR2Blob(
 ): Promise<void> {
   if (isLocalStorage()) {
     const cleanKey = key.replace(/^\/+/, "");
-    const filePath = path.join(process.cwd(), ".storage", cleanKey);
+    const filePath = path.join(getLocalStorageDir(), cleanKey);
     await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
     await fs.promises.writeFile(filePath, Buffer.from(body));
     return;
@@ -221,7 +278,7 @@ export async function getR2Blob(
 ): Promise<{ buffer: Buffer; contentType?: string } | null> {
   if (isLocalStorage()) {
     const cleanKey = key.replace(/^\/+/, "");
-    const filePath = path.join(process.cwd(), ".storage", cleanKey);
+    const filePath = path.join(getLocalStorageDir(), cleanKey);
     try {
       const buffer = await fs.promises.readFile(filePath);
       return { buffer };

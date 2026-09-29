@@ -15,7 +15,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "livekit": "./infra/bin/livekit-server --dev"
+    "livekit": "./infra/bin/livekit-server --dev",
+    "setup:cors": "node --env-file=.env.local scripts/setup-cors.cjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1134.0",

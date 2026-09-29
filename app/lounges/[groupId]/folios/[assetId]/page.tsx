@@ -559,12 +559,26 @@ export default function FolioReaderPage() {
             if (textRes.ok) {
               const text = await textRes.text();
               setTextContent(text);
+            } else {
+              throw new Error("Direct storage fetch failed");
             }
           } catch (fetchErr) {
             console.warn(
-              "Could not read text content directly from URL:",
+              "Could not read text content directly from URL, trying raw proxy:",
               fetchErr
             );
+            try {
+              const rawRes = await fetch(`/api/assets/${assetId}/raw`);
+              if (rawRes.ok) {
+                const text = await rawRes.text();
+                setTextContent(text);
+              }
+            } catch (rawErr) {
+              console.warn(
+                "Could not read text content via raw proxy:",
+                rawErr
+              );
+            }
           } finally {
             setIsLoadingContent(false);
           }
@@ -1140,7 +1154,11 @@ export default function FolioReaderPage() {
               {downloadUrl ? (
                 <div className="w-full flex-1 h-full min-h-[calc(100vh-7.5rem)] relative bg-[var(--bg-inset)]">
                   <iframe
-                    src={`${downloadUrl}${downloadUrl.includes("?") ? "&" : "?"}inline=true#view=FitH&toolbar=1`}
+                    src={
+                      downloadUrl.includes("/api/storage/")
+                        ? `${downloadUrl}${downloadUrl.includes("?") ? "&" : "?"}inline=true#view=FitH&toolbar=1`
+                        : `${downloadUrl}#view=FitH&toolbar=1`
+                    }
                     className="w-full h-full border-0 absolute inset-0"
                     title={asset.title}
                   />

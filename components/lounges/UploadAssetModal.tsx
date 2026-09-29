@@ -55,56 +55,93 @@ export function UploadAssetModal({
     setIsUploading(true);
     setError(null);
 
+    const documentTitle = title.trim() || file.name;
+
     try {
-      const presignRes = await fetch("/api/assets/upload-url", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          groupId,
-          filename: file.name,
-          sizeBytes: file.size,
-        }),
-      });
+      let uploadSucceeded = false;
 
-      const presignData = await presignRes.json();
-      if (!presignRes.ok) {
-        throw new Error(presignData.error || "Failed to generate upload URL");
-      }
+      // 1. Primary Strategy: Direct Presigned Storage Upload
+      try {
+        const presignRes = await fetch("/api/assets/upload-url", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            groupId,
+            filename: file.name,
+            sizeBytes: file.size,
+          }),
+        });
 
-      const { uploadUrl, r2Key, fileType, mimeType } = presignData;
+        if (presignRes.ok) {
+          const presignData = await presignRes.json();
+          const { uploadUrl, r2Key, fileType, mimeType } = presignData;
 
-      const uploadRes = await fetch(uploadUrl, {
-        method: "PUT",
-        headers: {
-          "Content-Type": mimeType || file.type || "application/octet-stream",
-        },
-        body: file,
-      });
+          const uploadRes = await fetch(uploadUrl, {
+            method: "PUT",
+            headers: {
+              "Content-Type":
+                mimeType || file.type || "application/octet-stream",
+            },
+            body: file,
+          });
 
-      if (!uploadRes.ok) {
-        const errJson = await uploadRes.json().catch(() => ({}));
-        throw new Error(
-          errJson.error ||
-            `Failed to upload file to storage (status ${uploadRes.status})`
+          if (uploadRes.ok) {
+            const saveRes = await fetch("/api/assets", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                groupId,
+                title: documentTitle,
+                fileType,
+                sizeBytes: file.size,
+                r2Key,
+                mimeType,
+              }),
+            });
+
+            if (saveRes.ok) {
+              uploadSucceeded = true;
+            } else {
+              const saveErr = await saveRes.json().catch(() => ({}));
+              console.warn(
+                "Failed to save asset record after direct upload:",
+                saveErr
+              );
+            }
+          } else {
+            console.warn(
+              "Direct upload to storage endpoint returned non-OK status:",
+              uploadRes.status
+            );
+          }
+        }
+      } catch (directErr) {
+        // Direct browser-to-storage upload failed (e.g. CORS preflight, adblocker, strict firewall, network issue)
+        console.warn(
+          "Direct storage upload failed, falling back to server-side upload:",
+          directErr
         );
       }
 
-      const saveRes = await fetch("/api/assets", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          groupId,
-          title: title.trim() || file.name,
-          fileType,
-          sizeBytes: file.size,
-          r2Key,
-          mimeType,
-        }),
-      });
+      // 2. Resilient Server-Side Fallback Upload
+      if (!uploadSucceeded) {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("groupId", groupId);
+        formData.append("title", documentTitle);
 
-      const saveData = await saveRes.json();
-      if (!saveRes.ok) {
-        throw new Error(saveData.error || "Failed to save file to study group");
+        const serverRes = await fetch("/api/assets/direct-upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        const serverData = await serverRes.json().catch(() => ({}));
+        if (!serverRes.ok) {
+          throw new Error(
+            serverData.error ||
+              "Failed to upload file. Please check your connection and try again."
+          );
+        }
       }
 
       setSuccess(true);
@@ -116,7 +153,11 @@ export function UploadAssetModal({
         onAssetUploaded();
       }, 800);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to upload file");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to upload file. Please try again."
+      );
     } finally {
       setIsUploading(false);
     }
