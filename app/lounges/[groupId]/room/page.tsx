@@ -357,7 +357,9 @@ export default function MeetingRoomPage() {
   const [connectionRetryCount, setConnectionRetryCount] = useState(0);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const activeSessionIdRef = useRef<string | null>(null);
-  const [silentStudyNotice, setSilentStudyNotice] = useState<string | null>(null);
+  const [silentStudyNotice, setSilentStudyNotice] = useState<string | null>(
+    null
+  );
   const [showSaveChatModal, setShowSaveChatModal] = useState(false);
   const chatMessagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -401,7 +403,9 @@ export default function MeetingRoomPage() {
 
   // Virtual Photo Background & Blur state (Feature 1)
   const [activeBackgroundId, setActiveBackgroundId] = useState<string>("none");
+  const activeBackgroundIdRef = useRef<string>("none");
   const [customBgUrl, setCustomBgUrl] = useState<string | null>(null);
+  const customBgUrlRef = useRef<string | null>(null);
   const [isBgPickerOpen, setIsBgPickerOpen] = useState(false);
   const [isApplyingBg, setIsApplyingBg] = useState(false);
   const [bgError, setBgError] = useState<string | null>(null);
@@ -695,15 +699,25 @@ export default function MeetingRoomPage() {
 
         try {
           await room.localParticipant.enableCameraAndMicrophone();
-          const camTrack = room.localParticipant.getTrackPublication(
-            Track.Source.Camera
-          );
-          if (camTrack?.track && !isCancelled) {
+          const camPub =
+            room.localParticipant.getTrackPublication(Track.Source.Camera) ||
+            Array.from(
+              room.localParticipant.videoTrackPublications.values()
+            )[0];
+          if (camPub?.track && !isCancelled) {
             if (localVideoRef.current) {
-              camTrack.track.attach(localVideoRef.current);
+              camPub.track.attach(localVideoRef.current);
             }
             if (stageVideoRef.current) {
-              camTrack.track.attach(stageVideoRef.current);
+              camPub.track.attach(stageVideoRef.current);
+            }
+            if (activeBackgroundIdRef.current !== "none") {
+              setTimeout(() => {
+                applyBackground(
+                  activeBackgroundIdRef.current,
+                  customBgUrlRef.current
+                );
+              }, 150);
             }
           }
         } catch (mediaErr) {
@@ -725,6 +739,9 @@ export default function MeetingRoomPage() {
 
     return () => {
       isCancelled = true;
+      if (customBgUrlRef.current?.startsWith("blob:")) {
+        URL.revokeObjectURL(customBgUrlRef.current);
+      }
       if (bgProcessorRef.current) {
         try {
           bgProcessorRef.current.destroy?.();
@@ -876,24 +893,40 @@ export default function MeetingRoomPage() {
       }
     }
 
+    if (nextVideoOff) {
+      if (bgProcessorRef.current) {
+        try {
+          bgProcessorRef.current.destroy?.();
+        } catch {}
+        bgProcessorRef.current = null;
+      }
+    }
+
     if (roomRef.current?.localParticipant) {
       try {
         await roomRef.current.localParticipant.setCameraEnabled(!nextVideoOff);
         if (!nextVideoOff) {
-          const camTrack = roomRef.current.localParticipant.getTrackPublication(
-            Track.Source.Camera
-          );
-          if (camTrack?.track) {
+          const camPub =
+            roomRef.current.localParticipant.getTrackPublication(
+              Track.Source.Camera
+            ) ||
+            Array.from(
+              roomRef.current.localParticipant.videoTrackPublications.values()
+            )[0];
+          if (camPub?.track) {
             if (localVideoRef.current) {
-              camTrack.track.attach(localVideoRef.current);
+              camPub.track.attach(localVideoRef.current);
             }
             if (stageVideoRef.current) {
-              camTrack.track.attach(stageVideoRef.current);
+              camPub.track.attach(stageVideoRef.current);
             }
-            if (activeBackgroundId !== "none") {
+            if (activeBackgroundIdRef.current !== "none") {
               setTimeout(() => {
-                applyBackground(activeBackgroundId);
-              }, 100);
+                applyBackground(
+                  activeBackgroundIdRef.current,
+                  customBgUrlRef.current
+                );
+              }, 150);
             }
           }
         }
@@ -985,15 +1018,39 @@ export default function MeetingRoomPage() {
     setIsApplyingBg(true);
     setBgError(null);
     setActiveBackgroundId(bgId);
+    activeBackgroundIdRef.current = bgId;
 
     const customUrlToUse =
-      customUrlOverride !== undefined ? customUrlOverride : customBgUrl;
+      customUrlOverride !== undefined
+        ? customUrlOverride
+        : customBgUrlRef.current || customBgUrl;
 
     try {
-      const camPub = roomRef.current?.localParticipant?.getTrackPublication(
-        Track.Source.Camera
-      );
-      const camTrack = camPub?.track as LocalVideoTrack | undefined;
+      const camPub =
+        roomRef.current?.localParticipant?.getTrackPublication(
+          Track.Source.Camera
+        ) ||
+        Array.from(
+          roomRef.current?.localParticipant?.videoTrackPublications.values() ||
+            []
+        )[0];
+      let camTrack = camPub?.track as LocalVideoTrack | undefined;
+
+      if (!camTrack && roomRef.current?.localParticipant && !isVideoOff) {
+        try {
+          await roomRef.current.localParticipant.setCameraEnabled(true);
+          const pub =
+            roomRef.current.localParticipant.getTrackPublication(
+              Track.Source.Camera
+            ) ||
+            Array.from(
+              roomRef.current.localParticipant.videoTrackPublications.values()
+            )[0];
+          camTrack = pub?.track as LocalVideoTrack | undefined;
+        } catch (camErr) {
+          console.warn("Failed to activate camera for background:", camErr);
+        }
+      }
 
       if (!camTrack) {
         // Camera is not currently on; state is recorded and will apply when enabled
@@ -1001,17 +1058,38 @@ export default function MeetingRoomPage() {
         return;
       }
 
+      // Ensure local preview video elements are attached to the track
+      if (localVideoRef.current) {
+        camTrack.attach(localVideoRef.current);
+      }
+      if (stageVideoRef.current) {
+        camTrack.attach(stageVideoRef.current);
+      }
+
       if (bgId === "none") {
         if (bgProcessorRef.current) {
           try {
             await bgProcessorRef.current.switchTo({ mode: "disabled" });
           } catch {
-            await camTrack.stopProcessor().catch(() => {});
+            // ignore
           }
           await camTrack.stopProcessor().catch(() => {});
           bgProcessorRef.current = null;
         } else {
           await camTrack.stopProcessor().catch(() => {});
+        }
+
+        // Restore raw camera feed to local preview elements
+        if (camTrack.mediaStreamTrack) {
+          const rawStream = new MediaStream([camTrack.mediaStreamTrack]);
+          if (localVideoRef.current) {
+            localVideoRef.current.srcObject = rawStream;
+            localVideoRef.current.play().catch(() => {});
+          }
+          if (stageVideoRef.current) {
+            stageVideoRef.current.srcObject = rawStream;
+            stageVideoRef.current.play().catch(() => {});
+          }
         }
         setIsApplyingBg(false);
         return;
@@ -1054,12 +1132,39 @@ export default function MeetingRoomPage() {
         modeOptions = { mode: "virtual-background", imagePath };
       }
 
-      if (bgProcessorRef.current) {
+      const currentTrackProcessor = camTrack.getProcessor();
+      if (
+        bgProcessorRef.current &&
+        currentTrackProcessor === bgProcessorRef.current
+      ) {
         await bgProcessorRef.current.switchTo(modeOptions);
       } else {
+        if (bgProcessorRef.current) {
+          try {
+            await bgProcessorRef.current.destroy?.();
+          } catch {}
+          bgProcessorRef.current = null;
+        }
         const processor = BackgroundProcessor(modeOptions);
         await camTrack.setProcessor(processor);
         bgProcessorRef.current = processor;
+      }
+
+      // Ensure local preview video elements are displaying the processed track
+      const processedTrack =
+        bgProcessorRef.current?.processedTrack ||
+        (camTrack.getProcessor() as BackgroundProcessorWrapper | undefined)
+          ?.processedTrack;
+      if (processedTrack) {
+        const processedStream = new MediaStream([processedTrack]);
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = processedStream;
+          localVideoRef.current.play().catch(() => {});
+        }
+        if (stageVideoRef.current) {
+          stageVideoRef.current.srcObject = processedStream;
+          stageVideoRef.current.play().catch(() => {});
+        }
       }
     } catch (err: unknown) {
       console.error("Failed to apply background processor:", err);
@@ -1085,18 +1190,13 @@ export default function MeetingRoomPage() {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const dataUrl = event.target?.result as string;
-      if (dataUrl) {
-        setCustomBgUrl(dataUrl);
-        applyBackground("custom", dataUrl);
-      }
-    };
-    reader.onerror = () => {
-      setBgError("Failed to read the selected image file.");
-    };
-    reader.readAsDataURL(file);
+    if (customBgUrlRef.current?.startsWith("blob:")) {
+      URL.revokeObjectURL(customBgUrlRef.current);
+    }
+    const blobUrl = URL.createObjectURL(file);
+    setCustomBgUrl(blobUrl);
+    customBgUrlRef.current = blobUrl;
+    applyBackground("custom", blobUrl);
   }
 
   // Download Conversation as Markdown (Feature 2)
@@ -2780,7 +2880,14 @@ export default function MeetingRoomPage() {
 
                 {/* Custom Photo Upload Card */}
                 <div
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={() => {
+                    if (customBgUrl && activeBackgroundId !== "custom") {
+                      applyBackground("custom", customBgUrl);
+                    } else {
+                      if (fileInputRef.current) fileInputRef.current.value = "";
+                      fileInputRef.current?.click();
+                    }
+                  }}
                   className={`relative group flex flex-col rounded-[var(--radius-card)] border overflow-hidden text-left transition-all duration-[var(--dur-fast)] cursor-pointer ${
                     activeBackgroundId === "custom"
                       ? "border-[var(--text-primary)] ring-2 ring-[var(--text-primary)]/20"
@@ -2925,16 +3032,21 @@ export default function MeetingRoomPage() {
                     Save Meeting Chat?
                   </h3>
                   <p className="font-sans text-xs text-[var(--text-secondary)] mt-1 leading-relaxed">
-                    You are the last participant leaving this meeting. Would you like to save and download the chat history before the session ends?
+                    You are the last participant leaving this meeting. Would you
+                    like to save and download the chat history before the
+                    session ends?
                   </p>
                 </div>
               </div>
 
               {inCallMessages.length > 0 ? (
                 <div className="p-3 rounded-[var(--radius-button)] bg-[var(--bg-inset)] border border-[var(--border-hairline)] flex items-center justify-between text-xs font-mono">
-                  <span className="text-[var(--text-secondary)]">Messages recorded:</span>
+                  <span className="text-[var(--text-secondary)]">
+                    Messages recorded:
+                  </span>
                   <span className="text-[var(--text-primary)] font-semibold">
-                    {inCallMessages.length} message{inCallMessages.length === 1 ? "" : "s"}
+                    {inCallMessages.length} message
+                    {inCallMessages.length === 1 ? "" : "s"}
                   </span>
                 </div>
               ) : (
