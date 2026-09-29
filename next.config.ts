@@ -8,9 +8,9 @@ const cspHeader = `
   font-src 'self' data: https://fonts.gstatic.com;
   connect-src 'self' ws: wss: ws://127.0.0.1:7880 wss://127.0.0.1:7880 http://127.0.0.1:7880 https://*.clerk.accounts.dev https://*.clerk.com https://*.backblazeb2.com https://*.r2.cloudflarestorage.com https://*.amazonaws.com;
   media-src 'self' blob: data: https:;
-  frame-src 'self' https://www.youtube.com https://*.youtube.com https://*.clerk.accounts.dev;
-  frame-ancestors 'none';
-  object-src 'none';
+  frame-src 'self' blob: data: https://*.backblazeb2.com https://*.r2.cloudflarestorage.com https://*.amazonaws.com https://www.youtube.com https://*.youtube.com https://*.clerk.accounts.dev;
+  frame-ancestors 'self';
+  object-src 'self' blob: data:;
   base-uri 'self';
   form-action 'self';
 `
@@ -33,7 +33,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: "X-Frame-Options",
-            value: "DENY",
+            value: "SAMEORIGIN",
           },
           {
             key: "X-Content-Type-Options",

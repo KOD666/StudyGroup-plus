@@ -68,14 +68,20 @@ export async function GET(
           ? "text/markdown; charset=utf-8"
           : "application/octet-stream");
 
+    const { searchParams } = new URL(_req.url);
+    const isDownload = searchParams.get("download") === "true";
+    const dispositionType = isDownload ? "attachment" : "inline";
+
     return new NextResponse(new Uint8Array(blobResult.buffer), {
       status: 200,
       headers: {
         "Content-Type": contentType,
-        "Content-Disposition": `inline; filename="${encodeURIComponent(asset.title)}"`,
+        "Content-Disposition": `${dispositionType}; filename="${encodeURIComponent(asset.title)}"`,
         "Content-Length": blobResult.buffer.length.toString(),
         "Cache-Control": "private, max-age=3600",
         "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "SAMEORIGIN",
+        "Content-Security-Policy": "frame-ancestors 'self'",
       },
     });
   } catch (error) {

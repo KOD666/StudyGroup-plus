@@ -19,6 +19,7 @@ import {
   Presentation,
   Check,
   ArrowLeft,
+  ExternalLink,
   Highlighter,
   Maximize2,
   Minimize2,
@@ -555,30 +556,19 @@ export default function FolioReaderPage() {
         ) {
           setIsLoadingContent(true);
           try {
-            const textRes = await fetch(dlData.downloadUrl);
-            if (textRes.ok) {
-              const text = await textRes.text();
+            const rawRes = await fetch(`/api/assets/${assetId}/raw`);
+            if (rawRes.ok) {
+              const text = await rawRes.text();
               setTextContent(text);
-            } else {
-              throw new Error("Direct storage fetch failed");
-            }
-          } catch (fetchErr) {
-            console.warn(
-              "Could not read text content directly from URL, trying raw proxy:",
-              fetchErr
-            );
-            try {
-              const rawRes = await fetch(`/api/assets/${assetId}/raw`);
-              if (rawRes.ok) {
-                const text = await rawRes.text();
+            } else if (dlData?.downloadUrl) {
+              const textRes = await fetch(dlData.downloadUrl);
+              if (textRes.ok) {
+                const text = await textRes.text();
                 setTextContent(text);
               }
-            } catch (rawErr) {
-              console.warn(
-                "Could not read text content via raw proxy:",
-                rawErr
-              );
             }
+          } catch (fetchErr) {
+            console.warn("Could not read text content from storage:", fetchErr);
           } finally {
             setIsLoadingContent(false);
           }
@@ -1137,44 +1127,39 @@ export default function FolioReaderPage() {
                     )}
                   </button>
 
-                  {downloadUrl && (
-                    <a
-                      href={downloadUrl}
-                      download={asset.title}
-                      className="px-2.5 py-1 bg-[var(--bg-inset)] hover:bg-[var(--bg-overlay)] text-[var(--text-primary)] border border-[var(--border-hairline)] rounded-[var(--radius-button)] transition-colors flex items-center gap-1.5 font-mono"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline">Download PDF</span>
-                    </a>
-                  )}
+                  <a
+                    href={`/api/assets/${assetId}/raw`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-2.5 py-1 bg-[var(--bg-inset)] hover:bg-[var(--bg-overlay)] text-[var(--text-primary)] border border-[var(--border-hairline)] rounded-[var(--radius-button)] transition-colors flex items-center gap-1.5 font-mono text-xs cursor-pointer"
+                    title="Open PDF directly in a new browser tab"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Open in New Tab</span>
+                  </a>
+
+                  <a
+                    href={
+                      downloadUrl || `/api/assets/${assetId}/raw?download=true`
+                    }
+                    download={asset.title}
+                    className="px-2.5 py-1 bg-[var(--bg-inset)] hover:bg-[var(--bg-overlay)] text-[var(--text-primary)] border border-[var(--border-hairline)] rounded-[var(--radius-button)] transition-colors flex items-center gap-1.5 font-mono text-xs cursor-pointer"
+                    title="Download PDF to device"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Download</span>
+                  </a>
                 </div>
               </div>
 
               {/* Edge-to-Edge Full Height PDF Viewer */}
-              {downloadUrl ? (
-                <div className="w-full flex-1 h-full min-h-[calc(100vh-7.5rem)] relative bg-[var(--bg-inset)]">
-                  <iframe
-                    src={
-                      downloadUrl.includes("/api/storage/")
-                        ? `${downloadUrl}${downloadUrl.includes("?") ? "&" : "?"}inline=true#view=FitH&toolbar=1`
-                        : `${downloadUrl}#view=FitH&toolbar=1`
-                    }
-                    className="w-full h-full border-0 absolute inset-0"
-                    title={asset.title}
-                  />
-                </div>
-              ) : (
-                <div className="flex-1 flex flex-col items-center justify-center p-12 text-center text-xs text-[var(--text-secondary)]">
-                  <FileText className="w-12 h-12 text-[var(--text-secondary)] mx-auto mb-3 opacity-60" />
-                  <p className="font-serif text-base text-[var(--text-primary)] mb-2">
-                    PDF Document Ready
-                  </p>
-                  <p className="max-w-md mb-4 text-[var(--text-secondary)]">
-                    The document is stored in the repository. Please download to
-                    view.
-                  </p>
-                </div>
-              )}
+              <div className="w-full flex-1 h-full min-h-[calc(100vh-7.5rem)] relative bg-[var(--bg-inset)] flex flex-col">
+                <iframe
+                  src={`/api/assets/${assetId}/raw#view=FitH&toolbar=1`}
+                  className="w-full flex-1 h-full min-h-[calc(100vh-10rem)] border-0"
+                  title={asset.title}
+                />
+              </div>
             </div>
           ) : (
             /* Markdown Document View with Centered Scaling (§6.4) */

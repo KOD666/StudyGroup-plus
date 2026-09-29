@@ -6,7 +6,6 @@ import { useRouter, usePathname } from "next/navigation";
 import {
   Search,
   Bell,
-  User,
   LogOut,
   Loader2,
   FileText,
@@ -315,22 +314,22 @@ export function AppHeader({}: AppHeaderProps) {
   return (
     <>
       <header className="w-full sticky top-0 z-40 bg-[var(--bg-elevated)]/95 backdrop-blur-md border-b border-[var(--border-hairline)]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3 md:gap-4">
           {/* Left: Brand Logo */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 shrink-0">
             <Link href="/lounges" className="flex items-center gap-2 group">
               <StudyGroupLogo
                 size={24}
-                className="text-[var(--text-primary)] group-hover:opacity-80 transition-opacity"
+                className="text-[var(--text-primary)] group-hover:opacity-80 transition-opacity shrink-0"
               />
-              <span className="font-serif text-2xl font-normal tracking-tight text-[var(--text-primary)] group-hover:opacity-80 transition-opacity">
+              <span className="font-serif text-2xl font-normal tracking-tight text-[var(--text-primary)] group-hover:opacity-80 transition-opacity whitespace-nowrap">
                 StudyGroup<span className="italic font-normal">+</span>
               </span>
             </Link>
           </div>
 
           {/* Center: Navigation Tabs */}
-          <nav className="hidden md:flex items-center space-x-6 text-sm font-sans">
+          <nav className="hidden lg:flex items-center space-x-6 text-sm font-sans shrink-0">
             {navItems.map((item) => {
               const isActive =
                 pathname === item.href ||
@@ -339,7 +338,7 @@ export function AppHeader({}: AppHeaderProps) {
                 <Link
                   key={item.label}
                   href={item.href}
-                  className={`py-1.5 font-medium transition-colors duration-[var(--dur-fast)] relative ${
+                  className={`py-1.5 font-medium transition-colors duration-[var(--dur-fast)] relative whitespace-nowrap ${
                     isActive
                       ? "text-[var(--text-primary)] border-b-2 border-[var(--text-primary)]"
                       : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -352,10 +351,10 @@ export function AppHeader({}: AppHeaderProps) {
           </nav>
 
           {/* Right: Search, Notifications, User Profile, Log Out */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {/* Debounced, Server-Scoped Search Bar */}
             <div
-              className="relative hidden md:block w-64 lg:w-80"
+              className="relative hidden sm:block w-40 md:w-52 lg:w-64"
               ref={searchContainerRef}
             >
               <div className="relative flex items-center">
@@ -551,28 +550,22 @@ export function AppHeader({}: AppHeaderProps) {
             </div>
 
             {/* Theme Toggle */}
-            <ThemeToggle size="sm" />
+            <div className="shrink-0">
+              <ThemeToggle size="sm" />
+            </div>
 
-            {/* Profile Shortcut & User Button */}
-            <div className="flex items-center gap-2 pl-2 border-l border-[var(--border-hairline)]">
-              <Link
-                href="/profile"
-                className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-overlay)] rounded-[var(--radius-button)] transition-colors duration-[var(--dur-fast)] cursor-pointer"
-                title="Account & Profile Settings"
-              >
-                <User className="w-4 h-4" />
-              </Link>
-
+            {/* Profile & User Controls */}
+            <div className="flex items-center gap-2 pl-1.5 sm:pl-2 border-l border-[var(--border-hairline)] shrink-0">
               <UserButton
                 appearance={{
                   elements: {
                     avatarBox:
-                      "w-8 h-8 rounded-[var(--radius-button)] border border-[var(--border-hairline)]",
+                      "w-8 h-8 rounded-[var(--radius-button)] border border-[var(--border-hairline)] hover:border-[var(--border-hover)] transition-colors",
                   },
                 }}
               />
               {user && (
-                <span className="hidden xl:inline-block font-mono text-xs text-[var(--text-secondary)]">
+                <span className="hidden 2xl:inline-block font-mono text-xs text-[var(--text-secondary)] truncate max-w-[100px]">
                   {user.firstName || user.username || "Member"}
                 </span>
               )}
@@ -581,7 +574,7 @@ export function AppHeader({}: AppHeaderProps) {
               <SignOutButton redirectUrl="/">
                 <button
                   type="button"
-                  className="whitespace-nowrap shrink-0 px-3 py-1.5 text-xs font-mono text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-overlay)] border border-[var(--border-hairline)] rounded-[var(--radius-button)] transition-colors duration-[var(--dur-fast)] flex items-center gap-1.5 cursor-pointer shadow-none"
+                  className="hidden md:flex whitespace-nowrap shrink-0 px-2.5 py-1 text-xs font-mono text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-overlay)] border border-[var(--border-hairline)] rounded-[var(--radius-button)] transition-colors duration-[var(--dur-fast)] items-center gap-1.5 cursor-pointer shadow-none"
                   title="Log Out of StudyGroup+"
                 >
                   <LogOut className="w-3.5 h-3.5 shrink-0" />
