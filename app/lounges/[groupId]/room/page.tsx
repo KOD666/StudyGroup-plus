@@ -791,6 +791,7 @@ export default function MeetingRoomPage() {
         localStreamRef.current.getTracks().forEach((track) => track.stop());
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groupId, connectionRetryCount]);
 
   // Duration Timer (from 00:00:00)

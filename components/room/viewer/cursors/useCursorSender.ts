@@ -41,7 +41,7 @@ export function useCursorSender({
           reliable: false, // Lossy / unreliable mode for low-latency cursor tracking
           topic: CURSOR_TOPIC,
         });
-      } catch (err) {
+      } catch {
         // Drop lossy cursor packet without throwing
       }
     },

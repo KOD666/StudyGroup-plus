@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
+import type { PDFDocumentProxy } from "pdfjs-dist";
 import { Room } from "livekit-client";
 import { Loader2, AlertCircle } from "lucide-react";
 import {
@@ -34,10 +35,15 @@ export function PdfViewer({
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const textLayerRef = useRef<HTMLDivElement>(null);
+  const onPageChangeRef = useRef(onPageChange);
+
+  useEffect(() => {
+    onPageChangeRef.current = onPageChange;
+  });
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [pdfDoc, setPdfDoc] = useState<any>(null);
+  const [pdfDoc, setPdfDoc] = useState<PDFDocumentProxy | null>(null);
 
   // Live Cursors
   useCursorSender({
@@ -74,7 +80,7 @@ export function PdfViewer({
         if (isCancelled) return;
 
         setPdfDoc(doc);
-        onPageChange(1, doc.numPages);
+        onPageChangeRef.current(1, doc.numPages);
       } catch (err: unknown) {
         if (!isCancelled) {
           console.error("Failed to load PDF:", err);
@@ -127,6 +133,7 @@ export function PdfViewer({
       const renderContext = {
         canvasContext: ctx,
         viewport,
+        canvas,
       };
 
       await page.render(renderContext).promise;

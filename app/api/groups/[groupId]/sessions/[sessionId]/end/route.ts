@@ -80,10 +80,21 @@ export async function POST(
           .from(liveSessionMessages)
           .where(eq(liveSessionMessages.sessionId, updatedSession.id));
 
-        const liveMsgs =
-          typeof (query as any)?.orderBy === "function"
-            ? await (query as any).orderBy(liveSessionMessages.createdAt)
-            : await query;
+        interface SelectedLiveMsg {
+          senderName: string;
+          text: string;
+          createdAt: Date | null;
+        }
+
+        const liveMsgs: SelectedLiveMsg[] =
+          typeof (query as { orderBy?: (arg: unknown) => unknown }).orderBy ===
+          "function"
+            ? await (
+                query as {
+                  orderBy: (arg: unknown) => Promise<SelectedLiveMsg[]>;
+                }
+              ).orderBy(liveSessionMessages.createdAt)
+            : [];
 
         if (
           !updatedSession.chatR2Key &&
@@ -92,7 +103,7 @@ export async function POST(
         ) {
           const { putR2Blob, generateRandomR2Key } = await import("@/lib/r2");
           const chatKey = generateRandomR2Key("chat", ".json");
-          const formattedChat = liveMsgs.map((m: any) => ({
+          const formattedChat = liveMsgs.map((m) => ({
             sender: m.senderName,
             text: m.text,
             timestamp: m.createdAt?.toISOString

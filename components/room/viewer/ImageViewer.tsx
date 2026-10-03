@@ -51,6 +51,7 @@ export function ImageViewer({
         }}
         className="relative max-w-4xl bg-[var(--bg-elevated)] border border-[var(--border-hairline)] rounded-[var(--radius-card)] p-4 shadow-sm transition-transform duration-75 overflow-hidden"
       >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={url}
           alt={title}

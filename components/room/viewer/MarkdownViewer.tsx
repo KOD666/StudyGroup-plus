@@ -57,6 +57,7 @@ export function MarkdownViewer({
             remarkPlugins={[remarkGfm]}
             components={{
               // Force checkboxes to be read-only
+              // eslint-disable-next-line @typescript-eslint/no-unused-vars
               input: ({ node, ...props }) => {
                 if (props.type === "checkbox") {
                   return (
