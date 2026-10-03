@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { eq, and, isNull } from "drizzle-orm";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { sessions } from "@/models";
+import { sessions, liveSessionMessages } from "@/models";
 import { isGroupMember } from "@/lib/permissions";
 import { notifySessionEnded } from "@/lib/notifications";
 
@@ -65,6 +65,64 @@ export async function POST(
       return NextResponse.json(
         { error: "Not Found: Meeting session not found" },
         { status: 404 }
+      );
+    }
+
+    // 3. Collect and archive live session messages if not already archived
+    try {
+      if (typeof db.select === "function") {
+        const query = db
+          .select({
+            senderName: liveSessionMessages.senderName,
+            text: liveSessionMessages.body,
+            createdAt: liveSessionMessages.createdAt,
+          })
+          .from(liveSessionMessages)
+          .where(eq(liveSessionMessages.sessionId, updatedSession.id));
+
+        const liveMsgs =
+          typeof (query as any)?.orderBy === "function"
+            ? await (query as any).orderBy(liveSessionMessages.createdAt)
+            : await query;
+
+        if (
+          !updatedSession.chatR2Key &&
+          Array.isArray(liveMsgs) &&
+          liveMsgs.length > 0
+        ) {
+          const { putR2Blob, generateRandomR2Key } = await import("@/lib/r2");
+          const chatKey = generateRandomR2Key("chat", ".json");
+          const formattedChat = liveMsgs.map((m: any) => ({
+            sender: m.senderName,
+            text: m.text,
+            timestamp: m.createdAt?.toISOString
+              ? m.createdAt.toISOString()
+              : new Date().toISOString(),
+          }));
+          await putR2Blob(
+            chatKey,
+            JSON.stringify(formattedChat, null, 2),
+            "application/json"
+          );
+          if (typeof db.update === "function") {
+            await db
+              .update(sessions)
+              .set({ chatR2Key: chatKey })
+              .where(eq(sessions.id, updatedSession.id));
+          }
+        }
+      }
+
+      // 4. Prune live session rows so they do not duplicate or linger in live table
+      if (typeof db.delete === "function") {
+        await db
+          .delete(liveSessionMessages)
+          .where(eq(liveSessionMessages.sessionId, updatedSession.id));
+      }
+    } catch (archiveErr) {
+      console.warn(
+        "Could not archive or prune live session messages:",
+        archiveErr
       );
     }
 

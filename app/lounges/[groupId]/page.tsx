@@ -22,6 +22,7 @@ import {
   Calendar,
   Edit2,
   Trash2,
+  Sparkles,
 } from "lucide-react";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { UploadAssetModal } from "@/components/lounges/UploadAssetModal";
@@ -35,6 +36,7 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { RouteTransition } from "@/components/motion/RouteTransition";
+import { AskAiPanel } from "@/components/lounge/ask-ai";
 
 interface GroupDetails {
   id: string;
@@ -676,6 +678,7 @@ export default function LoungeWorkspacePage() {
                   { key: "md", label: "Notes" },
                   { key: "pdf", label: "PDFs" },
                   { key: "pptx", label: "Decks" },
+                  { key: "ai", label: "Ask AI" },
                 ].map((tab) => {
                   const isActive = filterType === tab.key;
                   return (
@@ -699,173 +702,198 @@ export default function LoungeWorkspacePage() {
                           className="absolute inset-0 rounded-[calc(var(--radius-button)-2px)] bg-[var(--bg-elevated)] border border-[var(--border-hairline)]"
                         />
                       )}
-                      <span className="relative z-10">{tab.label}</span>
+                      <span className="relative z-10 flex items-center gap-1">
+                        {tab.key === "ai" && (
+                          <Sparkles className="w-3 h-3 text-[#d97706]" />
+                        )}
+                        {tab.label}
+                      </span>
                     </button>
                   );
                 })}
               </div>
             </div>
 
-            {/* Assets List: Sequential Cross-fade (§6.2 - 150ms out, then 150ms in via mode="wait") */}
+            {/* Assets List or Ask AI Panel */}
             <AnimatePresence mode="wait">
-              <motion.div
-                key={filterType}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: shouldReduceMotion ? 0.05 : 0.15 }}
-                className="space-y-4"
-              >
-                {filteredAssets.length === 0 ? (
-                  <div className="p-8 text-center bg-[var(--bg-elevated)] rounded-[var(--radius-card)] border border-dashed border-[var(--border-hairline)]">
-                    <FileText className="w-8 h-8 text-[var(--text-secondary)] mx-auto mb-2 opacity-60" />
-                    <h4 className="font-serif text-base font-normal text-[var(--text-primary)] mb-1">
-                      No Documents Uploaded Yet
-                    </h4>
-                    <p className="font-sans text-xs text-[var(--text-secondary)] max-w-sm mx-auto mb-4">
-                      Upload shared notes, reading lists, or PDFs using the
-                      upload area below.
-                    </p>
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={() => setIsUploadOpen(true)}
-                    >
-                      Upload First Document
-                    </Button>
-                  </div>
-                ) : (
-                  filteredAssets.map((asset) => {
-                    const isPdf = asset.fileType === "pdf";
-                    const isMd = asset.fileType === "md";
-                    const badgeText = isPdf
-                      ? "PDF DOCUMENT"
-                      : isMd
-                        ? "NOTES"
-                        : "SLIDE DECK";
-
-                    const isLocked = !asset.canAccess;
-                    const isShaking = shakingAssetId === asset.id;
-
-                    return (
-                      <Card
-                        key={asset.id}
-                        variant="elevated"
-                        onClick={() => {
-                          if (isLocked) handleRestrictedCardClick(asset.id);
-                        }}
-                        className={`group transition-all duration-[var(--dur-fast)] overflow-hidden ${
-                          isLocked ? "cursor-not-allowed" : ""
-                        }`}
+              {filterType === "ai" ? (
+                <motion.div
+                  key="ai"
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: shouldReduceMotion ? 0.05 : 0.15 }}
+                >
+                  <AskAiPanel groupId={groupId} />
+                </motion.div>
+              ) : (
+                <motion.div
+                  key={filterType}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: shouldReduceMotion ? 0.05 : 0.15 }}
+                  className="space-y-4"
+                >
+                  {filteredAssets.length === 0 ? (
+                    <div className="p-8 text-center bg-[var(--bg-elevated)] rounded-[var(--radius-card)] border border-dashed border-[var(--border-hairline)]">
+                      <FileText className="w-8 h-8 text-[var(--text-secondary)] mx-auto mb-2 opacity-60" />
+                      <h4 className="font-serif text-base font-normal text-[var(--text-primary)] mb-1">
+                        No Documents Uploaded Yet
+                      </h4>
+                      <p className="font-sans text-xs text-[var(--text-secondary)] max-w-sm mx-auto mb-4">
+                        Upload shared notes, reading lists, or PDFs using the
+                        upload area below.
+                      </p>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={() => setIsUploadOpen(true)}
                       >
-                        <div className="p-5 sm:p-6">
-                          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-3">
-                            <div className="flex items-center gap-2">
-                              <Badge variant="neutral">{badgeText}</Badge>
-                              <span className="font-mono text-xs text-[var(--text-secondary)]">
-                                {(asset.sizeBytes / 1024 / 1024).toFixed(2)} MB
-                                • Added{" "}
-                                {new Date(asset.createdAt).toLocaleDateString()}
-                              </span>
-                            </div>
+                        Upload First Document
+                      </Button>
+                    </div>
+                  ) : (
+                    filteredAssets.map((asset) => {
+                      const isPdf = asset.fileType === "pdf";
+                      const isMd = asset.fileType === "md";
+                      const badgeText = isPdf
+                        ? "PDF DOCUMENT"
+                        : isMd
+                          ? "NOTES"
+                          : "SLIDE DECK";
 
-                            {/* Restricted document lock with shake feedback (§6.2) */}
-                            {isLocked && (
-                              <span
-                                className={`font-mono text-xs text-[var(--text-secondary)] flex items-center gap-1.5 px-2 py-0.5 rounded-[var(--radius-button)] border border-[var(--border-hairline)] bg-[var(--bg-inset)] ${
-                                  isShaking ? "animate-restricted-shake" : ""
-                                }`}
-                              >
-                                <Lock
-                                  className={`w-3.5 h-3.5 text-[var(--text-primary)] ${
+                      const isLocked = !asset.canAccess;
+                      const isShaking = shakingAssetId === asset.id;
+
+                      return (
+                        <Card
+                          key={asset.id}
+                          variant="elevated"
+                          onClick={() => {
+                            if (isLocked) handleRestrictedCardClick(asset.id);
+                          }}
+                          className={`group transition-all duration-[var(--dur-fast)] overflow-hidden ${
+                            isLocked ? "cursor-not-allowed" : ""
+                          }`}
+                        >
+                          <div className="p-5 sm:p-6">
+                            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-3">
+                              <div className="flex items-center gap-2">
+                                <Badge variant="neutral">{badgeText}</Badge>
+                                <span className="font-mono text-xs text-[var(--text-secondary)]">
+                                  {(asset.sizeBytes / 1024 / 1024).toFixed(2)}{" "}
+                                  MB • Added{" "}
+                                  {new Date(
+                                    asset.createdAt
+                                  ).toLocaleDateString()}
+                                </span>
+                              </div>
+
+                              {/* Restricted document lock with shake feedback (§6.2) */}
+                              {isLocked && (
+                                <span
+                                  className={`font-mono text-xs text-[var(--text-secondary)] flex items-center gap-1.5 px-2 py-0.5 rounded-[var(--radius-button)] border border-[var(--border-hairline)] bg-[var(--bg-inset)] ${
                                     isShaking ? "animate-restricted-shake" : ""
                                   }`}
-                                />
-                                Restricted Access
-                              </span>
-                            )}
-                          </div>
-
-                          <h3 className="font-serif text-lg sm:text-xl font-normal text-[var(--text-primary)] group-hover:underline transition-colors mb-2">
-                            {asset.title}
-                          </h3>
-
-                          {/* Actions */}
-                          <div className="pt-4 border-t border-[var(--border-hairline)] flex items-center justify-between gap-4">
-                            <div className="font-mono text-[0.6875rem] text-[var(--text-secondary)] truncate max-w-xs">
-                              Key: {asset.r2Key.substring(0, 20)}...
+                                >
+                                  <Lock
+                                    className={`w-3.5 h-3.5 text-[var(--text-primary)] ${
+                                      isShaking
+                                        ? "animate-restricted-shake"
+                                        : ""
+                                    }`}
+                                  />
+                                  Restricted Access
+                                </span>
+                              )}
                             </div>
 
-                            <div className="flex items-center gap-2">
-                              <Button
-                                variant="secondary"
-                                size="sm"
-                                icon={<Download className="w-3.5 h-3.5" />}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDownloadAsset(asset.id);
-                                }}
-                              >
-                                Download
-                              </Button>
-                              {asset.canAccess ? (
-                                <Link
-                                  href={`/lounges/${groupId}/folios/${asset.id}`}
-                                >
-                                  <Button
-                                    variant="primary"
-                                    size="sm"
-                                    icon={<BookOpen className="w-3.5 h-3.5" />}
-                                  >
-                                    Open Document
-                                  </Button>
-                                </Link>
-                              ) : (
+                            <h3 className="font-serif text-lg sm:text-xl font-normal text-[var(--text-primary)] group-hover:underline transition-colors mb-2">
+                              {asset.title}
+                            </h3>
+
+                            {/* Actions */}
+                            <div className="pt-4 border-t border-[var(--border-hairline)] flex items-center justify-between gap-4">
+                              <div className="font-mono text-[0.6875rem] text-[var(--text-secondary)] truncate max-w-xs">
+                                Key: {asset.r2Key.substring(0, 20)}...
+                              </div>
+
+                              <div className="flex items-center gap-2">
                                 <Button
                                   variant="secondary"
                                   size="sm"
-                                  disabled
+                                  icon={<Download className="w-3.5 h-3.5" />}
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleRestrictedCardClick(asset.id);
+                                    handleDownloadAsset(asset.id);
                                   }}
                                 >
-                                  Access Restricted
+                                  Download
                                 </Button>
-                              )}
+                                {asset.canAccess ? (
+                                  <Link
+                                    href={`/lounges/${groupId}/folios/${asset.id}`}
+                                  >
+                                    <Button
+                                      variant="primary"
+                                      size="sm"
+                                      icon={
+                                        <BookOpen className="w-3.5 h-3.5" />
+                                      }
+                                    >
+                                      Open Document
+                                    </Button>
+                                  </Link>
+                                ) : (
+                                  <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    disabled
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleRestrictedCardClick(asset.id);
+                                    }}
+                                  >
+                                    Access Restricted
+                                  </Button>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </Card>
-                    );
-                  })
-                )}
-              </motion.div>
+                        </Card>
+                      );
+                    })
+                  )}
+                </motion.div>
+              )}
             </AnimatePresence>
 
-            {/* Dropzone Upload Area */}
-            <div
-              onClick={() => setIsUploadOpen(true)}
-              className="p-8 border border-dashed border-[var(--border-hairline)] hover:border-[var(--border-hover)] bg-[var(--bg-elevated)] rounded-[var(--radius-card)] text-center cursor-pointer transition-colors duration-[var(--dur-fast)]"
-            >
-              <div className="w-10 h-10 rounded-[var(--radius-button)] bg-[var(--bg-inset)] border border-[var(--border-hairline)] text-[var(--text-secondary)] flex items-center justify-center mx-auto mb-3">
-                <Upload className="w-4 h-4" />
-              </div>
-              <h4 className="font-serif text-base font-normal text-[var(--text-primary)] mb-1">
-                Upload Study Materials
-              </h4>
-              <p className="font-sans text-xs text-[var(--text-secondary)] max-w-md mx-auto mb-4">
-                Upload PDF, Markdown notes, or slide decks to share with your
-                group
-              </p>
-              <Button
-                variant="secondary"
-                size="sm"
+            {/* Dropzone Upload Area (only shown when viewing study materials) */}
+            {filterType !== "ai" && (
+              <div
                 onClick={() => setIsUploadOpen(true)}
+                className="p-8 border border-dashed border-[var(--border-hairline)] hover:border-[var(--border-hover)] bg-[var(--bg-elevated)] rounded-[var(--radius-card)] text-center cursor-pointer transition-colors duration-[var(--dur-fast)]"
               >
-                Select Files to Upload
-              </Button>
-            </div>
+                <div className="w-10 h-10 rounded-[var(--radius-button)] bg-[var(--bg-inset)] border border-[var(--border-hairline)] text-[var(--text-secondary)] flex items-center justify-center mx-auto mb-3">
+                  <Upload className="w-4 h-4" />
+                </div>
+                <h4 className="font-serif text-base font-normal text-[var(--text-primary)] mb-1">
+                  Upload Study Materials
+                </h4>
+                <p className="font-sans text-xs text-[var(--text-secondary)] max-w-md mx-auto mb-4">
+                  Upload PDF, Markdown notes, or slide decks to share with your
+                  group
+                </p>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setIsUploadOpen(true)}
+                >
+                  Select Files to Upload
+                </Button>
+              </div>
+            )}
           </div>
 
           {/* Right Column (4 cols): Study Stream & Session Logs */}

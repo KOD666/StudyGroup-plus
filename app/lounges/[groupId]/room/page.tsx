@@ -17,14 +17,12 @@ import {
   Clock,
   Plus,
   Volume2,
-  Share2,
   Layers,
   Sparkles,
   Users,
   Copy,
   Check,
   MessageSquare,
-  Send,
   AlertCircle,
   Download,
   Image as ImageIcon,
@@ -47,13 +45,19 @@ import type {
   SwitchBackgroundProcessorOptions,
 } from "@livekit/track-processors";
 import { Button } from "@/components/ui/Button";
-import { EmojiPickerButton } from "@/components/chat/EmojiPickerButton";
-import { StudyGroupLogo } from "@/components/icons/StudyGroupLogo";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { StudyGroupLogo } from "@/components/icons/StudyGroupLogo";
 import {
-  MeetingDocViewer,
+  CustomDocViewer,
   type ActiveMeetingDoc,
-} from "@/components/room/MeetingDocViewer";
+  useMeetingFullscreen,
+} from "@/components/room/viewer";
+import {
+  useScreenShare,
+  ScreenShareStage,
+  ScreenShareButton,
+} from "@/components/room/screenshare";
+import { InCallChatProvider, InCallChatPanel } from "@/components/room/chat";
 import { FloatingCameraWindow } from "@/components/room/FloatingCameraWindow";
 
 interface BackgroundPreset {
@@ -172,9 +176,7 @@ function RemoteParticipantTile({
 
   useEffect(() => {
     function syncTracks() {
-      const videoPub =
-        participant.getTrackPublication(Track.Source.Camera) ||
-        participant.getTrackPublication(Track.Source.ScreenShare);
+      const videoPub = participant.getTrackPublication(Track.Source.Camera);
       const audioPub = participant.getTrackPublication(Track.Source.Microphone);
 
       if (videoPub?.track && !videoPub.isMuted) {
@@ -316,7 +318,9 @@ export default function MeetingRoomPage() {
   // Media & Room state
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
-  const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const stageContainerRef = useRef<HTMLElement | null>(null);
+  const { isFullscreen, toggleFullscreen } =
+    useMeetingFullscreen(stageContainerRef);
   const [roomMode, setRoomMode] = useState<"discussion" | "quiet">(
     "discussion"
   );
@@ -347,9 +351,6 @@ export default function MeetingRoomPage() {
     isSelf: boolean;
   }
   const [inCallMessages, setInCallMessages] = useState<InCallMessage[]>([]);
-  const [inCallInput, setInCallInput] = useState("");
-  const inCallInputRef = useRef<HTMLInputElement>(null);
-  const inCallCursorPosRef = useRef<number | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [connectionTargetUrl, setConnectionTargetUrl] = useState<string | null>(
     null
@@ -399,7 +400,6 @@ export default function MeetingRoomPage() {
     }
     return 384;
   });
-  const [hasCopiedChat, setHasCopiedChat] = useState(false);
 
   // Virtual Photo Background & Blur state (Feature 1)
   const [activeBackgroundId, setActiveBackgroundId] = useState<string>("none");
@@ -422,6 +422,22 @@ export default function MeetingRoomPage() {
     RemoteParticipant[]
   >([]);
   const [isConnected, setIsConnected] = useState(false);
+  const [connectedRoom, setConnectedRoom] = useState<Room | null>(null);
+
+  // Screen share hook
+  const {
+    canShareScreen,
+    isLocalSharing,
+    activeSharer,
+    shareError,
+    setShareError,
+    stopScreenShare,
+    toggleScreenShare,
+  } = useScreenShare({
+    room: connectedRoom,
+    remoteParticipants,
+    userName: user?.fullName || "You",
+  });
 
   // Load group details & assets
   useEffect(() => {
@@ -475,10 +491,15 @@ export default function MeetingRoomPage() {
           typeof navigator !== "undefined" &&
           navigator.mediaDevices?.getUserMedia
         ) {
-          const stream = await navigator.mediaDevices.getUserMedia({
-            audio: true,
-            video: { width: { ideal: 1280 }, height: { ideal: 720 } },
-          });
+          const stream = await Promise.race([
+            navigator.mediaDevices.getUserMedia({
+              audio: true,
+              video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+            }),
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error("getUserMedia timeout")), 2500)
+            ),
+          ]);
 
           if (isCancelled) {
             stream.getTracks().forEach((track) => track.stop());
@@ -694,11 +715,20 @@ export default function MeetingRoomPage() {
         }
 
         setIsConnected(true);
+        setConnectedRoom(room);
         setConnectionError(null);
         updateParticipants();
 
         try {
-          await room.localParticipant.enableCameraAndMicrophone();
+          await Promise.race([
+            room.localParticipant.enableCameraAndMicrophone(),
+            new Promise<never>((_, reject) =>
+              setTimeout(
+                () => reject(new Error("enableCameraAndMicrophone timeout")),
+                2500
+              )
+            ),
+          ]);
           const camPub =
             room.localParticipant.getTrackPublication(Track.Source.Camera) ||
             Array.from(
@@ -732,6 +762,7 @@ export default function MeetingRoomPage() {
             : "Failed to connect to LiveKit room";
         setConnectionError(errMsg);
         setIsConnected(false);
+        setConnectedRoom(null);
       }
     }
 
@@ -739,6 +770,7 @@ export default function MeetingRoomPage() {
 
     return () => {
       isCancelled = true;
+      setConnectedRoom(null);
       if (customBgUrlRef.current?.startsWith("blob:")) {
         URL.revokeObjectURL(customBgUrlRef.current);
       }
@@ -933,20 +965,6 @@ export default function MeetingRoomPage() {
       } catch (err) {
         console.warn("Failed to toggle LiveKit camera:", err);
       }
-    }
-  }
-
-  async function handleToggleScreenShare() {
-    if (!roomRef.current?.localParticipant) return;
-    const nextScreenSharing = !isScreenSharing;
-    try {
-      await roomRef.current.localParticipant.setScreenShareEnabled(
-        nextScreenSharing
-      );
-      setIsScreenSharing(nextScreenSharing);
-    } catch (err) {
-      console.warn("Failed to toggle screen share:", err);
-      setIsScreenSharing(false);
     }
   }
 
@@ -1298,107 +1316,6 @@ export default function MeetingRoomPage() {
     return () => clearTimeout(timer);
   }, [silentStudyNotice]);
 
-  // If last participant leaves by closing tab or navigating away, end active session
-  useEffect(() => {
-    function handleUnload() {
-      if (!roomRef.current || roomRef.current.remoteParticipants.size === 0) {
-        const sId = activeSessionIdRef.current || activeSessionId || "active";
-        try {
-          if (navigator.sendBeacon) {
-            navigator.sendBeacon(`/api/groups/${groupId}/sessions/${sId}/end`);
-          } else {
-            fetch(`/api/groups/${groupId}/sessions/${sId}/end`, {
-              method: "POST",
-              keepalive: true,
-            });
-          }
-        } catch {}
-      }
-    }
-
-    window.addEventListener("pagehide", handleUnload);
-    window.addEventListener("beforeunload", handleUnload);
-    return () => {
-      window.removeEventListener("pagehide", handleUnload);
-      window.removeEventListener("beforeunload", handleUnload);
-    };
-  }, [groupId, activeSessionId]);
-
-  async function handleSendInCallMessage(e: React.FormEvent) {
-    e.preventDefault();
-    const text = inCallInput.trim();
-    if (!text || !roomRef.current) return;
-
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-    const msgId = `incall-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-    const sender = user?.fullName || user?.firstName || "You";
-
-    const payload = {
-      type: "chat",
-      id: msgId,
-      senderName: sender,
-      senderId: user?.id,
-      text,
-      time: timeStr,
-    };
-
-    try {
-      const encoder = new TextEncoder();
-      await roomRef.current.localParticipant.publishData(
-        encoder.encode(JSON.stringify(payload)),
-        { reliable: true }
-      );
-    } catch (publishErr) {
-      console.warn("Failed to publish in-call chat:", publishErr);
-    }
-
-    setInCallMessages((prev) => [
-      ...prev,
-      {
-        id: msgId,
-        senderName: sender,
-        senderId: user?.id,
-        text,
-        time: timeStr,
-        isSelf: true,
-      },
-    ]);
-    setInCallInput("");
-    inCallCursorPosRef.current = null;
-  }
-
-  const handleEmojiSelectInCall = (emoji: string) => {
-    const input = inCallInputRef.current;
-    const currentText = inCallInput;
-    const start =
-      inCallCursorPosRef.current !== null
-        ? inCallCursorPosRef.current
-        : input?.selectionStart !== null && input?.selectionStart !== undefined
-          ? input.selectionStart
-          : currentText.length;
-    const end =
-      input?.selectionEnd !== null && input?.selectionEnd !== undefined
-        ? input.selectionEnd
-        : start;
-
-    const newText =
-      currentText.slice(0, start) + emoji + currentText.slice(end);
-    setInCallInput(newText);
-    const newCursorPos = start + emoji.length;
-    inCallCursorPosRef.current = newCursorPos;
-
-    requestAnimationFrame(() => {
-      if (input) {
-        input.focus();
-        input.setSelectionRange(newCursorPos, newCursorPos);
-      }
-    });
-  };
-
   function handleCopyInviteLink() {
     const inviteUrl = `${window.location.origin}/join/${groupCode}`;
     navigator.clipboard.writeText(inviteUrl);
@@ -1599,37 +1516,6 @@ export default function MeetingRoomPage() {
     }
   }
 
-  // Feature 5: Copy in-call chat conversation to clipboard as plain text
-  async function handleCopyChatToClipboard() {
-    if (inCallMessages.length === 0) return;
-    const plainText = inCallMessages
-      .map(
-        (m) =>
-          `${m.isSelf ? user?.fullName || "You" : m.senderName} [${m.time}]: ${m.text}`
-      )
-      .join("\n");
-
-    try {
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(plainText);
-      } else {
-        const textArea = document.createElement("textarea");
-        textArea.value = plainText;
-        textArea.style.position = "fixed";
-        textArea.style.left = "-999999px";
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-        document.execCommand("copy");
-        textArea.remove();
-      }
-      setHasCopiedChat(true);
-      setTimeout(() => setHasCopiedChat(false), 2000);
-    } catch (err) {
-      console.warn("Failed to copy chat to clipboard:", err);
-    }
-  }
-
   // Feature 5: Horizontal resize handle on chat panel left edge
   const handleStartChatResize = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -1717,212 +1603,409 @@ export default function MeetingRoomPage() {
   }
 
   return (
-    <div className="h-screen w-screen bg-[var(--bg-primary)] text-[var(--text-primary)] flex flex-col font-sans overflow-hidden select-none relative selection:bg-[var(--invert-bg)] selection:text-[var(--invert-text)]">
-      {/* Hidden Audio Container for LiveKit remote tracks */}
-      <div ref={audioContainerRef} className="hidden" aria-hidden="true" />
-
-      {/* Leave Call 250ms Closing Beat Overlay (§6.3) */}
-      <motion.div
-        initial={false}
-        animate={{ opacity: isLeaving ? 1 : 0 }}
-        transition={{ duration: 0.25, ease: "easeInOut" }}
-        className="fixed inset-0 bg-[var(--bg-primary)] pointer-events-none z-50"
-      />
-
-      {/* Top Header Bar */}
-      <header className="h-14 border-b border-[var(--border-hairline)] bg-[var(--bg-elevated)] px-4 sm:px-6 flex items-center justify-between gap-4 shrink-0 z-20">
-        {/* Brand & Room Breadcrumb + Sanctioned Live Badge (§6.3 #2) */}
-        <div className="flex items-center gap-3">
-          <Link
-            href="/lounges"
-            className="font-serif text-lg font-normal text-[var(--text-primary)] flex items-center gap-1.5 hover:opacity-80 transition-opacity"
-          >
-            <StudyGroupLogo size={18} className="text-[var(--text-primary)]" />
-            <span>
-              StudyGroup<span className="italic font-normal">+</span>
-            </span>
-          </Link>
-          <span className="text-[var(--text-disabled)]">/</span>
-          <Link
-            href={`/lounges/${groupId}`}
-            onClick={(e) => {
-              const isLastParticipant =
-                !roomRef.current ||
-                roomRef.current.remoteParticipants.size === 0 ||
-                remoteParticipants.length === 0;
-              if (isLastParticipant) {
-                e.preventDefault();
-                setShowSaveChatModal(true);
-              }
-            }}
-            className="font-mono text-xs uppercase tracking-[0.06em] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors hidden sm:inline"
-          >
-            {groupName}
-          </Link>
-          <span className="text-[var(--text-disabled)] hidden sm:inline">
-            /
-          </span>
-
-          {/* Second Sanctioned Accent-Live Indicator (§6.3 REC • LIVE matching Reference Photo) */}
-          <div
-            className="flex items-center gap-2 px-2.5 py-1 rounded-[var(--radius-button)] border border-[#e5484d] bg-[rgba(229,72,77,0.15)] text-[#e5484d] font-mono text-xs uppercase tracking-wider font-semibold"
-            title={isConnected ? "Room connected" : "Connecting..."}
-          >
-            <span className="w-2 h-2 rounded-full bg-[#e5484d] animate-live-breathe" />
-            <span>{isConnected ? "REC • LIVE" : "CONNECTING..."}</span>
-          </div>
-        </div>
-
-        {/* Center: Mode Switcher (§6.3 Segmented Control) & Duration */}
-        <div className="hidden md:flex items-center gap-4">
-          <div className="p-1 bg-[var(--bg-inset)] border border-[var(--border-hairline)] rounded-[var(--radius-button)] flex items-center gap-1 text-xs font-mono">
+    <InCallChatProvider
+      groupId={groupId}
+      activeSessionId={activeSessionId}
+      room={connectedRoom}
+      currentUserId={user?.id}
+      currentUserName={user?.fullName || user?.firstName || "You"}
+      onMessagesChange={(msgs) => setInCallMessages(msgs)}
+    >
+      <div className="h-screen w-screen bg-[var(--bg-primary)] text-[var(--text-primary)] flex flex-col font-sans overflow-hidden select-none relative selection:bg-[var(--invert-bg)] selection:text-[var(--invert-text)]">
+        {/* Screen Share Error Toast */}
+        {shareError && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-[var(--radius-button)] bg-[#e5484d] text-white text-xs font-mono shadow-lg flex items-center gap-2">
+            <span>{shareError}</span>
             <button
               type="button"
-              onClick={() => handleSwitchRoomMode("quiet")}
-              className={`relative px-3 py-1 rounded-[calc(var(--radius-button)-2px)] transition-colors duration-[var(--dur-fast)] cursor-pointer ${
-                roomMode === "quiet"
-                  ? "text-[var(--text-primary)]"
-                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-              }`}
+              onClick={() => setShareError(null)}
+              className="ml-2 hover:opacity-80 cursor-pointer"
             >
-              {roomMode === "quiet" && (
-                <motion.div
-                  layoutId="activeRoomMode"
-                  transition={{
-                    duration: shouldReduceMotion ? 0.1 : 0.3,
-                    ease: [0.25, 1, 0.5, 1],
-                  }}
-                  className="absolute inset-0 rounded-[calc(var(--radius-button)-2px)] bg-[var(--bg-elevated)] border border-[var(--border-hairline)]"
-                />
-              )}
-              <span className="relative z-10 flex items-center gap-1.5">
-                <VolumeX className="w-3 h-3 text-amber-500" />
-                Silent Study
+              ✕
+            </button>
+          </div>
+        )}
+
+        {/* Hidden Audio Container for LiveKit remote tracks */}
+        <div ref={audioContainerRef} className="hidden" aria-hidden="true" />
+
+        {/* Leave Call 250ms Closing Beat Overlay (§6.3) */}
+        <motion.div
+          initial={false}
+          animate={{ opacity: isLeaving ? 1 : 0 }}
+          transition={{ duration: 0.25, ease: "easeInOut" }}
+          className="fixed inset-0 bg-[var(--bg-primary)] pointer-events-none z-50"
+        />
+
+        {/* Top Header Bar */}
+        <header className="h-14 border-b border-[var(--border-hairline)] bg-[var(--bg-elevated)] px-4 sm:px-6 flex items-center justify-between gap-4 shrink-0 z-20">
+          {/* Brand & Room Breadcrumb + Sanctioned Live Badge (§6.3 #2) */}
+          <div className="flex items-center gap-3">
+            <Link
+              href="/lounges"
+              className="font-serif text-lg font-normal text-[var(--text-primary)] flex items-center gap-1.5 hover:opacity-80 transition-opacity"
+            >
+              <StudyGroupLogo
+                size={18}
+                className="text-[var(--text-primary)]"
+              />
+              <span>
+                StudyGroup<span className="italic font-normal">+</span>
               </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSwitchRoomMode("discussion")}
-              className={`relative px-3 py-1 rounded-[calc(var(--radius-button)-2px)] transition-colors duration-[var(--dur-fast)] cursor-pointer ${
-                roomMode === "discussion"
-                  ? "text-[var(--text-primary)]"
-                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-              }`}
+            </Link>
+            <span className="text-[var(--text-disabled)]">/</span>
+            <Link
+              href={`/lounges/${groupId}`}
+              onClick={(e) => {
+                const isLastParticipant =
+                  !roomRef.current ||
+                  roomRef.current.remoteParticipants.size === 0 ||
+                  remoteParticipants.length === 0;
+                if (isLastParticipant) {
+                  e.preventDefault();
+                  setShowSaveChatModal(true);
+                }
+              }}
+              className="font-mono text-xs uppercase tracking-[0.06em] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors hidden sm:inline"
             >
-              {roomMode === "discussion" && (
-                <motion.div
-                  layoutId="activeRoomMode"
-                  transition={{
-                    duration: shouldReduceMotion ? 0.1 : 0.3,
-                    ease: [0.25, 1, 0.5, 1],
-                  }}
-                  className="absolute inset-0 rounded-[calc(var(--radius-button)-2px)] bg-[var(--bg-elevated)] border border-[var(--border-hairline)]"
-                />
-              )}
-              <span className="relative z-10">Discussion</span>
-            </button>
-          </div>
-
-          <div className="flex items-center gap-2 text-xs font-mono text-[var(--text-secondary)] bg-[var(--bg-inset)] px-3 py-1 rounded-[var(--radius-button)] border border-[var(--border-hairline)]">
-            <Clock className="w-3.5 h-3.5 text-[var(--text-primary)]" />
-            <span>{callDuration}</span>
-          </div>
-        </div>
-
-        {/* Right Actions */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          {/* Download Conversation Button */}
-          <Button
-            variant="secondary"
-            size="sm"
-            icon={
-              hasDownloadedConversation ? (
-                <Check className="w-3.5 h-3.5" />
-              ) : (
-                <Download className="w-3.5 h-3.5" />
-              )
-            }
-            onClick={handleDownloadConversation}
-            className="text-xs hidden sm:flex"
-            title="Export in-call chat & transcripts as Markdown (.md)"
-          >
-            {hasDownloadedConversation ? "Exported" : "Download Chat (.md)"}
-          </Button>
-
-          <Button
-            variant={isReferenceDeskOpen ? "primary" : "secondary"}
-            size="sm"
-            icon={<BookOpen className="w-3.5 h-3.5" />}
-            onClick={() => setIsReferenceDeskOpen(!isReferenceDeskOpen)}
-            className="text-xs"
-          >
-            Study Notes{" "}
-            <span className="ml-1 px-1.5 py-0.5 rounded-[calc(var(--radius-button)-2px)] bg-[var(--bg-inset)] font-mono text-[0.625rem]">
-              {assets.length}
+              {groupName}
+            </Link>
+            <span className="text-[var(--text-disabled)] hidden sm:inline">
+              /
             </span>
-          </Button>
 
-          <ThemeToggle size="sm" />
-
-          <div className="w-8 h-8 rounded-full bg-[var(--bg-inset)] border border-[var(--border-hairline)] flex items-center justify-center font-mono text-xs font-semibold text-[var(--text-primary)]">
-            {scholarInitials}
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content Area: Stage + Side Panel */}
-      <div className="flex-1 flex overflow-hidden relative">
-        {/* Main View Area */}
-        <main className="flex-1 p-4 lg:p-6 flex flex-col justify-between overflow-hidden relative">
-          {activeMeetingDoc ? (
-            /* Meeting Shared Note/Doc Viewer with Floating Video Tile (§Feature 3) */
-            <div className="flex-1 flex flex-col overflow-hidden relative">
-              <MeetingDocViewer
-                doc={activeMeetingDoc}
-                onClose={() => setActiveMeetingDoc(null)}
-                onUpdateNote={handleUpdatePinnedNote}
-                onPopOutVideo={handlePopOutVideo}
-                hasDocPiPSupport={
-                  typeof window !== "undefined" &&
-                  "documentPictureInPicture" in window
-                }
-              />
-              <FloatingCameraWindow
-                localStream={localStreamRef.current}
-                remoteParticipants={remoteParticipants}
-                isVideoOff={isVideoOff}
-                isMuted={isMuted}
-                isSelfViewMirrored={isSelfViewMirrored}
-                onToggleMirror={() => setIsSelfViewMirrored((prev) => !prev)}
-                userName={user?.fullName || "You"}
-                scholarInitials={scholarInitials}
-                onPopOutVideo={handlePopOutVideo}
-                hasDocPiPSupport={
-                  typeof window !== "undefined" &&
-                  "documentPictureInPicture" in window
-                }
-              />
+            {/* Second Sanctioned Accent-Live Indicator (§6.3 REC • LIVE matching Reference Photo) */}
+            <div
+              className="flex items-center gap-2 px-2.5 py-1 rounded-[var(--radius-button)] border border-[#e5484d] bg-[rgba(229,72,77,0.15)] text-[#e5484d] font-mono text-xs uppercase tracking-wider font-semibold"
+              title={isConnected ? "Room connected" : "Connecting..."}
+            >
+              <span className="w-2 h-2 rounded-full bg-[#e5484d] animate-live-breathe" />
+              <span>{isConnected ? "REC • LIVE" : "CONNECTING..."}</span>
             </div>
-          ) : (
-            /* Stage Grid with FLIP layout transitions (§6.3) */
-            <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch overflow-hidden">
-              {/* Left Large Speaker / Stage Tile */}
-              <motion.div
-                layout={!shouldReduceMotion}
-                className="lg:col-span-8 bg-[var(--bg-elevated)] rounded-[var(--radius-card)] border border-[var(--border-hairline)] relative overflow-hidden flex flex-col justify-between"
+          </div>
+
+          {/* Center: Mode Switcher (§6.3 Segmented Control) & Duration */}
+          <div className="hidden md:flex items-center gap-4">
+            <div className="p-1 bg-[var(--bg-inset)] border border-[var(--border-hairline)] rounded-[var(--radius-button)] flex items-center gap-1 text-xs font-mono">
+              <button
+                type="button"
+                onClick={() => handleSwitchRoomMode("quiet")}
+                className={`relative px-3 py-1 rounded-[calc(var(--radius-button)-2px)] transition-colors duration-[var(--dur-fast)] cursor-pointer ${
+                  roomMode === "quiet"
+                    ? "text-[var(--text-primary)]"
+                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                }`}
               >
-                {remoteParticipants.length > 0 && remoteParticipants[0] ? (
-                  /* Primary Remote Participant on Stage */
-                  <RemoteParticipantTile
-                    participant={remoteParticipants[0]}
-                    isMainSpeaker={true}
-                    shouldReduceMotion={shouldReduceMotion}
+                {roomMode === "quiet" && (
+                  <motion.div
+                    layoutId="activeRoomMode"
+                    transition={{
+                      duration: shouldReduceMotion ? 0.1 : 0.3,
+                      ease: [0.25, 1, 0.5, 1],
+                    }}
+                    className="absolute inset-0 rounded-[calc(var(--radius-button)-2px)] bg-[var(--bg-elevated)] border border-[var(--border-hairline)]"
                   />
+                )}
+                <span className="relative z-10 flex items-center gap-1.5">
+                  <VolumeX className="w-3 h-3 text-amber-500" />
+                  Silent Study
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSwitchRoomMode("discussion")}
+                className={`relative px-3 py-1 rounded-[calc(var(--radius-button)-2px)] transition-colors duration-[var(--dur-fast)] cursor-pointer ${
+                  roomMode === "discussion"
+                    ? "text-[var(--text-primary)]"
+                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                }`}
+              >
+                {roomMode === "discussion" && (
+                  <motion.div
+                    layoutId="activeRoomMode"
+                    transition={{
+                      duration: shouldReduceMotion ? 0.1 : 0.3,
+                      ease: [0.25, 1, 0.5, 1],
+                    }}
+                    className="absolute inset-0 rounded-[calc(var(--radius-button)-2px)] bg-[var(--bg-elevated)] border border-[var(--border-hairline)]"
+                  />
+                )}
+                <span className="relative z-10">Discussion</span>
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2 text-xs font-mono text-[var(--text-secondary)] bg-[var(--bg-inset)] px-3 py-1 rounded-[var(--radius-button)] border border-[var(--border-hairline)]">
+              <Clock className="w-3.5 h-3.5 text-[var(--text-primary)]" />
+              <span>{callDuration}</span>
+            </div>
+          </div>
+
+          {/* Right Actions */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Download Conversation Button */}
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={
+                hasDownloadedConversation ? (
+                  <Check className="w-3.5 h-3.5" />
                 ) : (
-                  /* Single User / Stage View */
-                  <div className="absolute inset-0 bg-[var(--bg-inset)] flex flex-col items-center justify-center overflow-hidden">
+                  <Download className="w-3.5 h-3.5" />
+                )
+              }
+              onClick={handleDownloadConversation}
+              className="text-xs hidden sm:flex"
+              title="Export in-call chat & transcripts as Markdown (.md)"
+            >
+              {hasDownloadedConversation ? "Exported" : "Download Chat (.md)"}
+            </Button>
+
+            <Button
+              variant={isReferenceDeskOpen ? "primary" : "secondary"}
+              size="sm"
+              icon={<BookOpen className="w-3.5 h-3.5" />}
+              onClick={() => setIsReferenceDeskOpen(!isReferenceDeskOpen)}
+              className="text-xs"
+            >
+              Study Notes{" "}
+              <span className="ml-1 px-1.5 py-0.5 rounded-[calc(var(--radius-button)-2px)] bg-[var(--bg-inset)] font-mono text-[0.625rem]">
+                {assets.length}
+              </span>
+            </Button>
+
+            <ThemeToggle size="sm" />
+
+            <div className="w-8 h-8 rounded-full bg-[var(--bg-inset)] border border-[var(--border-hairline)] flex items-center justify-center font-mono text-xs font-semibold text-[var(--text-primary)]">
+              {scholarInitials}
+            </div>
+          </div>
+        </header>
+
+        {/* Main Content Area: Stage + Side Panel */}
+        <div className="flex-1 flex overflow-hidden relative">
+          {/* Main View Area */}
+          <main
+            ref={stageContainerRef as React.RefObject<HTMLDivElement>}
+            className="flex-1 p-4 lg:p-6 flex flex-col justify-between overflow-hidden relative bg-[var(--bg-primary)]"
+          >
+            {activeMeetingDoc ? (
+              /* Custom Meeting Shared Note/Doc Viewer with Fullscreen & Shared Cursors */
+              <div className="flex-1 flex flex-col overflow-hidden relative">
+                <CustomDocViewer
+                  doc={activeMeetingDoc}
+                  room={connectedRoom}
+                  currentUserId={user?.id}
+                  onClose={() => setActiveMeetingDoc(null)}
+                  isFullscreen={isFullscreen}
+                  onToggleFullscreen={toggleFullscreen}
+                  onUpdateNote={handleUpdatePinnedNote}
+                />
+                <FloatingCameraWindow
+                  localStream={localStreamRef.current}
+                  remoteParticipants={remoteParticipants}
+                  isVideoOff={isVideoOff}
+                  isMuted={isMuted}
+                  isSelfViewMirrored={isSelfViewMirrored}
+                  onToggleMirror={() => setIsSelfViewMirrored((prev) => !prev)}
+                  userName={user?.fullName || "You"}
+                  scholarInitials={scholarInitials}
+                  onPopOutVideo={handlePopOutVideo}
+                  hasDocPiPSupport={
+                    typeof window !== "undefined" &&
+                    "documentPictureInPicture" in window
+                  }
+                />
+              </div>
+            ) : (
+              /* Stage Grid with FLIP layout transitions (§6.3) */
+              <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch overflow-hidden">
+                {/* Left Large Speaker / Stage Tile or Screen Share */}
+                <motion.div
+                  layout={!shouldReduceMotion}
+                  className="lg:col-span-8 bg-[var(--bg-elevated)] rounded-[var(--radius-card)] border border-[var(--border-hairline)] relative overflow-hidden flex flex-col justify-between"
+                >
+                  {activeSharer ? (
+                    /* Screen Share Stage for everyone */
+                    <ScreenShareStage
+                      activeSharer={activeSharer}
+                      onStopSharing={stopScreenShare}
+                    />
+                  ) : remoteParticipants.length > 0 && remoteParticipants[0] ? (
+                    /* Primary Remote Participant on Stage */
+                    <RemoteParticipantTile
+                      participant={remoteParticipants[0]}
+                      isMainSpeaker={true}
+                      shouldReduceMotion={shouldReduceMotion}
+                    />
+                  ) : (
+                    /* Single User / Stage View */
+                    <div className="absolute inset-0 bg-[var(--bg-inset)] flex flex-col items-center justify-center overflow-hidden">
+                      <video
+                        ref={stageVideoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        style={{
+                          transform: isSelfViewMirrored ? "scaleX(-1)" : "none",
+                        }}
+                        className={`absolute inset-0 w-full h-full object-cover ${
+                          isVideoOff ? "hidden" : "block"
+                        }`}
+                      />
+
+                      {/* Fallback Display when Camera Off */}
+                      {isVideoOff && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-[var(--bg-elevated)]">
+                          <div className="relative w-28 h-28 rounded-full bg-[var(--bg-inset)] border border-[var(--border-hairline)] flex items-center justify-center font-mono text-3xl text-[var(--text-primary)] mb-4">
+                            {scholarInitials}
+                            <span
+                              className="absolute bottom-1 right-1 w-4 h-4 rounded-full bg-[var(--bg-overlay)] border border-[var(--border-hairline)] ring-2 ring-[var(--bg-elevated)]"
+                              title="Camera Off"
+                            />
+                          </div>
+
+                          <h3 className="font-serif text-2xl font-normal text-[var(--text-primary)] mb-1">
+                            {user?.fullName || "You"}
+                          </h3>
+                          <p className="font-sans text-xs text-[var(--text-secondary)] max-w-sm mb-6 leading-relaxed">
+                            Your camera is currently muted. Turn it on with the
+                            tray button below, or invite study peers to this
+                            lounge.
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Top Stage Badges */}
+                      <div className="absolute top-4 left-4 z-20 flex items-center gap-2">
+                        <span className="px-2.5 py-1 rounded-[var(--radius-button)] bg-[var(--bg-inset)]/90 backdrop-blur-sm border border-[var(--border-hairline)] text-xs font-mono text-[var(--text-primary)] flex items-center gap-2">
+                          <span
+                            className={`w-2 h-2 rounded-full ${
+                              isVideoOff
+                                ? "bg-[var(--text-disabled)]"
+                                : "bg-[var(--text-primary)]"
+                            }`}
+                          />
+                          {user?.fullName || "You"} (Stage)
+                        </span>
+                        {isMuted && (
+                          <span className="px-2.5 py-1 rounded-[var(--radius-button)] bg-[var(--bg-inset)]/90 border border-[var(--border-hairline)] text-[var(--text-secondary)] text-xs font-mono flex items-center gap-1.5">
+                            <MicOff className="w-3 h-3" /> Muted
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Bottom Invite Floating Bar */}
+                      <div className="absolute bottom-4 left-4 right-4 z-20 flex items-center justify-between pointer-events-none">
+                        <div className="pointer-events-auto bg-[var(--bg-elevated)]/90 backdrop-blur-md px-4 py-2 rounded-[var(--radius-card)] border border-[var(--border-hairline)] flex items-center gap-3">
+                          <span className="font-sans text-xs text-[var(--text-secondary)] hidden sm:inline">
+                            Waiting for members to join
+                          </span>
+                          <button
+                            type="button"
+                            onClick={handleCopyInviteLink}
+                            className="px-3 py-1.5 bg-[var(--invert-bg)] hover:bg-white text-[var(--invert-text)] text-xs font-semibold rounded-[var(--radius-button)] flex items-center gap-1.5 transition-colors cursor-pointer"
+                          >
+                            {copiedLink ? (
+                              <>
+                                <Check className="w-3.5 h-3.5" /> Link Copied!
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-3.5 h-3.5" /> Copy Invite
+                                Link
+                              </>
+                            )}
+                          </button>
+                          {groupCode && (
+                            <span className="font-mono text-xs text-[var(--text-secondary)] hidden md:inline">
+                              #{groupCode}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Live Transcript Panel (§6.3 word-by-word reveal, 4px rise, Pin-to-notes travel animation) */}
+                  {transcript && (
+                    <motion.div
+                      initial={
+                        shouldReduceMotion
+                          ? { opacity: 0 }
+                          : { opacity: 0, y: 4 }
+                      }
+                      animate={{
+                        opacity: 1,
+                        y: 0,
+                        backgroundColor: isPinFlashing
+                          ? "var(--bg-overlay)"
+                          : "rgba(10, 10, 10, 0.92)",
+                      }}
+                      transition={{ duration: shouldReduceMotion ? 0.1 : 0.2 }}
+                      className="relative z-20 m-4 p-4 rounded-[var(--radius-card)] backdrop-blur-md border border-[var(--border-hairline)] max-w-2xl"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="w-3.5 h-3.5 text-[var(--text-primary)]" />
+                          <span className="font-mono text-[0.625rem] font-medium uppercase tracking-[0.08em] text-[var(--text-secondary)]">
+                            Live Transcript • {transcriptTime}
+                          </span>
+                          <span className="inline-flex items-center gap-1 text-[#e5484d] font-mono text-[0.625rem] font-semibold uppercase tracking-wider ml-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#e5484d] animate-live-breathe inline-block" />
+                            STREAMING
+                          </span>
+                        </div>
+
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={handlePinTranscript}
+                            className="font-mono text-xs text-[var(--text-primary)] hover:underline transition-colors flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <Pin className="w-3 h-3" /> Pin to Notes
+                          </button>
+
+                          {/* Traveling Pin Icon Animation (§6.3) */}
+                          {showTravelingPin && !shouldReduceMotion && (
+                            <motion.div
+                              initial={{ opacity: 1, x: 0, y: 0, scale: 1 }}
+                              animate={{
+                                opacity: 0,
+                                x: 180,
+                                y: -40,
+                                scale: 0.4,
+                              }}
+                              transition={{
+                                duration: 0.6,
+                                ease: [0.16, 1, 0.3, 1],
+                              }}
+                              className="absolute -top-1 left-0 pointer-events-none text-[var(--text-primary)]"
+                            >
+                              <Pin className="w-4 h-4" />
+                            </motion.div>
+                          )}
+                        </div>
+                      </div>
+
+                      <p className="font-serif text-sm sm:text-base leading-relaxed text-[var(--text-primary)]">
+                        <WordByWordTranscript
+                          text={transcript}
+                          shouldReduceMotion={shouldReduceMotion}
+                        />
+                      </p>
+                    </motion.div>
+                  )}
+                </motion.div>
+
+                {/* Right Column: Local User + Additional Remote Participants (FLIP-animated) */}
+                <div className="lg:col-span-4 flex flex-col gap-4 justify-between overflow-y-auto">
+                  {/* Local Participant Feed */}
+                  <motion.div
+                    layout={!shouldReduceMotion}
+                    className="flex-1 min-h-[9.5rem] bg-[var(--bg-elevated)] rounded-[var(--radius-card)] border border-[var(--border-hairline)] relative overflow-hidden flex flex-col justify-end p-3 group hover:border-[var(--border-hover)] transition-colors"
+                  >
                     <video
-                      ref={stageVideoRef}
+                      ref={localVideoRef}
                       autoPlay
                       playsInline
                       muted
@@ -1934,1158 +2017,892 @@ export default function MeetingRoomPage() {
                       }`}
                     />
 
-                    {/* Fallback Display when Camera Off */}
                     {isVideoOff && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-[var(--bg-elevated)]">
-                        <div className="relative w-28 h-28 rounded-full bg-[var(--bg-inset)] border border-[var(--border-hairline)] flex items-center justify-center font-mono text-3xl text-[var(--text-primary)] mb-4">
+                      <div className="absolute inset-0 flex items-center justify-center bg-[var(--bg-inset)]">
+                        <div className="w-12 h-12 rounded-full bg-[var(--bg-elevated)] border border-[var(--border-hairline)] flex items-center justify-center font-mono font-bold text-xs text-[var(--text-primary)]">
                           {scholarInitials}
-                          <span
-                            className="absolute bottom-1 right-1 w-4 h-4 rounded-full bg-[var(--bg-overlay)] border border-[var(--border-hairline)] ring-2 ring-[var(--bg-elevated)]"
-                            title="Camera Off"
-                          />
                         </div>
-
-                        <h3 className="font-serif text-2xl font-normal text-[var(--text-primary)] mb-1">
-                          {user?.fullName || "You"}
-                        </h3>
-                        <p className="font-sans text-xs text-[var(--text-secondary)] max-w-sm mb-6 leading-relaxed">
-                          Your camera is currently muted. Turn it on with the
-                          tray button below, or invite study peers to this
-                          lounge.
-                        </p>
                       </div>
                     )}
 
-                    {/* Top Stage Badges */}
-                    <div className="absolute top-4 left-4 z-20 flex items-center gap-2">
-                      <span className="px-2.5 py-1 rounded-[var(--radius-button)] bg-[var(--bg-inset)]/90 backdrop-blur-sm border border-[var(--border-hairline)] text-xs font-mono text-[var(--text-primary)] flex items-center gap-2">
-                        <span
-                          className={`w-2 h-2 rounded-full ${
-                            isVideoOff
-                              ? "bg-[var(--text-disabled)]"
-                              : "bg-[var(--text-primary)]"
-                          }`}
-                        />
-                        {user?.fullName || "You"} (Stage)
-                      </span>
-                      {isMuted && (
-                        <span className="px-2.5 py-1 rounded-[var(--radius-button)] bg-[var(--bg-inset)]/90 border border-[var(--border-hairline)] text-[var(--text-secondary)] text-xs font-mono flex items-center gap-1.5">
-                          <MicOff className="w-3 h-3" /> Muted
-                        </span>
-                      )}
-                    </div>
+                    <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg-primary)]/80 via-transparent to-transparent z-10 pointer-events-none" />
 
-                    {/* Bottom Invite Floating Bar */}
-                    <div className="absolute bottom-4 left-4 right-4 z-20 flex items-center justify-between pointer-events-none">
-                      <div className="pointer-events-auto bg-[var(--bg-elevated)]/90 backdrop-blur-md px-4 py-2 rounded-[var(--radius-card)] border border-[var(--border-hairline)] flex items-center gap-3">
-                        <span className="font-sans text-xs text-[var(--text-secondary)] hidden sm:inline">
-                          Waiting for members to join
+                    <div className="relative z-20 flex items-center justify-between text-xs">
+                      <div>
+                        <span className="font-sans font-medium text-[var(--text-primary)] block">
+                          {user?.fullName || "You"} (You)
                         </span>
-                        <button
-                          type="button"
-                          onClick={handleCopyInviteLink}
-                          className="px-3 py-1.5 bg-[var(--invert-bg)] hover:bg-white text-[var(--invert-text)] text-xs font-semibold rounded-[var(--radius-button)] flex items-center gap-1.5 transition-colors cursor-pointer"
-                        >
-                          {copiedLink ? (
-                            <>
-                              <Check className="w-3.5 h-3.5" /> Link Copied!
-                            </>
-                          ) : (
-                            <>
-                              <Copy className="w-3.5 h-3.5" /> Copy Invite Link
-                            </>
-                          )}
-                        </button>
-                        {groupCode && (
-                          <span className="font-mono text-xs text-[var(--text-secondary)] hidden md:inline">
-                            #{groupCode}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Live Transcript Panel (§6.3 word-by-word reveal, 4px rise, Pin-to-notes travel animation) */}
-                {transcript && (
-                  <motion.div
-                    initial={
-                      shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 4 }
-                    }
-                    animate={{
-                      opacity: 1,
-                      y: 0,
-                      backgroundColor: isPinFlashing
-                        ? "var(--bg-overlay)"
-                        : "rgba(10, 10, 10, 0.92)",
-                    }}
-                    transition={{ duration: shouldReduceMotion ? 0.1 : 0.2 }}
-                    className="relative z-20 m-4 p-4 rounded-[var(--radius-card)] backdrop-blur-md border border-[var(--border-hairline)] max-w-2xl"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <Sparkles className="w-3.5 h-3.5 text-[var(--text-primary)]" />
-                        <span className="font-mono text-[0.625rem] font-medium uppercase tracking-[0.08em] text-[var(--text-secondary)]">
-                          Live Transcript • {transcriptTime}
-                        </span>
-                        <span className="inline-flex items-center gap-1 text-[#e5484d] font-mono text-[0.625rem] font-semibold uppercase tracking-wider ml-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#e5484d] animate-live-breathe inline-block" />
-                          STREAMING
+                        <span className="font-mono text-[0.6875rem] text-[var(--text-secondary)]">
+                          {isLocalSharing ? "Sharing Screen" : "Member"}
                         </span>
                       </div>
-
-                      <div className="relative">
-                        <button
-                          type="button"
-                          onClick={handlePinTranscript}
-                          className="font-mono text-xs text-[var(--text-primary)] hover:underline transition-colors flex items-center gap-1.5 cursor-pointer"
-                        >
-                          <Pin className="w-3 h-3" /> Pin to Notes
-                        </button>
-
-                        {/* Traveling Pin Icon Animation (§6.3) */}
-                        {showTravelingPin && !shouldReduceMotion && (
-                          <motion.div
-                            initial={{ opacity: 1, x: 0, y: 0, scale: 1 }}
-                            animate={{ opacity: 0, x: 180, y: -40, scale: 0.4 }}
-                            transition={{
-                              duration: 0.6,
-                              ease: [0.16, 1, 0.3, 1],
-                            }}
-                            className="absolute -top-1 left-0 pointer-events-none text-[var(--text-primary)]"
+                      <div className="flex items-center gap-1">
+                        {isMuted ? (
+                          <div
+                            className="p-1 rounded-[var(--radius-button)] bg-[var(--bg-inset)]/80 text-[var(--text-secondary)] border border-[var(--border-hairline)]"
+                            title="Microphone muted"
                           >
-                            <Pin className="w-4 h-4" />
-                          </motion.div>
-                        )}
-                      </div>
-                    </div>
-
-                    <p className="font-serif text-sm sm:text-base leading-relaxed text-[var(--text-primary)]">
-                      <WordByWordTranscript
-                        text={transcript}
-                        shouldReduceMotion={shouldReduceMotion}
-                      />
-                    </p>
-                  </motion.div>
-                )}
-              </motion.div>
-
-              {/* Right Column: Local User + Additional Remote Participants (FLIP-animated) */}
-              <div className="lg:col-span-4 flex flex-col gap-4 justify-between overflow-y-auto">
-                {/* Local Participant Feed */}
-                <motion.div
-                  layout={!shouldReduceMotion}
-                  className="flex-1 min-h-[9.5rem] bg-[var(--bg-elevated)] rounded-[var(--radius-card)] border border-[var(--border-hairline)] relative overflow-hidden flex flex-col justify-end p-3 group hover:border-[var(--border-hover)] transition-colors"
-                >
-                  <video
-                    ref={localVideoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    style={{
-                      transform: isSelfViewMirrored ? "scaleX(-1)" : "none",
-                    }}
-                    className={`absolute inset-0 w-full h-full object-cover ${
-                      isVideoOff ? "hidden" : "block"
-                    }`}
-                  />
-
-                  {isVideoOff && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-[var(--bg-inset)]">
-                      <div className="w-12 h-12 rounded-full bg-[var(--bg-elevated)] border border-[var(--border-hairline)] flex items-center justify-center font-mono font-bold text-xs text-[var(--text-primary)]">
-                        {scholarInitials}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg-primary)]/80 via-transparent to-transparent z-10 pointer-events-none" />
-
-                  <div className="relative z-20 flex items-center justify-between text-xs">
-                    <div>
-                      <span className="font-sans font-medium text-[var(--text-primary)] block">
-                        {user?.fullName || "You"} (You)
-                      </span>
-                      <span className="font-mono text-[0.6875rem] text-[var(--text-secondary)]">
-                        {isScreenSharing ? "Sharing Screen" : "Member"}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      {isMuted ? (
-                        <div
-                          className="p-1 rounded-[var(--radius-button)] bg-[var(--bg-inset)]/80 text-[var(--text-secondary)] border border-[var(--border-hairline)]"
-                          title="Microphone muted"
-                        >
-                          <MicOff className="w-3.5 h-3.5" />
-                        </div>
-                      ) : (
-                        <div
-                          className="p-1 rounded-[var(--radius-button)] bg-[var(--bg-inset)]/80 text-[var(--text-primary)] border border-[var(--border-hairline)]"
-                          title="Microphone active"
-                        >
-                          <Mic className="w-3.5 h-3.5" />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </motion.div>
-
-                {/* Additional Remote Participants */}
-                {remoteParticipants.slice(1).map((participant) => (
-                  <RemoteParticipantTile
-                    key={participant.identity}
-                    participant={participant}
-                    shouldReduceMotion={shouldReduceMotion}
-                  />
-                ))}
-
-                {/* If only local user, show Waiting Status tile */}
-                {remoteParticipants.length === 0 && (
-                  <div className="flex-1 min-h-[9.5rem] bg-[var(--bg-inset)] rounded-[var(--radius-card)] border border-dashed border-[var(--border-hairline)] flex flex-col items-center justify-center p-4 text-center">
-                    <Users className="w-6 h-6 text-[var(--text-secondary)] mb-2 opacity-50" />
-                    <span className="font-sans text-xs text-[var(--text-primary)] font-medium mb-1">
-                      Room Ready
-                    </span>
-                    <span className="font-mono text-[0.6875rem] text-[var(--text-secondary)] max-w-xs leading-relaxed">
-                      1 participant connected. Share invite link to add others.
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Floating Bottom Media Control Bar (§6.3 mic/cam cross-fade glyph swaps) */}
-          <div className="pt-4 flex justify-center z-30">
-            <div className="px-5 py-2.5 rounded-[var(--radius-card)] bg-[var(--bg-elevated)] border border-[var(--border-hairline)] flex items-center gap-3 font-sans">
-              {/* Mic Toggle with 150ms Icon Cross-fade */}
-              <motion.button
-                whileTap={shouldReduceMotion ? undefined : { scale: 0.97 }}
-                type="button"
-                onClick={handleToggleMic}
-                className={`p-2.5 rounded-[var(--radius-button)] border transition-colors duration-[var(--dur-fast)] cursor-pointer ${
-                  isMuted
-                    ? "bg-[var(--bg-inset)] text-[var(--text-secondary)] border-[var(--border-focus)]"
-                    : "bg-[var(--bg-overlay)] text-[var(--text-primary)] border-[var(--border-hairline)] hover:border-[var(--border-hover)]"
-                }`}
-                title={isMuted ? "Unmute Microphone" : "Mute Microphone"}
-              >
-                <AnimatePresence mode="wait" initial={false}>
-                  <motion.span
-                    key={isMuted ? "mic-off" : "mic-on"}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.15 }}
-                    className="flex items-center justify-center"
-                  >
-                    {isMuted ? (
-                      <MicOff className="w-4 h-4" />
-                    ) : (
-                      <Mic className="w-4 h-4" />
-                    )}
-                  </motion.span>
-                </AnimatePresence>
-              </motion.button>
-
-              {/* Video Toggle with 150ms Icon Cross-fade */}
-              <motion.button
-                whileTap={shouldReduceMotion ? undefined : { scale: 0.97 }}
-                type="button"
-                onClick={handleToggleVideo}
-                className={`p-2.5 rounded-[var(--radius-button)] border transition-colors duration-[var(--dur-fast)] cursor-pointer ${
-                  isVideoOff
-                    ? "bg-[var(--bg-inset)] text-[var(--text-secondary)] border-[var(--border-focus)]"
-                    : "bg-[var(--bg-overlay)] text-[var(--text-primary)] border-[var(--border-hairline)] hover:border-[var(--border-hover)]"
-                }`}
-                title={isVideoOff ? "Turn Camera On" : "Turn Camera Off"}
-              >
-                <AnimatePresence mode="wait" initial={false}>
-                  <motion.span
-                    key={isVideoOff ? "video-off" : "video-on"}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.15 }}
-                    className="flex items-center justify-center"
-                  >
-                    {isVideoOff ? (
-                      <VideoOff className="w-4 h-4" />
-                    ) : (
-                      <Video className="w-4 h-4" />
-                    )}
-                  </motion.span>
-                </AnimatePresence>
-              </motion.button>
-
-              {/* Screen Share Toggle */}
-              <button
-                type="button"
-                onClick={handleToggleScreenShare}
-                className={`px-3.5 py-2 rounded-[var(--radius-button)] border text-xs font-mono flex items-center gap-2 transition-colors duration-[var(--dur-fast)] cursor-pointer ${
-                  isScreenSharing
-                    ? "bg-[var(--invert-bg)] text-[var(--invert-text)] border-[var(--invert-bg)]"
-                    : "bg-[var(--bg-overlay)] text-[var(--text-primary)] border-[var(--border-hairline)] hover:border-[var(--border-hover)]"
-                }`}
-                title="Toggle Screen Share"
-              >
-                <Share2 className="w-3.5 h-3.5" />
-                <span>{isScreenSharing ? "Stop Sharing" : "Screen Share"}</span>
-              </button>
-
-              {/* Virtual Background Picker Toggle */}
-              <button
-                type="button"
-                onClick={() => setIsBgPickerOpen(true)}
-                className={`px-3.5 py-2 rounded-[var(--radius-button)] border text-xs font-mono flex items-center gap-2 transition-colors duration-[var(--dur-fast)] cursor-pointer ${
-                  activeBackgroundId !== "none"
-                    ? "bg-[var(--invert-bg)] text-[var(--invert-text)] border-[var(--invert-bg)]"
-                    : "bg-[var(--bg-overlay)] text-[var(--text-primary)] border-[var(--border-hairline)] hover:border-[var(--border-hover)]"
-                }`}
-                title="Virtual Video Background & Blur"
-              >
-                <ImageIcon className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">
-                  {activeBackgroundId === "none"
-                    ? "Background"
-                    : activeBackgroundId === "blur"
-                      ? "Blur"
-                      : activeBackgroundId === "custom"
-                        ? "Custom Bg"
-                        : BACKGROUND_PRESETS.find(
-                            (p) => p.id === activeBackgroundId
-                          )?.name || "Background"}
-                </span>
-                <span className="sm:hidden">Bg</span>
-              </button>
-
-              {/* Mirror Self-View Toggle (§Feature 4) */}
-              <button
-                type="button"
-                onClick={() => setIsSelfViewMirrored((prev) => !prev)}
-                className={`px-3.5 py-2 rounded-[var(--radius-button)] border text-xs font-mono flex items-center gap-2 transition-colors duration-[var(--dur-fast)] cursor-pointer ${
-                  isSelfViewMirrored
-                    ? "bg-[var(--invert-bg)] text-[var(--invert-text)] border-[var(--invert-bg)]"
-                    : "bg-[var(--bg-overlay)] text-[var(--text-primary)] border-[var(--border-hairline)] hover:border-[var(--border-hover)]"
-                }`}
-                title={
-                  isSelfViewMirrored
-                    ? "Self-view: Mirrored (Click for un-mirrored)"
-                    : "Self-view: Un-mirrored (Click to mirror)"
-                }
-              >
-                <FlipHorizontal className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">
-                  {isSelfViewMirrored ? "Mirrored" : "Mirror Off"}
-                </span>
-                <span className="sm:hidden">Flip</span>
-              </button>
-
-              {/* In-Call Chat Toggle */}
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab("chat");
-                  setIsReferenceDeskOpen(true);
-                }}
-                className={`px-3.5 py-2 rounded-[var(--radius-button)] border text-xs font-mono flex items-center gap-2 transition-colors duration-[var(--dur-fast)] cursor-pointer ${
-                  isReferenceDeskOpen && activeTab === "chat"
-                    ? "bg-[var(--invert-bg)] text-[var(--invert-text)] border-[var(--invert-bg)]"
-                    : "bg-[var(--bg-overlay)] text-[var(--text-primary)] border-[var(--border-hairline)] hover:border-[var(--border-hover)]"
-                }`}
-                title="Toggle In-Call Chat Panel"
-              >
-                <MessageSquare className="w-3.5 h-3.5" />
-                <span>
-                  Chat
-                  {inCallMessages.length > 0
-                    ? ` (${inCallMessages.length})`
-                    : ""}
-                </span>
-              </button>
-
-              {/* Study Notes Toggle */}
-              <button
-                type="button"
-                onClick={() => {
-                  if (isReferenceDeskOpen && activeTab !== "chat") {
-                    setIsReferenceDeskOpen(false);
-                  } else {
-                    setActiveTab("notes");
-                    setIsReferenceDeskOpen(true);
-                  }
-                }}
-                className={`px-3.5 py-2 rounded-[var(--radius-button)] border text-xs font-mono flex items-center gap-2 transition-colors duration-[var(--dur-fast)] cursor-pointer ${
-                  isReferenceDeskOpen && activeTab !== "chat"
-                    ? "bg-[var(--invert-bg)] text-[var(--invert-text)] border-[var(--invert-bg)]"
-                    : "bg-[var(--bg-overlay)] text-[var(--text-primary)] border-[var(--border-hairline)] hover:border-[var(--border-hover)]"
-                }`}
-                title="Toggle Study Notes Panel"
-              >
-                <Layers className="w-3.5 h-3.5" />
-                <span>Study Notes</span>
-              </button>
-
-              <div className="w-[1px] h-6 bg-[var(--border-hairline)]" />
-
-              {/* Leave Button: 250ms deliberate closing fade */}
-              <button
-                type="button"
-                onClick={handleLeave}
-                className="px-4 py-2 rounded-[var(--radius-button)] bg-[rgba(229,72,77,0.1)] hover:bg-[rgba(229,72,77,0.22)] border border-[rgba(229,72,77,0.35)] hover:border-[#e5484d] text-[#e5484d] text-xs font-mono font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
-                title="Leave Meeting Room"
-              >
-                <PhoneOff className="w-3.5 h-3.5" /> Leave Call
-              </button>
-            </div>
-          </div>
-        </main>
-
-        {/* Collapsible Reference Desk Side Panel (§6.3 Monochrome restyle) */}
-        {isReferenceDeskOpen && (
-          <aside
-            style={{ width: `${chatPanelWidth}px` }}
-            className="relative bg-[var(--bg-elevated)] text-[var(--text-primary)] border-l border-[var(--border-hairline)] flex flex-col shrink-0 z-30 font-sans"
-          >
-            {/* Left-edge draggable horizontal resize handle (§Feature 5) */}
-            <div
-              tabIndex={0}
-              role="separator"
-              aria-label="Resize in-call chat panel"
-              aria-valuenow={chatPanelWidth}
-              aria-valuemin={280}
-              aria-valuemax={640}
-              onMouseDown={handleStartChatResize}
-              onKeyDown={handleKeyDownChatResize}
-              className="absolute top-0 bottom-0 left-0 w-2 -ml-1 cursor-col-resize hover:bg-[var(--border-focus)] active:bg-[var(--text-primary)] transition-colors z-40 group flex items-center justify-center outline-none"
-              title="Drag or use Left/Right arrow keys to resize panel"
-            >
-              <div className="w-0.5 h-8 bg-[var(--border-hairline)] group-hover:bg-[var(--text-primary)] rounded-full transition-colors" />
-            </div>
-
-            {/* Panel Header */}
-            <div className="p-4 border-b border-[var(--border-hairline)] flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                {activeTab === "chat" ? (
-                  <MessageSquare className="w-4 h-4 text-[var(--text-secondary)]" />
-                ) : (
-                  <BookOpen className="w-4 h-4 text-[var(--text-secondary)]" />
-                )}
-                <div>
-                  <h3 className="font-serif text-base font-normal text-[var(--text-primary)]">
-                    {activeTab === "chat"
-                      ? "In-Call Group Chat"
-                      : "Study Notes & Documents"}
-                  </h3>
-                  <p className="font-mono text-[0.625rem] uppercase tracking-[0.08em] text-[var(--text-secondary)]">
-                    {groupName} Materials
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsReferenceDeskOpen(false)}
-                className="p-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded-[var(--radius-button)] transition-colors cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Tabs (§5 segmented layout transition) */}
-            <div className="px-4 pt-3 flex gap-2 border-b border-[var(--border-hairline)] text-xs font-mono">
-              {[
-                { key: "chat", label: `Chat (${inCallMessages.length})` },
-                { key: "manuscript", label: `Docs (${assets.length})` },
-                { key: "notes", label: `Notes (${pinnedNotes.length})` },
-                { key: "citations", label: "Citations" },
-              ].map((tab) => {
-                const isActive = activeTab === tab.key;
-                return (
-                  <button
-                    key={tab.key}
-                    type="button"
-                    onClick={() => setActiveTab(tab.key as typeof activeTab)}
-                    className={`relative pb-2.5 px-2 transition-colors duration-[var(--dur-fast)] cursor-pointer ${
-                      isActive
-                        ? "text-[var(--text-primary)]"
-                        : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                    }`}
-                  >
-                    {isActive && (
-                      <motion.div
-                        layoutId="activeRoomNotesTab"
-                        transition={{ duration: 0.3, ease: [0.25, 1, 0.5, 1] }}
-                        className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--text-primary)]"
-                      />
-                    )}
-                    <span className="relative z-10">{tab.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Panel Body */}
-            <div
-              data-lenis-prevent
-              className={`flex-1 ${
-                activeTab === "chat"
-                  ? "overflow-hidden flex flex-col p-4"
-                  : "p-5 overflow-y-auto space-y-6"
-              }`}
-            >
-              {activeTab === "chat" && (
-                <div className="flex flex-col flex-1 h-full min-h-0">
-                  {/* Chat Tab Header Bar with Copy to Clipboard Button (§Feature 5) */}
-                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-[var(--border-hairline)] text-xs shrink-0">
-                    <span className="font-mono text-[0.625rem] uppercase tracking-wider text-[var(--text-secondary)]">
-                      Live WebRTC Data Channel
-                    </span>
-                    <button
-                      type="button"
-                      onClick={handleCopyChatToClipboard}
-                      className="font-mono text-[0.6875rem] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center gap-1.5 transition-colors cursor-pointer"
-                      title="Copy in-call conversation as plain text (name, time, message)"
-                    >
-                      {hasCopiedChat ? (
-                        <>
-                          <Check className="w-3 h-3 text-[var(--text-primary)]" />
-                          <span className="text-[var(--text-primary)]">
-                            Copied!
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3 h-3" />
-                          <span>Copy to clipboard</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-
-                  <div
-                    data-lenis-prevent
-                    className="flex-1 overflow-y-auto overscroll-contain space-y-3 pr-1 min-h-0 scroll-smooth"
-                    style={{
-                      overscrollBehavior: "contain",
-                      WebkitOverflowScrolling: "touch",
-                      touchAction: "pan-y",
-                    }}
-                  >
-                    {inCallMessages.length === 0 ? (
-                      <div className="h-full min-h-[14rem] flex flex-col items-center justify-center text-center p-6 border border-dashed border-[var(--border-hairline)] rounded-[var(--radius-card)]">
-                        <MessageSquare className="w-8 h-8 text-[var(--text-secondary)] opacity-40 mb-2" />
-                        <span className="font-serif text-sm text-[var(--text-primary)]">
-                          In-Call Room Chat
-                        </span>
-                        <p className="font-sans text-[0.6875rem] text-[var(--text-secondary)] mt-1 max-w-[200px] leading-relaxed">
-                          Messages sent here are broadcast over WebRTC data
-                          channels to all connected participants.
-                        </p>
-                      </div>
-                    ) : (
-                      inCallMessages.map((msg) => (
-                        <motion.div
-                          key={msg.id}
-                          initial={
-                            shouldReduceMotion
-                              ? { opacity: 0 }
-                              : { opacity: 0, y: 8 }
-                          }
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.2 }}
-                          className={`p-3 rounded-[var(--radius-card)] border text-xs ${
-                            msg.isSelf
-                              ? "bg-[var(--bg-overlay)] border-[var(--border-hover)] ml-4"
-                              : "bg-[var(--bg-inset)] border-[var(--border-hairline)] mr-4"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between gap-2 mb-1">
-                            <span className="font-mono text-[0.625rem] font-semibold text-[var(--text-primary)]">
-                              {msg.isSelf ? "You" : msg.senderName}
-                            </span>
-                            <span className="font-mono text-[0.5625rem] text-[var(--text-secondary)]">
-                              {msg.time}
-                            </span>
+                            <MicOff className="w-3.5 h-3.5" />
                           </div>
-                          <p className="font-sans text-xs text-[var(--text-primary)] leading-relaxed break-words">
-                            {msg.text}
-                          </p>
-                        </motion.div>
-                      ))
-                    )}
-                    <div ref={chatMessagesEndRef} />
-                  </div>
-
-                  <form
-                    onSubmit={handleSendInCallMessage}
-                    className="pt-3 border-t border-[var(--border-hairline)] mt-3 shrink-0"
-                  >
-                    <div className="flex items-center gap-2 relative">
-                      <EmojiPickerButton
-                        onEmojiSelect={handleEmojiSelectInCall}
-                        align="left"
-                      />
-                      <input
-                        ref={inCallInputRef}
-                        type="text"
-                        value={inCallInput}
-                        onChange={(e) => {
-                          setInCallInput(e.target.value);
-                          inCallCursorPosRef.current = e.target.selectionStart;
-                        }}
-                        onSelect={(e) => {
-                          inCallCursorPosRef.current =
-                            e.currentTarget.selectionStart;
-                        }}
-                        onClick={(e) => {
-                          inCallCursorPosRef.current =
-                            e.currentTarget.selectionStart;
-                        }}
-                        onKeyUp={(e) => {
-                          inCallCursorPosRef.current =
-                            e.currentTarget.selectionStart;
-                        }}
-                        placeholder="Type in-call message..."
-                        className="flex-1 bg-[var(--bg-inset)] border border-[var(--border-hairline)] rounded-[var(--radius-button)] px-3 py-2 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:outline-none focus:border-[var(--text-primary)] transition-colors"
-                      />
-                      <button
-                        type="submit"
-                        disabled={!inCallInput.trim()}
-                        className="p-2 rounded-[var(--radius-button)] bg-[var(--invert-bg)] text-[var(--invert-text)] hover:bg-white disabled:opacity-30 transition-colors cursor-pointer"
-                        title="Send Message"
-                      >
-                        <Send className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              )}
-
-              {activeTab === "manuscript" && (
-                <div>
-                  <div className="mb-4 pb-3 border-b border-[var(--border-hairline)]">
-                    <span className="font-mono text-[0.625rem] font-medium uppercase tracking-[0.1em] text-[var(--text-secondary)]">
-                      GROUP DOCUMENTS
-                    </span>
-                    <h4 className="font-serif text-lg font-normal text-[var(--text-primary)] mt-1">
-                      {selectedAsset
-                        ? selectedAsset.title
-                        : "No Document Selected"}
-                    </h4>
-                  </div>
-
-                  {assets.length === 0 ? (
-                    <div className="p-6 bg-[var(--bg-inset)] border border-dashed border-[var(--border-hairline)] rounded-[var(--radius-card)] text-center text-xs text-[var(--text-secondary)]">
-                      <p>No documents uploaded to this study group yet.</p>
-                      <Link
-                        href={`/lounges/${groupId}`}
-                        className="text-[var(--text-primary)] hover:underline mt-2 inline-block font-mono"
-                      >
-                        Upload files in Group Workspace
-                      </Link>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {isLoadingDoc && (
-                        <div className="p-2 text-center text-xs font-mono text-[var(--text-secondary)] border border-[var(--border-hairline)] rounded-[var(--radius-button)] bg-[var(--bg-inset)]">
-                          Loading document...
-                        </div>
-                      )}
-                      {assets.map((a) => (
-                        <div
-                          key={a.id}
-                          onClick={() => {
-                            setSelectedAsset(a);
-                            handleOpenDoc(a);
-                          }}
-                          className={`p-3 rounded-[var(--radius-button)] border cursor-pointer transition-all ${
-                            activeMeetingDoc?.id === a.id
-                              ? "bg-[var(--bg-overlay)] border-[var(--border-hover)]"
-                              : "bg-[var(--bg-inset)] border-[var(--border-hairline)] hover:border-[var(--border-hover)]"
-                          }`}
-                          title="Click to open document in meeting workspace"
-                        >
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="font-sans font-medium text-[var(--text-primary)] truncate max-w-[14rem]">
-                              {a.title}
-                            </span>
-                            <span className="font-mono text-[0.6875rem] px-2 py-0.5 rounded-[var(--radius-button)] bg-[var(--bg-elevated)] border border-[var(--border-hairline)] text-[var(--text-secondary)]">
-                              {a.fileType.toUpperCase()}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {activeTab === "notes" && (
-                <div className="space-y-3">
-                  <h4 className="font-serif text-sm font-normal text-[var(--text-primary)]">
-                    Session Notes
-                  </h4>
-                  {pinnedNotes.length === 0 ? (
-                    <div className="p-4 bg-[var(--bg-inset)] border border-dashed border-[var(--border-hairline)] rounded-[var(--radius-card)] text-center text-xs text-[var(--text-secondary)] font-mono">
-                      No notes pinned yet. Use &ldquo;Pin to Notes&rdquo; on
-                      transcripts or add below.
-                    </div>
-                  ) : (
-                    pinnedNotes.map((note, i) => (
-                      <div
-                        key={i}
-                        onClick={() => handleOpenNote(note, i)}
-                        className={`p-3 border rounded-[var(--radius-button)] text-xs font-serif italic text-[var(--text-primary)] leading-relaxed cursor-pointer transition-all ${
-                          activeMeetingDoc?.id === `note-${i}`
-                            ? "bg-[var(--bg-overlay)] border-[var(--border-hover)]"
-                            : "bg-[var(--bg-inset)] border-[var(--border-hairline)] hover:border-[var(--border-hover)]"
-                        }`}
-                        title="Click to open note in meeting workspace"
-                      >
-                        &ldquo;{note}&rdquo;
-                      </div>
-                    ))
-                  )}
-
-                  {/* Add Note Form */}
-                  <form onSubmit={handleAddMeetingNote} className="pt-2">
-                    <input
-                      type="text"
-                      placeholder="+ Add a study note..."
-                      value={newNoteInput}
-                      onChange={(e) => setNewNoteInput(e.target.value)}
-                      className="w-full bg-[var(--bg-inset)] border border-[var(--border-hairline)] rounded-[var(--radius-button)] text-xs p-2.5 text-[var(--text-primary)] placeholder:text-[var(--text-disabled)] outline-none focus:border-[var(--border-focus)] transition-colors font-sans"
-                    />
-                  </form>
-                </div>
-              )}
-
-              {activeTab === "citations" && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-serif text-sm font-normal text-[var(--text-primary)]">
-                      Meeting Citations
-                    </h4>
-                    {assets.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={handleCopyCitations}
-                        className="font-mono text-xs text-[var(--text-primary)] hover:underline flex items-center gap-1 cursor-pointer"
-                      >
-                        {copiedCitations ? (
-                          <>
-                            <Check className="w-3 h-3" /> Copied!
-                          </>
                         ) : (
-                          <>
-                            <Copy className="w-3 h-3" /> Copy All
-                          </>
+                          <div
+                            className="p-1 rounded-[var(--radius-button)] bg-[var(--bg-inset)]/80 text-[var(--text-primary)] border border-[var(--border-hairline)]"
+                            title="Microphone active"
+                          >
+                            <Mic className="w-3.5 h-3.5" />
+                          </div>
                         )}
-                      </button>
-                    )}
-                  </div>
-
-                  {assets.length === 0 ? (
-                    <div className="p-4 bg-[var(--bg-inset)] border border-dashed border-[var(--border-hairline)] rounded-[var(--radius-card)] text-center text-xs text-[var(--text-secondary)] font-mono">
-                      Citations generate automatically when study documents are
-                      uploaded.
-                    </div>
-                  ) : (
-                    assets.map((a) => (
-                      <div
-                        key={a.id}
-                        onClick={() => handleOpenCitation(a)}
-                        className={`p-3 border rounded-[var(--radius-button)] text-xs cursor-pointer transition-all ${
-                          activeMeetingDoc?.id === a.id
-                            ? "bg-[var(--bg-overlay)] border-[var(--border-hover)]"
-                            : "bg-[var(--bg-inset)] border-[var(--border-hairline)] hover:border-[var(--border-hover)]"
-                        }`}
-                        title="Click to view citation details in meeting workspace"
-                      >
-                        <p className="font-serif italic text-[var(--text-primary)]">
-                          &ldquo;{a.title}&rdquo;
-                        </p>
-                        <span className="font-mono text-[0.625rem] text-[var(--text-secondary)] mt-1 block">
-                          StudyGroup+ Repository • {groupName}
-                        </span>
                       </div>
-                    ))
+                    </div>
+                  </motion.div>
+
+                  {/* Remote Participant Camera Tiles */}
+                  {activeSharer
+                    ? remoteParticipants.map((participant) => (
+                        <RemoteParticipantTile
+                          key={participant.identity}
+                          participant={participant}
+                          shouldReduceMotion={shouldReduceMotion}
+                        />
+                      ))
+                    : remoteParticipants
+                        .slice(1)
+                        .map((participant) => (
+                          <RemoteParticipantTile
+                            key={participant.identity}
+                            participant={participant}
+                            shouldReduceMotion={shouldReduceMotion}
+                          />
+                        ))}
+
+                  {/* If only local user, show Waiting Status tile */}
+                  {remoteParticipants.length === 0 && (
+                    <div className="flex-1 min-h-[9.5rem] bg-[var(--bg-inset)] rounded-[var(--radius-card)] border border-dashed border-[var(--border-hairline)] flex flex-col items-center justify-center p-4 text-center">
+                      <Users className="w-6 h-6 text-[var(--text-secondary)] mb-2 opacity-50" />
+                      <span className="font-sans text-xs text-[var(--text-primary)] font-medium mb-1">
+                        Room Ready
+                      </span>
+                      <span className="font-mono text-[0.6875rem] text-[var(--text-secondary)] max-w-xs leading-relaxed">
+                        1 participant connected. Share invite link to add
+                        others.
+                      </span>
+                    </div>
                   )}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
-            {/* Side Panel Footer Actions */}
-            <div className="p-3 border-t border-[var(--border-hairline)] flex items-center justify-between">
-              <Button
-                variant="secondary"
-                size="sm"
-                icon={<Plus className="w-3.5 h-3.5" />}
-                onClick={() => setActiveTab("notes")}
-              >
-                Add Note
-              </Button>
-              <Link
-                href={`/lounges/${groupId}`}
-                onClick={(e) => {
-                  const isLastParticipant =
-                    !roomRef.current ||
-                    roomRef.current.remoteParticipants.size === 0 ||
-                    remoteParticipants.length === 0;
-                  if (isLastParticipant) {
-                    e.preventDefault();
-                    setShowSaveChatModal(true);
+            {/* Floating Bottom Media Control Bar (§6.3 mic/cam cross-fade glyph swaps) */}
+            <div className="pt-4 flex justify-center z-30">
+              <div className="px-5 py-2.5 rounded-[var(--radius-card)] bg-[var(--bg-elevated)] border border-[var(--border-hairline)] flex items-center gap-3 font-sans">
+                {/* Mic Toggle with 150ms Icon Cross-fade */}
+                <motion.button
+                  whileTap={shouldReduceMotion ? undefined : { scale: 0.97 }}
+                  type="button"
+                  onClick={handleToggleMic}
+                  className={`p-2.5 rounded-[var(--radius-button)] border transition-colors duration-[var(--dur-fast)] cursor-pointer ${
+                    isMuted
+                      ? "bg-[var(--bg-inset)] text-[var(--text-secondary)] border-[var(--border-focus)]"
+                      : "bg-[var(--bg-overlay)] text-[var(--text-primary)] border-[var(--border-hairline)] hover:border-[var(--border-hover)]"
+                  }`}
+                  title={isMuted ? "Unmute Microphone" : "Mute Microphone"}
+                >
+                  <AnimatePresence mode="wait" initial={false}>
+                    <motion.span
+                      key={isMuted ? "mic-off" : "mic-on"}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.15 }}
+                      className="flex items-center justify-center"
+                    >
+                      {isMuted ? (
+                        <MicOff className="w-4 h-4" />
+                      ) : (
+                        <Mic className="w-4 h-4" />
+                      )}
+                    </motion.span>
+                  </AnimatePresence>
+                </motion.button>
+
+                {/* Video Toggle with 150ms Icon Cross-fade */}
+                <motion.button
+                  whileTap={shouldReduceMotion ? undefined : { scale: 0.97 }}
+                  type="button"
+                  onClick={handleToggleVideo}
+                  className={`p-2.5 rounded-[var(--radius-button)] border transition-colors duration-[var(--dur-fast)] cursor-pointer ${
+                    isVideoOff
+                      ? "bg-[var(--bg-inset)] text-[var(--text-secondary)] border-[var(--border-focus)]"
+                      : "bg-[var(--bg-overlay)] text-[var(--text-primary)] border-[var(--border-hairline)] hover:border-[var(--border-hover)]"
+                  }`}
+                  title={isVideoOff ? "Turn Camera On" : "Turn Camera Off"}
+                >
+                  <AnimatePresence mode="wait" initial={false}>
+                    <motion.span
+                      key={isVideoOff ? "video-off" : "video-on"}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.15 }}
+                      className="flex items-center justify-center"
+                    >
+                      {isVideoOff ? (
+                        <VideoOff className="w-4 h-4" />
+                      ) : (
+                        <Video className="w-4 h-4" />
+                      )}
+                    </motion.span>
+                  </AnimatePresence>
+                </motion.button>
+
+                {/* Screen Share Toggle */}
+                <ScreenShareButton
+                  canShare={canShareScreen}
+                  isSharing={isLocalSharing}
+                  disabled={Boolean(activeSharer && !activeSharer.isLocal)}
+                  disabledReason={
+                    activeSharer && !activeSharer.isLocal
+                      ? `${activeSharer.name} is already sharing`
+                      : undefined
                   }
-                }}
-                className="font-mono text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
-              >
-                Back to Workspace
-              </Link>
-            </div>
-          </aside>
-        )}
-      </div>
-      {/* Virtual Photo Background Modal Dialog (Feature 1) */}
-      <AnimatePresence>
-        {isBgPickerOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            {/* Backdrop (§5: fades to --bg-primary at 60% opacity) */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 0.6 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              onClick={() => setIsBgPickerOpen(false)}
-              className="absolute inset-0 bg-[var(--bg-primary)] backdrop-blur-sm cursor-pointer"
-            />
+                  onToggle={toggleScreenShare}
+                />
 
-            {/* Modal Box (§5: scale 0.96 -> 1 + fade, ease-out-expo) */}
-            <motion.div
-              initial={
-                shouldReduceMotion
-                  ? { opacity: 0 }
-                  : { opacity: 0, scale: 0.96 }
-              }
-              animate={{ opacity: 1, scale: 1 }}
-              exit={
-                shouldReduceMotion
-                  ? { opacity: 0 }
-                  : { opacity: 0, scale: 0.96 }
-              }
-              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-              className="relative z-10 w-full max-w-2xl bg-[var(--bg-elevated)] border border-[var(--border-hairline)] rounded-[var(--radius-card)] shadow-2xl p-6 overflow-hidden flex flex-col max-h-[90vh] font-sans"
+                {/* Virtual Background Picker Toggle */}
+                <button
+                  type="button"
+                  onClick={() => setIsBgPickerOpen(true)}
+                  className={`px-3.5 py-2 rounded-[var(--radius-button)] border text-xs font-mono flex items-center gap-2 transition-colors duration-[var(--dur-fast)] cursor-pointer ${
+                    activeBackgroundId !== "none"
+                      ? "bg-[var(--invert-bg)] text-[var(--invert-text)] border-[var(--invert-bg)]"
+                      : "bg-[var(--bg-overlay)] text-[var(--text-primary)] border-[var(--border-hairline)] hover:border-[var(--border-hover)]"
+                  }`}
+                  title="Virtual Video Background & Blur"
+                >
+                  <ImageIcon className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">
+                    {activeBackgroundId === "none"
+                      ? "Background"
+                      : activeBackgroundId === "blur"
+                        ? "Blur"
+                        : activeBackgroundId === "custom"
+                          ? "Custom Bg"
+                          : BACKGROUND_PRESETS.find(
+                              (p) => p.id === activeBackgroundId
+                            )?.name || "Background"}
+                  </span>
+                  <span className="sm:hidden">Bg</span>
+                </button>
+
+                {/* Mirror Self-View Toggle (§Feature 4) */}
+                <button
+                  type="button"
+                  onClick={() => setIsSelfViewMirrored((prev) => !prev)}
+                  className={`px-3.5 py-2 rounded-[var(--radius-button)] border text-xs font-mono flex items-center gap-2 transition-colors duration-[var(--dur-fast)] cursor-pointer ${
+                    isSelfViewMirrored
+                      ? "bg-[var(--invert-bg)] text-[var(--invert-text)] border-[var(--invert-bg)]"
+                      : "bg-[var(--bg-overlay)] text-[var(--text-primary)] border-[var(--border-hairline)] hover:border-[var(--border-hover)]"
+                  }`}
+                  title={
+                    isSelfViewMirrored
+                      ? "Self-view: Mirrored (Click for un-mirrored)"
+                      : "Self-view: Un-mirrored (Click to mirror)"
+                  }
+                >
+                  <FlipHorizontal className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">
+                    {isSelfViewMirrored ? "Mirrored" : "Mirror Off"}
+                  </span>
+                  <span className="sm:hidden">Flip</span>
+                </button>
+
+                {/* In-Call Chat Toggle */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab("chat");
+                    setIsReferenceDeskOpen(true);
+                  }}
+                  className={`px-3.5 py-2 rounded-[var(--radius-button)] border text-xs font-mono flex items-center gap-2 transition-colors duration-[var(--dur-fast)] cursor-pointer ${
+                    isReferenceDeskOpen && activeTab === "chat"
+                      ? "bg-[var(--invert-bg)] text-[var(--invert-text)] border-[var(--invert-bg)]"
+                      : "bg-[var(--bg-overlay)] text-[var(--text-primary)] border-[var(--border-hairline)] hover:border-[var(--border-hover)]"
+                  }`}
+                  title="Toggle In-Call Chat Panel"
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  <span>
+                    Chat
+                    {inCallMessages.length > 0
+                      ? ` (${inCallMessages.length})`
+                      : ""}
+                  </span>
+                </button>
+
+                {/* Study Notes Toggle */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isReferenceDeskOpen && activeTab !== "chat") {
+                      setIsReferenceDeskOpen(false);
+                    } else {
+                      setActiveTab("notes");
+                      setIsReferenceDeskOpen(true);
+                    }
+                  }}
+                  className={`px-3.5 py-2 rounded-[var(--radius-button)] border text-xs font-mono flex items-center gap-2 transition-colors duration-[var(--dur-fast)] cursor-pointer ${
+                    isReferenceDeskOpen && activeTab !== "chat"
+                      ? "bg-[var(--invert-bg)] text-[var(--invert-text)] border-[var(--invert-bg)]"
+                      : "bg-[var(--bg-overlay)] text-[var(--text-primary)] border-[var(--border-hairline)] hover:border-[var(--border-hover)]"
+                  }`}
+                  title="Toggle Study Notes Panel"
+                >
+                  <Layers className="w-3.5 h-3.5" />
+                  <span>Study Notes</span>
+                </button>
+
+                <div className="w-[1px] h-6 bg-[var(--border-hairline)]" />
+
+                {/* Leave Button: 250ms deliberate closing fade */}
+                <button
+                  type="button"
+                  onClick={handleLeave}
+                  className="px-4 py-2 rounded-[var(--radius-button)] bg-[rgba(229,72,77,0.1)] hover:bg-[rgba(229,72,77,0.22)] border border-[rgba(229,72,77,0.35)] hover:border-[#e5484d] text-[#e5484d] text-xs font-mono font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+                  title="Leave Meeting Room"
+                >
+                  <PhoneOff className="w-3.5 h-3.5" /> Leave Call
+                </button>
+              </div>
+            </div>
+          </main>
+
+          {/* Collapsible Reference Desk Side Panel (§6.3 Monochrome restyle) */}
+          {isReferenceDeskOpen && (
+            <aside
+              style={{ width: `${chatPanelWidth}px` }}
+              className="relative bg-[var(--bg-elevated)] text-[var(--text-primary)] border-l border-[var(--border-hairline)] flex flex-col shrink-0 z-30 font-sans"
             >
-              {/* Header */}
-              <div className="flex items-start justify-between pb-4 border-b border-[var(--border-hairline)]">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-[var(--text-primary)]" />
-                    <h3 className="font-serif text-lg font-normal text-[var(--text-primary)]">
-                      Virtual Video Background
+              {/* Left-edge draggable horizontal resize handle (§Feature 5) */}
+              <div
+                tabIndex={0}
+                role="separator"
+                aria-label="Resize in-call chat panel"
+                aria-valuenow={chatPanelWidth}
+                aria-valuemin={280}
+                aria-valuemax={640}
+                onMouseDown={handleStartChatResize}
+                onKeyDown={handleKeyDownChatResize}
+                className="absolute top-0 bottom-0 left-0 w-2 -ml-1 cursor-col-resize hover:bg-[var(--border-focus)] active:bg-[var(--text-primary)] transition-colors z-40 group flex items-center justify-center outline-none"
+                title="Drag or use Left/Right arrow keys to resize panel"
+              >
+                <div className="w-0.5 h-8 bg-[var(--border-hairline)] group-hover:bg-[var(--text-primary)] rounded-full transition-colors" />
+              </div>
+
+              {/* Panel Header */}
+              <div className="p-4 border-b border-[var(--border-hairline)] flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  {activeTab === "chat" ? (
+                    <MessageSquare className="w-4 h-4 text-[var(--text-secondary)]" />
+                  ) : (
+                    <BookOpen className="w-4 h-4 text-[var(--text-secondary)]" />
+                  )}
+                  <div>
+                    <h3 className="font-serif text-base font-normal text-[var(--text-primary)]">
+                      {activeTab === "chat"
+                        ? "In-Call Group Chat"
+                        : "Study Notes & Documents"}
                     </h3>
+                    <p className="font-mono text-[0.625rem] uppercase tracking-[0.08em] text-[var(--text-secondary)]">
+                      {groupName} Materials
+                    </p>
                   </div>
-                  <p className="font-sans text-xs text-[var(--text-secondary)] mt-1">
-                    Select a background effect or upload a photo. Changes apply
-                    immediately to your video feed.
-                  </p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => setIsBgPickerOpen(false)}
-                  className="p-1.5 rounded-[var(--radius-button)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-inset)] transition-colors cursor-pointer"
-                  title="Close Background Picker"
+                  onClick={() => setIsReferenceDeskOpen(false)}
+                  className="p-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded-[var(--radius-button)] transition-colors cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              {/* Error Alert */}
-              {bgError && (
-                <div className="mt-4 p-3 rounded-[var(--radius-card)] bg-[var(--bg-inset)] border border-[var(--border-hairline)] text-xs text-[var(--text-secondary)] flex items-center gap-2 font-mono">
-                  <AlertCircle className="w-4 h-4 text-[var(--text-primary)] shrink-0" />
-                  <span>{bgError}</span>
-                </div>
-              )}
-
-              {/* Camera Off Notice */}
-              {isVideoOff && (
-                <div className="mt-4 p-3 rounded-[var(--radius-card)] bg-[var(--bg-inset)] border border-[var(--border-hairline)] text-xs text-[var(--text-secondary)] flex items-center justify-between font-sans">
-                  <span>
-                    Your camera is currently off. The selected background will
-                    activate when camera is turned on.
-                  </span>
-                </div>
-              )}
-
-              {/* Options Grid */}
-              <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3 overflow-y-auto max-h-[50vh] pr-1 py-1">
-                {/* Built-in Presets */}
-                {BACKGROUND_PRESETS.map((preset) => {
-                  const isSelected = activeBackgroundId === preset.id;
+              {/* Tabs (§5 segmented layout transition) */}
+              <div className="px-4 pt-3 flex gap-2 border-b border-[var(--border-hairline)] text-xs font-mono">
+                {[
+                  { key: "chat", label: `Chat (${inCallMessages.length})` },
+                  { key: "manuscript", label: `Docs (${assets.length})` },
+                  { key: "notes", label: `Notes (${pinnedNotes.length})` },
+                  { key: "citations", label: "Citations" },
+                ].map((tab) => {
+                  const isActive = activeTab === tab.key;
                   return (
                     <button
-                      key={preset.id}
+                      key={tab.key}
                       type="button"
-                      onClick={() => applyBackground(preset.id)}
-                      className={`relative group flex flex-col rounded-[var(--radius-card)] border overflow-hidden text-left transition-all duration-[var(--dur-fast)] cursor-pointer ${
-                        isSelected
-                          ? "border-[var(--text-primary)] ring-2 ring-[var(--text-primary)]/20"
-                          : "border-[var(--border-hairline)] hover:border-[var(--border-hover)] hover:-translate-y-0.5"
+                      onClick={() => setActiveTab(tab.key as typeof activeTab)}
+                      className={`relative pb-2.5 px-2 transition-colors duration-[var(--dur-fast)] cursor-pointer ${
+                        isActive
+                          ? "text-[var(--text-primary)]"
+                          : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                       }`}
                     >
-                      <div className="w-full aspect-video bg-[var(--bg-inset)] relative flex items-center justify-center overflow-hidden">
-                        {preset.type === "none" && (
-                          <div className="flex flex-col items-center justify-center">
-                            <Ban className="w-6 h-6 text-[var(--text-secondary)] opacity-50 mb-1" />
-                            <span className="font-mono text-[0.625rem] text-[var(--text-secondary)]">
-                              No Effect
-                            </span>
-                          </div>
-                        )}
-
-                        {preset.type === "blur" && (
-                          <div className="w-full h-full bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center relative">
-                            <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md border border-white/20 flex items-center justify-center">
-                              <Sparkles className="w-4 h-4 text-white/90" />
-                            </div>
-                          </div>
-                        )}
-
-                        {preset.type === "image" && preset.src && (
-                          /* eslint-disable-next-line @next/next/no-img-element */
-                          <img
-                            src={preset.src}
-                            alt={preset.name}
-                            className="w-full h-full object-cover"
-                          />
-                        )}
-
-                        {isSelected && (
-                          <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[var(--invert-bg)] text-[var(--invert-text)] flex items-center justify-center shadow-md">
-                            <Check className="w-3 h-3 stroke-[2.5]" />
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="p-2.5 bg-[var(--bg-elevated)] border-t border-[var(--border-hairline)] flex-1 flex flex-col justify-between">
-                        <div className="font-sans text-xs font-medium text-[var(--text-primary)]">
-                          {preset.name}
-                        </div>
-                        <div className="font-mono text-[0.625rem] text-[var(--text-secondary)] truncate mt-0.5">
-                          {preset.description}
-                        </div>
-                      </div>
+                      {isActive && (
+                        <motion.div
+                          layoutId="activeRoomNotesTab"
+                          transition={{
+                            duration: 0.3,
+                            ease: [0.25, 1, 0.5, 1],
+                          }}
+                          className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--text-primary)]"
+                        />
+                      )}
+                      <span className="relative z-10">{tab.label}</span>
                     </button>
                   );
                 })}
+              </div>
 
-                {/* Custom Photo Upload Card */}
-                <div
-                  onClick={() => {
-                    if (customBgUrl && activeBackgroundId !== "custom") {
-                      applyBackground("custom", customBgUrl);
-                    } else {
-                      if (fileInputRef.current) fileInputRef.current.value = "";
-                      fileInputRef.current?.click();
+              {/* Panel Body */}
+              <div
+                data-lenis-prevent
+                className={`flex-1 ${
+                  activeTab === "chat"
+                    ? "overflow-hidden flex flex-col p-4"
+                    : "p-5 overflow-y-auto space-y-6"
+                }`}
+              >
+                {activeTab === "chat" && (
+                  <InCallChatPanel roomName={groupName || "study-session"} />
+                )}
+
+                {activeTab === "manuscript" && (
+                  <div>
+                    <div className="mb-4 pb-3 border-b border-[var(--border-hairline)]">
+                      <span className="font-mono text-[0.625rem] font-medium uppercase tracking-[0.1em] text-[var(--text-secondary)]">
+                        GROUP DOCUMENTS
+                      </span>
+                      <h4 className="font-serif text-lg font-normal text-[var(--text-primary)] mt-1">
+                        {selectedAsset
+                          ? selectedAsset.title
+                          : "No Document Selected"}
+                      </h4>
+                    </div>
+
+                    {assets.length === 0 ? (
+                      <div className="p-6 bg-[var(--bg-inset)] border border-dashed border-[var(--border-hairline)] rounded-[var(--radius-card)] text-center text-xs text-[var(--text-secondary)]">
+                        <p>No documents uploaded to this study group yet.</p>
+                        <Link
+                          href={`/lounges/${groupId}`}
+                          className="text-[var(--text-primary)] hover:underline mt-2 inline-block font-mono"
+                        >
+                          Upload files in Group Workspace
+                        </Link>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {isLoadingDoc && (
+                          <div className="p-2 text-center text-xs font-mono text-[var(--text-secondary)] border border-[var(--border-hairline)] rounded-[var(--radius-button)] bg-[var(--bg-inset)]">
+                            Loading document...
+                          </div>
+                        )}
+                        {assets.map((a) => (
+                          <div
+                            key={a.id}
+                            onClick={() => {
+                              setSelectedAsset(a);
+                              handleOpenDoc(a);
+                            }}
+                            className={`p-3 rounded-[var(--radius-button)] border cursor-pointer transition-all ${
+                              activeMeetingDoc?.id === a.id
+                                ? "bg-[var(--bg-overlay)] border-[var(--border-hover)]"
+                                : "bg-[var(--bg-inset)] border-[var(--border-hairline)] hover:border-[var(--border-hover)]"
+                            }`}
+                            title="Click to open document in meeting workspace"
+                          >
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="font-sans font-medium text-[var(--text-primary)] truncate max-w-[14rem]">
+                                {a.title}
+                              </span>
+                              <span className="font-mono text-[0.6875rem] px-2 py-0.5 rounded-[var(--radius-button)] bg-[var(--bg-elevated)] border border-[var(--border-hairline)] text-[var(--text-secondary)]">
+                                {a.fileType.toUpperCase()}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {activeTab === "notes" && (
+                  <div className="space-y-3">
+                    <h4 className="font-serif text-sm font-normal text-[var(--text-primary)]">
+                      Session Notes
+                    </h4>
+                    {pinnedNotes.length === 0 ? (
+                      <div className="p-4 bg-[var(--bg-inset)] border border-dashed border-[var(--border-hairline)] rounded-[var(--radius-card)] text-center text-xs text-[var(--text-secondary)] font-mono">
+                        No notes pinned yet. Use &ldquo;Pin to Notes&rdquo; on
+                        transcripts or add below.
+                      </div>
+                    ) : (
+                      pinnedNotes.map((note, i) => (
+                        <div
+                          key={i}
+                          onClick={() => handleOpenNote(note, i)}
+                          className={`p-3 border rounded-[var(--radius-button)] text-xs font-serif italic text-[var(--text-primary)] leading-relaxed cursor-pointer transition-all ${
+                            activeMeetingDoc?.id === `note-${i}`
+                              ? "bg-[var(--bg-overlay)] border-[var(--border-hover)]"
+                              : "bg-[var(--bg-inset)] border-[var(--border-hairline)] hover:border-[var(--border-hover)]"
+                          }`}
+                          title="Click to open note in meeting workspace"
+                        >
+                          &ldquo;{note}&rdquo;
+                        </div>
+                      ))
+                    )}
+
+                    {/* Add Note Form */}
+                    <form onSubmit={handleAddMeetingNote} className="pt-2">
+                      <input
+                        type="text"
+                        placeholder="+ Add a study note..."
+                        value={newNoteInput}
+                        onChange={(e) => setNewNoteInput(e.target.value)}
+                        className="w-full bg-[var(--bg-inset)] border border-[var(--border-hairline)] rounded-[var(--radius-button)] text-xs p-2.5 text-[var(--text-primary)] placeholder:text-[var(--text-disabled)] outline-none focus:border-[var(--border-focus)] transition-colors font-sans"
+                      />
+                    </form>
+                  </div>
+                )}
+
+                {activeTab === "citations" && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-serif text-sm font-normal text-[var(--text-primary)]">
+                        Meeting Citations
+                      </h4>
+                      {assets.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleCopyCitations}
+                          className="font-mono text-xs text-[var(--text-primary)] hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          {copiedCitations ? (
+                            <>
+                              <Check className="w-3 h-3" /> Copied!
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3 h-3" /> Copy All
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+
+                    {assets.length === 0 ? (
+                      <div className="p-4 bg-[var(--bg-inset)] border border-dashed border-[var(--border-hairline)] rounded-[var(--radius-card)] text-center text-xs text-[var(--text-secondary)] font-mono">
+                        Citations generate automatically when study documents
+                        are uploaded.
+                      </div>
+                    ) : (
+                      assets.map((a) => (
+                        <div
+                          key={a.id}
+                          onClick={() => handleOpenCitation(a)}
+                          className={`p-3 border rounded-[var(--radius-button)] text-xs cursor-pointer transition-all ${
+                            activeMeetingDoc?.id === a.id
+                              ? "bg-[var(--bg-overlay)] border-[var(--border-hover)]"
+                              : "bg-[var(--bg-inset)] border-[var(--border-hairline)] hover:border-[var(--border-hover)]"
+                          }`}
+                          title="Click to view citation details in meeting workspace"
+                        >
+                          <p className="font-serif italic text-[var(--text-primary)]">
+                            &ldquo;{a.title}&rdquo;
+                          </p>
+                          <span className="font-mono text-[0.625rem] text-[var(--text-secondary)] mt-1 block">
+                            StudyGroup+ Repository • {groupName}
+                          </span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Side Panel Footer Actions */}
+              <div className="p-3 border-t border-[var(--border-hairline)] flex items-center justify-between">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={<Plus className="w-3.5 h-3.5" />}
+                  onClick={() => setActiveTab("notes")}
+                >
+                  Add Note
+                </Button>
+                <Link
+                  href={`/lounges/${groupId}`}
+                  onClick={(e) => {
+                    const isLastParticipant =
+                      !roomRef.current ||
+                      roomRef.current.remoteParticipants.size === 0 ||
+                      remoteParticipants.length === 0;
+                    if (isLastParticipant) {
+                      e.preventDefault();
+                      setShowSaveChatModal(true);
                     }
                   }}
-                  className={`relative group flex flex-col rounded-[var(--radius-card)] border overflow-hidden text-left transition-all duration-[var(--dur-fast)] cursor-pointer ${
-                    activeBackgroundId === "custom"
-                      ? "border-[var(--text-primary)] ring-2 ring-[var(--text-primary)]/20"
-                      : "border-[var(--border-hairline)] hover:border-[var(--border-hover)] hover:-translate-y-0.5"
-                  }`}
+                  className="font-mono text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
                 >
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleCustomFileUpload}
-                    accept="image/*"
-                    className="hidden"
-                  />
-                  <div className="w-full aspect-video bg-[var(--bg-inset)] relative flex items-center justify-center overflow-hidden">
-                    {customBgUrl ? (
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      <img
-                        src={customBgUrl}
-                        alt="Custom Background"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex flex-col items-center justify-center p-3 text-center">
-                        <Upload className="w-5 h-5 text-[var(--text-secondary)] opacity-60 mb-1" />
-                        <span className="font-mono text-[0.625rem] text-[var(--text-secondary)]">
-                          Upload Photo
+                  Back to Workspace
+                </Link>
+              </div>
+            </aside>
+          )}
+        </div>
+        {/* Virtual Photo Background Modal Dialog (Feature 1) */}
+        <AnimatePresence>
+          {isBgPickerOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              {/* Backdrop (§5: fades to --bg-primary at 60% opacity) */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 0.6 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                onClick={() => setIsBgPickerOpen(false)}
+                className="absolute inset-0 bg-[var(--bg-primary)] backdrop-blur-sm cursor-pointer"
+              />
+
+              {/* Modal Box (§5: scale 0.96 -> 1 + fade, ease-out-expo) */}
+              <motion.div
+                initial={
+                  shouldReduceMotion
+                    ? { opacity: 0 }
+                    : { opacity: 0, scale: 0.96 }
+                }
+                animate={{ opacity: 1, scale: 1 }}
+                exit={
+                  shouldReduceMotion
+                    ? { opacity: 0 }
+                    : { opacity: 0, scale: 0.96 }
+                }
+                transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                className="relative z-10 w-full max-w-2xl bg-[var(--bg-elevated)] border border-[var(--border-hairline)] rounded-[var(--radius-card)] shadow-2xl p-6 overflow-hidden flex flex-col max-h-[90vh] font-sans"
+              >
+                {/* Header */}
+                <div className="flex items-start justify-between pb-4 border-b border-[var(--border-hairline)]">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-[var(--text-primary)]" />
+                      <h3 className="font-serif text-lg font-normal text-[var(--text-primary)]">
+                        Virtual Video Background
+                      </h3>
+                    </div>
+                    <p className="font-sans text-xs text-[var(--text-secondary)] mt-1">
+                      Select a background effect or upload a photo. Changes
+                      apply immediately to your video feed.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsBgPickerOpen(false)}
+                    className="p-1.5 rounded-[var(--radius-button)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-inset)] transition-colors cursor-pointer"
+                    title="Close Background Picker"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Error Alert */}
+                {bgError && (
+                  <div className="mt-4 p-3 rounded-[var(--radius-card)] bg-[var(--bg-inset)] border border-[var(--border-hairline)] text-xs text-[var(--text-secondary)] flex items-center gap-2 font-mono">
+                    <AlertCircle className="w-4 h-4 text-[var(--text-primary)] shrink-0" />
+                    <span>{bgError}</span>
+                  </div>
+                )}
+
+                {/* Camera Off Notice */}
+                {isVideoOff && (
+                  <div className="mt-4 p-3 rounded-[var(--radius-card)] bg-[var(--bg-inset)] border border-[var(--border-hairline)] text-xs text-[var(--text-secondary)] flex items-center justify-between font-sans">
+                    <span>
+                      Your camera is currently off. The selected background will
+                      activate when camera is turned on.
+                    </span>
+                  </div>
+                )}
+
+                {/* Options Grid */}
+                <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3 overflow-y-auto max-h-[50vh] pr-1 py-1">
+                  {/* Built-in Presets */}
+                  {BACKGROUND_PRESETS.map((preset) => {
+                    const isSelected = activeBackgroundId === preset.id;
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => applyBackground(preset.id)}
+                        className={`relative group flex flex-col rounded-[var(--radius-card)] border overflow-hidden text-left transition-all duration-[var(--dur-fast)] cursor-pointer ${
+                          isSelected
+                            ? "border-[var(--text-primary)] ring-2 ring-[var(--text-primary)]/20"
+                            : "border-[var(--border-hairline)] hover:border-[var(--border-hover)] hover:-translate-y-0.5"
+                        }`}
+                      >
+                        <div className="w-full aspect-video bg-[var(--bg-inset)] relative flex items-center justify-center overflow-hidden">
+                          {preset.type === "none" && (
+                            <div className="flex flex-col items-center justify-center">
+                              <Ban className="w-6 h-6 text-[var(--text-secondary)] opacity-50 mb-1" />
+                              <span className="font-mono text-[0.625rem] text-[var(--text-secondary)]">
+                                No Effect
+                              </span>
+                            </div>
+                          )}
+
+                          {preset.type === "blur" && (
+                            <div className="w-full h-full bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center relative">
+                              <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md border border-white/20 flex items-center justify-center">
+                                <Sparkles className="w-4 h-4 text-white/90" />
+                              </div>
+                            </div>
+                          )}
+
+                          {preset.type === "image" && preset.src && (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <img
+                              src={preset.src}
+                              alt={preset.name}
+                              className="w-full h-full object-cover"
+                            />
+                          )}
+
+                          {isSelected && (
+                            <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[var(--invert-bg)] text-[var(--invert-text)] flex items-center justify-center shadow-md">
+                              <Check className="w-3 h-3 stroke-[2.5]" />
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="p-2.5 bg-[var(--bg-elevated)] border-t border-[var(--border-hairline)] flex-1 flex flex-col justify-between">
+                          <div className="font-sans text-xs font-medium text-[var(--text-primary)]">
+                            {preset.name}
+                          </div>
+                          <div className="font-mono text-[0.625rem] text-[var(--text-secondary)] truncate mt-0.5">
+                            {preset.description}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+
+                  {/* Custom Photo Upload Card */}
+                  <div
+                    onClick={() => {
+                      if (customBgUrl && activeBackgroundId !== "custom") {
+                        applyBackground("custom", customBgUrl);
+                      } else {
+                        if (fileInputRef.current)
+                          fileInputRef.current.value = "";
+                        fileInputRef.current?.click();
+                      }
+                    }}
+                    className={`relative group flex flex-col rounded-[var(--radius-card)] border overflow-hidden text-left transition-all duration-[var(--dur-fast)] cursor-pointer ${
+                      activeBackgroundId === "custom"
+                        ? "border-[var(--text-primary)] ring-2 ring-[var(--text-primary)]/20"
+                        : "border-[var(--border-hairline)] hover:border-[var(--border-hover)] hover:-translate-y-0.5"
+                    }`}
+                  >
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleCustomFileUpload}
+                      accept="image/*"
+                      className="hidden"
+                    />
+                    <div className="w-full aspect-video bg-[var(--bg-inset)] relative flex items-center justify-center overflow-hidden">
+                      {customBgUrl ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img
+                          src={customBgUrl}
+                          alt="Custom Background"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex flex-col items-center justify-center p-3 text-center">
+                          <Upload className="w-5 h-5 text-[var(--text-secondary)] opacity-60 mb-1" />
+                          <span className="font-mono text-[0.625rem] text-[var(--text-secondary)]">
+                            Upload Photo
+                          </span>
+                        </div>
+                      )}
+
+                      {activeBackgroundId === "custom" && (
+                        <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[var(--invert-bg)] text-[var(--invert-text)] flex items-center justify-center shadow-md">
+                          <Check className="w-3 h-3 stroke-[2.5]" />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="p-2.5 bg-[var(--bg-elevated)] border-t border-[var(--border-hairline)] flex-1 flex flex-col justify-between">
+                      <div className="font-sans text-xs font-medium text-[var(--text-primary)] flex items-center justify-between">
+                        <span>
+                          {customBgUrl ? "Custom Photo" : "Upload Custom"}
+                        </span>
+                        <span className="font-mono text-[0.5625rem] text-[var(--text-secondary)]">
+                          PNG/JPG
                         </span>
                       </div>
-                    )}
-
-                    {activeBackgroundId === "custom" && (
-                      <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[var(--invert-bg)] text-[var(--invert-text)] flex items-center justify-center shadow-md">
-                        <Check className="w-3 h-3 stroke-[2.5]" />
+                      <div className="font-mono text-[0.625rem] text-[var(--text-secondary)] truncate mt-0.5">
+                        {customBgUrl
+                          ? "Click to change photo"
+                          : "Choose your own file"}
                       </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Modal Footer */}
+                <div className="mt-4 pt-4 border-t border-[var(--border-hairline)] flex items-center justify-between">
+                  <span className="font-mono text-[0.6875rem] text-[var(--text-secondary)]">
+                    {isApplyingBg ? (
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-primary)] animate-ping" />
+                        Applying background effect...
+                      </span>
+                    ) : (
+                      `Active: ${
+                        activeBackgroundId === "none"
+                          ? "Standard Camera"
+                          : activeBackgroundId === "blur"
+                            ? "Background Blur"
+                            : activeBackgroundId === "custom"
+                              ? "Custom Photo"
+                              : BACKGROUND_PRESETS.find(
+                                  (p) => p.id === activeBackgroundId
+                                )?.name || "Preset"
+                      }`
                     )}
-                  </div>
+                  </span>
 
-                  <div className="p-2.5 bg-[var(--bg-elevated)] border-t border-[var(--border-hairline)] flex-1 flex flex-col justify-between">
-                    <div className="font-sans text-xs font-medium text-[var(--text-primary)] flex items-center justify-between">
-                      <span>
-                        {customBgUrl ? "Custom Photo" : "Upload Custom"}
-                      </span>
-                      <span className="font-mono text-[0.5625rem] text-[var(--text-secondary)]">
-                        PNG/JPG
-                      </span>
-                    </div>
-                    <div className="font-mono text-[0.625rem] text-[var(--text-secondary)] truncate mt-0.5">
-                      {customBgUrl
-                        ? "Click to change photo"
-                        : "Choose your own file"}
-                    </div>
-                  </div>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setIsBgPickerOpen(false)}
+                    className="text-xs"
+                  >
+                    Done
+                  </Button>
                 </div>
-              </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
 
-              {/* Modal Footer */}
-              <div className="mt-4 pt-4 border-t border-[var(--border-hairline)] flex items-center justify-between">
-                <span className="font-mono text-[0.6875rem] text-[var(--text-secondary)]">
-                  {isApplyingBg ? (
-                    <span className="flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-primary)] animate-ping" />
-                      Applying background effect...
-                    </span>
-                  ) : (
-                    `Active: ${
-                      activeBackgroundId === "none"
-                        ? "Standard Camera"
-                        : activeBackgroundId === "blur"
-                          ? "Background Blur"
-                          : activeBackgroundId === "custom"
-                            ? "Custom Photo"
-                            : BACKGROUND_PRESETS.find(
-                                (p) => p.id === activeBackgroundId
-                              )?.name || "Preset"
-                    }`
-                  )}
-                </span>
-
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setIsBgPickerOpen(false)}
-                  className="text-xs"
-                >
-                  Done
-                </Button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Silent Study Mode Floating Notice */}
-      <AnimatePresence>
-        {silentStudyNotice && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
-            className="absolute top-16 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--bg-elevated)]/95 border border-[var(--border-hairline)] shadow-xl text-xs font-mono text-[var(--text-primary)] backdrop-blur-md pointer-events-none"
-          >
-            <VolumeX className="w-3.5 h-3.5 text-amber-500" />
-            <span>{silentStudyNotice}</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Save Chat Prompt Modal when Last Participant Leaves */}
-      <AnimatePresence>
-        {showSaveChatModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        {/* Silent Study Mode Floating Notice */}
+        <AnimatePresence>
+          {silentStudyNotice && (
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 0.6 }}
-              exit={{ opacity: 0 }}
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
-              onClick={() => setShowSaveChatModal(false)}
-              className="absolute inset-0 bg-[var(--bg-primary)] backdrop-blur-sm cursor-pointer"
-            />
-            <motion.div
-              initial={
-                shouldReduceMotion
-                  ? { opacity: 0 }
-                  : { opacity: 0, scale: 0.96, y: 10 }
-              }
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={
-                shouldReduceMotion
-                  ? { opacity: 0 }
-                  : { opacity: 0, scale: 0.96, y: 10 }
-              }
-              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-              className="relative w-full max-w-md bg-[var(--bg-elevated)] border border-[var(--border-hairline)] rounded-[var(--radius-card)] p-6 shadow-2xl space-y-5 z-10 font-sans"
+              className="absolute top-16 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--bg-elevated)]/95 border border-[var(--border-hairline)] shadow-xl text-xs font-mono text-[var(--text-primary)] backdrop-blur-md pointer-events-none"
             >
-              <div className="flex items-start gap-4">
-                <div className="p-2.5 rounded-[var(--radius-button)] bg-[var(--bg-inset)] border border-[var(--border-hairline)] text-[var(--text-primary)] shrink-0">
-                  <Download className="w-5 h-5 text-[var(--text-primary)]" />
-                </div>
-                <div>
-                  <h3 className="font-serif text-lg font-normal text-[var(--text-primary)]">
-                    Save Meeting Chat?
-                  </h3>
-                  <p className="font-sans text-xs text-[var(--text-secondary)] mt-1 leading-relaxed">
-                    You are the last participant leaving this meeting. Would you
-                    like to save and download the chat history before the
-                    session ends?
-                  </p>
-                </div>
-              </div>
-
-              {inCallMessages.length > 0 ? (
-                <div className="p-3 rounded-[var(--radius-button)] bg-[var(--bg-inset)] border border-[var(--border-hairline)] flex items-center justify-between text-xs font-mono">
-                  <span className="text-[var(--text-secondary)]">
-                    Messages recorded:
-                  </span>
-                  <span className="text-[var(--text-primary)] font-semibold">
-                    {inCallMessages.length} message
-                    {inCallMessages.length === 1 ? "" : "s"}
-                  </span>
-                </div>
-              ) : (
-                <div className="p-3 rounded-[var(--radius-button)] bg-[var(--bg-inset)] border border-[var(--border-hairline)] text-xs text-[var(--text-secondary)] font-mono">
-                  No in-call chat messages recorded in this session.
-                </div>
-              )}
-
-              <div className="flex flex-col sm:flex-row items-center gap-2 pt-2 border-t border-[var(--border-hairline)]">
-                <Button
-                  variant="primary"
-                  size="sm"
-                  className="w-full sm:flex-1 text-xs justify-center"
-                  icon={<Download className="w-3.5 h-3.5" />}
-                  onClick={handleSaveChatAndLeave}
-                >
-                  Download & End
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="w-full sm:flex-1 text-xs justify-center"
-                  onClick={handleLeaveWithoutSaving}
-                >
-                  Leave Without Saving
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-full sm:w-auto text-xs justify-center"
-                  onClick={() => setShowSaveChatModal(false)}
-                >
-                  Cancel
-                </Button>
-              </div>
+              <VolumeX className="w-3.5 h-3.5 text-amber-500" />
+              <span>{silentStudyNotice}</span>
             </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-    </div>
+          )}
+        </AnimatePresence>
+
+        {/* Save Chat Prompt Modal when Last Participant Leaves */}
+        <AnimatePresence>
+          {showSaveChatModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 0.6 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                onClick={() => setShowSaveChatModal(false)}
+                className="absolute inset-0 bg-[var(--bg-primary)] backdrop-blur-sm cursor-pointer"
+              />
+              <motion.div
+                initial={
+                  shouldReduceMotion
+                    ? { opacity: 0 }
+                    : { opacity: 0, scale: 0.96, y: 10 }
+                }
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={
+                  shouldReduceMotion
+                    ? { opacity: 0 }
+                    : { opacity: 0, scale: 0.96, y: 10 }
+                }
+                transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                className="relative w-full max-w-md bg-[var(--bg-elevated)] border border-[var(--border-hairline)] rounded-[var(--radius-card)] p-6 shadow-2xl space-y-5 z-10 font-sans"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="p-2.5 rounded-[var(--radius-button)] bg-[var(--bg-inset)] border border-[var(--border-hairline)] text-[var(--text-primary)] shrink-0">
+                    <Download className="w-5 h-5 text-[var(--text-primary)]" />
+                  </div>
+                  <div>
+                    <h3 className="font-serif text-lg font-normal text-[var(--text-primary)]">
+                      Save Meeting Chat?
+                    </h3>
+                    <p className="font-sans text-xs text-[var(--text-secondary)] mt-1 leading-relaxed">
+                      You are the last participant leaving this meeting. Would
+                      you like to save and download the chat history before the
+                      session ends?
+                    </p>
+                  </div>
+                </div>
+
+                {inCallMessages.length > 0 ? (
+                  <div className="p-3 rounded-[var(--radius-button)] bg-[var(--bg-inset)] border border-[var(--border-hairline)] flex items-center justify-between text-xs font-mono">
+                    <span className="text-[var(--text-secondary)]">
+                      Messages recorded:
+                    </span>
+                    <span className="text-[var(--text-primary)] font-semibold">
+                      {inCallMessages.length} message
+                      {inCallMessages.length === 1 ? "" : "s"}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="p-3 rounded-[var(--radius-button)] bg-[var(--bg-inset)] border border-[var(--border-hairline)] text-xs text-[var(--text-secondary)] font-mono">
+                    No in-call chat messages recorded in this session.
+                  </div>
+                )}
+
+                <div className="flex flex-col sm:flex-row items-center gap-2 pt-2 border-t border-[var(--border-hairline)]">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="w-full sm:flex-1 text-xs justify-center"
+                    icon={<Download className="w-3.5 h-3.5" />}
+                    onClick={handleSaveChatAndLeave}
+                  >
+                    Download & End
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="w-full sm:flex-1 text-xs justify-center"
+                    onClick={handleLeaveWithoutSaving}
+                  >
+                    Leave Without Saving
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full sm:w-auto text-xs justify-center"
+                    onClick={() => setShowSaveChatModal(false)}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+      </div>
+    </InCallChatProvider>
   );
 }

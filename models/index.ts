@@ -7,6 +7,7 @@ import { sessions } from "./Session";
 import { groupMessages } from "./GroupMessage";
 import { notifications } from "./Notification";
 import { scheduledSessions } from "./ScheduledSession";
+import { liveSessionMessages } from "./LiveSessionMessage";
 
 export * from "./User";
 export * from "./Group";
@@ -16,12 +17,14 @@ export * from "./Session";
 export * from "./GroupMessage";
 export * from "./Notification";
 export * from "./ScheduledSession";
+export * from "./LiveSessionMessage";
 
 export const usersRelations = relations(users, ({ many }) => ({
   memberships: many(memberships),
   createdGroups: many(groups),
   uploadedAssets: many(assets),
   sentMessages: many(groupMessages),
+  sentLiveMessages: many(liveSessionMessages),
   notifications: many(notifications),
   createdScheduledSessions: many(scheduledSessions),
 }));
@@ -62,7 +65,7 @@ export const assetsRelations = relations(assets, ({ one, many }) => ({
   sessions: many(sessions),
 }));
 
-export const sessionsRelations = relations(sessions, ({ one }) => ({
+export const sessionsRelations = relations(sessions, ({ one, many }) => ({
   group: one(groups, {
     fields: [sessions.groupId],
     references: [groups.id],
@@ -71,6 +74,7 @@ export const sessionsRelations = relations(sessions, ({ one }) => ({
     fields: [sessions.assetId],
     references: [assets.id],
   }),
+  liveMessages: many(liveSessionMessages),
 }));
 
 export const groupMessagesRelations = relations(groupMessages, ({ one }) => ({
@@ -104,6 +108,20 @@ export const scheduledSessionsRelations = relations(
     }),
     creator: one(users, {
       fields: [scheduledSessions.creatorId],
+      references: [users.id],
+    }),
+  })
+);
+
+export const liveSessionMessagesRelations = relations(
+  liveSessionMessages,
+  ({ one }) => ({
+    session: one(sessions, {
+      fields: [liveSessionMessages.sessionId],
+      references: [sessions.id],
+    }),
+    sender: one(users, {
+      fields: [liveSessionMessages.senderId],
       references: [users.id],
     }),
   })
