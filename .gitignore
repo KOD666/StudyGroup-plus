@@ -54,3 +54,10 @@ FRONTEND_PROGRESS.md
 Idea.md
 work.md
 GUIDE.md
+
+# Local-only folders & workflows (not tracked in Git)
+/agent/
+/.github/
+/scratch/
+/scripts/
+/tests/
