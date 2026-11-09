@@ -37,6 +37,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { RouteTransition } from "@/components/motion/RouteTransition";
 import { AskAiPanel } from "@/components/lounge/ask-ai";
+import { LoungeSubNav } from "@/components/lounge/LoungeSubNav";
 
 interface GroupDetails {
   id: string;
@@ -656,6 +657,9 @@ export default function LoungeWorkspacePage() {
             </div>
           </div>
         </div>
+
+        {/* Lounge Sub-Navigation */}
+        <LoungeSubNav groupId={groupId} memberCount={members.length} />
 
         {/* Main 2-Column Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">

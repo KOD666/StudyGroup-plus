@@ -8,6 +8,13 @@ import { groupMessages } from "./GroupMessage";
 import { notifications } from "./Notification";
 import { scheduledSessions } from "./ScheduledSession";
 import { liveSessionMessages } from "./LiveSessionMessage";
+import {
+  quizQuestionSets,
+  quizQuestions,
+  quizContests,
+  quizAttempts,
+  quizAnswers,
+} from "./Quiz";
 
 export * from "./User";
 export * from "./Group";
@@ -18,6 +25,7 @@ export * from "./GroupMessage";
 export * from "./Notification";
 export * from "./ScheduledSession";
 export * from "./LiveSessionMessage";
+export * from "./Quiz";
 
 export const usersRelations = relations(users, ({ many }) => ({
   memberships: many(memberships),
@@ -126,3 +134,71 @@ export const liveSessionMessagesRelations = relations(
     }),
   })
 );
+
+export const quizQuestionSetsRelations = relations(
+  quizQuestionSets,
+  ({ one, many }) => ({
+    group: one(groups, {
+      fields: [quizQuestionSets.groupId],
+      references: [groups.id],
+    }),
+    creator: one(users, {
+      fields: [quizQuestionSets.creatorId],
+      references: [users.id],
+    }),
+    questions: many(quizQuestions),
+    contests: many(quizContests),
+    attempts: many(quizAttempts),
+  })
+);
+
+export const quizQuestionsRelations = relations(quizQuestions, ({ one, many }) => ({
+  set: one(quizQuestionSets, {
+    fields: [quizQuestions.setId],
+    references: [quizQuestionSets.id],
+  }),
+  answers: many(quizAnswers),
+}));
+
+export const quizContestsRelations = relations(quizContests, ({ one, many }) => ({
+  group: one(groups, {
+    fields: [quizContests.groupId],
+    references: [groups.id],
+  }),
+  set: one(quizQuestionSets, {
+    fields: [quizContests.setId],
+    references: [quizQuestionSets.id],
+  }),
+  creator: one(users, {
+    fields: [quizContests.creatorId],
+    references: [users.id],
+  }),
+  attempts: many(quizAttempts),
+}));
+
+export const quizAttemptsRelations = relations(quizAttempts, ({ one, many }) => ({
+  user: one(users, {
+    fields: [quizAttempts.userId],
+    references: [users.id],
+  }),
+  contest: one(quizContests, {
+    fields: [quizAttempts.contestId],
+    references: [quizContests.id],
+  }),
+  set: one(quizQuestionSets, {
+    fields: [quizAttempts.setId],
+    references: [quizQuestionSets.id],
+  }),
+  answers: many(quizAnswers),
+}));
+
+export const quizAnswersRelations = relations(quizAnswers, ({ one }) => ({
+  attempt: one(quizAttempts, {
+    fields: [quizAnswers.attemptId],
+    references: [quizAttempts.id],
+  }),
+  question: one(quizQuestions, {
+    fields: [quizAnswers.questionId],
+    references: [quizQuestions.id],
+  }),
+}));

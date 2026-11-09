@@ -36,6 +36,13 @@
       "when": 1791019406700,
       "tag": "0004_cloudy_alice",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794233252470,
+      "tag": "0005_handy_major_mapleleaf",
+      "breakpoints": true
     }
   ]
 }

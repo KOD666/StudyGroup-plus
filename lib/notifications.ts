@@ -206,3 +206,51 @@ export async function notifySessionEnded(params: {
     console.error("Failed to deliver session_ended notification:", error);
   }
 }
+
+/**
+ * Notifies group members (except creator) when a quiz contest is scheduled.
+ */
+export async function notifyContestCreated(params: {
+  groupId: string;
+  contestId: string;
+  title: string;
+  creatorUserId: string;
+  startTime: Date;
+}) {
+  try {
+    const { groupId, contestId, title, creatorUserId, startTime } = params;
+
+    const groupRows = await db
+      .select({ id: groups.id, name: groups.name })
+      .from(groups)
+      .where(and(eq(groups.id, groupId), isNull(groups.deletedAt)));
+    const group = Array.isArray(groupRows) ? groupRows[0] : groupRows;
+    if (!group) return;
+
+    const members = await db
+      .select({ userId: memberships.userId })
+      .from(memberships)
+      .where(
+        and(
+          eq(memberships.groupId, groupId),
+          ne(memberships.userId, creatorUserId)
+        )
+      );
+
+    if (!Array.isArray(members) || members.length === 0) return;
+
+    const rows = members.map((m) => ({
+      recipientId: m.userId,
+      type: "session_scheduled",
+      groupId,
+      referenceId: contestId,
+      title: `Quiz Contest: ${title}`,
+      message: `A new contest "${title}" was scheduled in ${group.name} for ${startTime.toUTCString()}.`,
+      link: `/lounges/${groupId}/quizzes`,
+    }));
+
+    await db.insert(notifications).values(rows);
+  } catch (error) {
+    console.error("Failed to deliver contest notification:", error);
+  }
+}
